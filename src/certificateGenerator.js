@@ -12,7 +12,6 @@ const getOrdinal = (n) => {
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
-// ✅ SUPERSCRIPT HELPER
 const drawOrdinalInline = (ctx, x, y, number) => {
   const baseFont = ctx.font;
   const smallFont = baseFont.replace(/\d+px/, '9px');
@@ -80,20 +79,8 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const gap = 210;
   const liangaY = 135;
   const logoY = liangaY - baseHeight;
-  ctx.drawImage(
-    logoNemsu,
-    centerX - gap - nemsuWidth / 2,
-    logoY,
-    nemsuWidth,
-    baseHeight
-  );
-  ctx.drawImage(
-    logoCite,
-    centerX + gap - citeWidth / 2,
-    liangaY - citeHeight,
-    citeWidth,
-    citeHeight
-  );
+  ctx.drawImage(logoNemsu, centerX - gap - nemsuWidth / 2, logoY, nemsuWidth, baseHeight);
+  ctx.drawImage(logoCite, centerX + gap - citeWidth / 2, liangaY - citeHeight, citeWidth, citeHeight);
   // ── HEADER ─────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
@@ -124,18 +111,15 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const lineGap = 22;
   ctx.fillText(
     'for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications',
-    W / 2,
-    410
+    W / 2, 410
   );
   ctx.fillText(
     'held virtually via Google Meet on April 15, 17, 22, 24, 29 & May 1, 2026 from 8:00 AM to 12:00 PM, in recognition of commitment',
-    W / 2,
-    410 + lineGap
+    W / 2, 410 + lineGap
   );
   ctx.fillText(
     'to learning and professional development through active engagement in the training sessions.',
-    W / 2,
-    410 + lineGap * 2
+    W / 2, 410 + lineGap * 2
   );
   // ── GIVEN DATE ─────────────────────────
   ctx.font = '14px Arial';
@@ -159,13 +143,16 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, y + 22);
   // ── SIGNATURE ─────────────────────────
-  const sigW = 70;
-  const sigH = 45;
+  const sigW = 120;
+  const sigH = 70;
   const sigX = W / 2 - sigW / 2; // perfectly centered
-  const sigY = 610;               // just above the name text at 660
+  const sigY = 585;
 
+  // Use 'multiply' so white background of the PNG becomes transparent
+  // and black ink stays black/dark over the certificate
+  ctx.globalCompositeOperation = 'multiply';
   ctx.drawImage(logoSig, sigX, sigY, sigW, sigH);
-  ctx.filter = 'none';
+  ctx.globalCompositeOperation = 'source-over'; // reset
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 13px Arial';
   ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 660);
