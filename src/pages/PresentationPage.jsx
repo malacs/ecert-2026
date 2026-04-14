@@ -9,7 +9,7 @@ export default function PresentationPage() {
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
 
-  // 1. Load participants in alphabetical order
+  // 1. Load participants and sort A-Z
   useEffect(() => {
     const fetchParticipants = async () => {
       const { data } = await supabase.from('participants').select('*');
@@ -22,21 +22,18 @@ export default function PresentationPage() {
     fetchParticipants();
   }, []);
 
-  // 2. Navigation with Animation Trigger
+  // 2. Navigation with Fade Transition
   const changeSlide = useCallback((direction) => {
-    // Start Fade Out
-    setIsVisible(false);
+    setIsVisible(false); // Trigger fade out
 
-    // Wait for fade out animation (300ms) before changing the content
     setTimeout(() => {
       if (direction === 'next' && currentIndex < participants.length - 1) {
         setCurrentIndex(prev => prev + 1);
       } else if (direction === 'prev' && currentIndex > 0) {
         setCurrentIndex(prev => prev - 1);
       }
-      // Start Fade In
-      setIsVisible(true);
-    }, 300);
+      setIsVisible(true); // Trigger fade in
+    }, 300); // Matches the CSS transition time
   }, [currentIndex, participants]);
 
   // 3. Keyboard Listeners
@@ -71,15 +68,11 @@ export default function PresentationPage() {
         {currentCertUrl ? (
           <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
         ) : (
-          <div style={{color: '#fff'}}>Preparing slide...</div>
+          <div style={{color: '#fff'}}>Loading Certificate...</div>
         )}
       </div>
       
-      {/* Participant Name Overlay (Optional: makes it look like a real production) */}
-      <div style={{...S.nameTag, opacity: isVisible ? 1 : 0}}>
-         {participants[currentIndex]?.name}
-      </div>
-
+      {/* Ghost Counter: very subtle so only you notice the progress */}
       <div style={S.counter}>
         {currentIndex + 1} / {participants.length}
       </div>
@@ -89,50 +82,36 @@ export default function PresentationPage() {
 
 const S = {
   container: {
-    backgroundColor: '#000',
+    backgroundColor: '#000', // Black background for a cinematic feel
     height: '100vh',
     width: '100vw',
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    fontFamily: 'sans-serif'
   },
   slideWrapper: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    transition: 'opacity 0.4s ease-in-out, transform 0.4s ease-in-out', // The "Life" part
+    transition: 'opacity 0.4s ease-in-out, transform 0.4s ease-in-out',
     width: '100%',
     height: '100%'
   },
   certImg: {
-    maxHeight: '90vh',
-    maxWidth: '90vw',
-    boxShadow: '0 0 80px rgba(0,0,0,0.9)',
+    maxHeight: '95vh', // Slightly smaller to ensure no scrolling
+    maxWidth: '95vw',
+    boxShadow: '0 0 60px rgba(0,0,0,0.9)',
     objectFit: 'contain',
-    borderRadius: '4px'
-  },
-  nameTag: {
-    position: 'absolute',
-    bottom: '40px',
-    background: 'rgba(26, 16, 96, 0.8)',
-    color: '#fff',
-    padding: '8px 24px',
-    borderRadius: '50px',
-    fontSize: '18px',
-    fontWeight: '600',
-    letterSpacing: '1px',
-    transition: 'opacity 0.4s ease',
-    border: '1px solid #c9a84c'
+    borderRadius: '2px'
   },
   counter: {
     position: 'absolute',
-    top: '20px',
+    bottom: '15px',
     right: '20px',
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: '14px',
+    color: 'rgba(255,255,255,0.15)', // Very faint
+    fontSize: '12px',
+    fontFamily: 'sans-serif'
   },
   load: {
     height: '100vh',
@@ -140,6 +119,7 @@ const S = {
     color: '#fff',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    fontFamily: 'sans-serif'
   }
 };
