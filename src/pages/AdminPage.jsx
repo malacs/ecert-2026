@@ -5,7 +5,6 @@ import emailjs from '@emailjs/browser';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admin2026';
 
-// Updated to match the official schedule from the University Letter
 const TRAINING_DAYS = [
   { value: '1', label: 'Day 1 — April 15, 2026' },
   { value: '2', label: 'Day 2 — April 17, 2026' },
