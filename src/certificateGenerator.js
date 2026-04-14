@@ -60,7 +60,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     year = now.getFullYear();
   }
 
-  // ── HEADER TEXT (Shifted down slightly to match reference) ────────
+  // ── HEADER TEXT ───────────────────────────────────────────────────
   ctx.textAlign = 'center';
 
   ctx.fillStyle = 'rgba(255,255,255,0.88)';
@@ -72,24 +72,23 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const universityTitle = 'North Eastern Mindanao State University';
   ctx.fillText(universityTitle, W / 2, 80);
 
-  // ── LOGOS (CITE on Left, NEMSU on Right) ──────────────────────────
-  const logoSize = 70;
+  // ── LOGOS (NEMSU on Left, CITE on Right) ──────────────────────────
+  const logoSize = 75; // Using fixed size for W and H to ensure square shape
   const textWidth = ctx.measureText(universityTitle).width;
   const spacing = 45; 
   
   const leftLogoX = (W / 2) - (textWidth / 2) - logoSize - spacing;
   const rightLogoX = (W / 2) + (textWidth / 2) + spacing;
-  const logoY = 40; 
+  const logoY = 38; 
 
-  ctx.drawImage(logoCite, leftLogoX, logoY, logoSize, logoSize); 
-  ctx.drawImage(logoNemsu, rightLogoX, logoY, logoSize, logoSize);
+  // Forced square dimensions to fix "oval" issue
+  ctx.drawImage(logoNemsu, leftLogoX, logoY, logoSize, logoSize); 
+  ctx.drawImage(logoCite, rightLogoX, logoY, logoSize, logoSize);
 
   // ── REMAINING HEADER ──────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.83)';
   ctx.font = '13px Georgia, serif';
   ctx.fillText('Lianga Campus', W / 2, 98);
-
-  // Note: Top Gold Line Removed as requested
 
   ctx.fillStyle = 'rgba(255,255,255,0.86)';
   ctx.font = 'bold 12px Georgia, serif';
@@ -146,9 +145,9 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, 523);
 
-  // ── INSTRUCTOR & SIGNATURE SECTION ────────────────────────────────
-
-  // 1. Blurry white glow background for signature
+  // ── INSTRUCTOR SECTION (No Blue Line) ─────────────────────────────
+  
+  // Blurry white glow for signature area
   ctx.save();
   ctx.shadowColor = "rgba(255, 255, 255, 0.4)";
   ctx.shadowBlur = 20;
@@ -156,28 +155,20 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillRect(W / 2 - 100, 610, 200, 60); 
   ctx.restore();
 
-  // 2. Signature Image
-  ctx.globalAlpha = 0.8; // Increased slightly for visibility
+  // Signature Image
+  ctx.globalAlpha = 0.8;
   ctx.drawImage(logoSig, W / 2 - 50, 615, 100, 73);
   ctx.globalAlpha = 1.0;
 
-  // 3. Instructor Name (ABOVE the line)
+  // Instructor Name
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 14px Georgia, serif';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 680);
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 690);
 
-  // 4. The Blue line (Positioned UNDER the name)
-  ctx.strokeStyle = '#4256a1'; 
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(W / 2 - 140, 686);
-  ctx.lineTo(W / 2 + 140, 686);
-  ctx.stroke();
-
-  // 5. Coordinator Title (BELOW the line)
+  // Coordinator Title
   ctx.fillStyle = 'rgba(195,218,255,0.84)';
   ctx.font = 'italic 11px Georgia, serif';
-  ctx.fillText('BSCS Program Coordinator', W / 2, 702);
+  ctx.fillText('BSCS Program Coordinator', W / 2, 708);
 
   const imgData = canvas.toDataURL('image/png', 1.0);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
