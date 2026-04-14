@@ -143,16 +143,13 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, y + 22);
   // ── SIGNATURE ─────────────────────────
-  const sigW = 120;
-  const sigH = 70;
-  const sigX = W / 2 - sigW / 2; // perfectly centered
-  const sigY = 585;
-
-  // Use 'multiply' so white background of the PNG becomes transparent
-  // and black ink stays black/dark over the certificate
+  const sigW = 65;
+  const sigH = 38;
+  const sigX = W / 2 - sigW / 2;
+  const sigY = 618;
   ctx.globalCompositeOperation = 'multiply';
   ctx.drawImage(logoSig, sigX, sigY, sigW, sigH);
-  ctx.globalCompositeOperation = 'source-over'; // reset
+  ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 13px Arial';
   ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 660);
