@@ -121,7 +121,7 @@ export default function PublicPage() {
         {!result && !notFound && (
           <div style={styles.infoGrid}>
             {[
-              { icon: '📅', label: 'Training Dates', value: 'April 15, 17, 22, 24, 29 & May 1, 2026' },
+              { icon: '📅', label: 'Training Dates', value: 'April 15, 17, 22, 24, 29, 2026' },
               { icon: '💻', label: 'Platform', value: 'Google Meet' },
               { icon: '🕗', label: 'Schedule', value: 'Morning Sessions' },
             ].map(item => (
