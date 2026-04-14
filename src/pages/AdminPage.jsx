@@ -5,6 +5,20 @@ import emailjs from '@emailjs/browser';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admin2026';
 
+const TRAINING_DAYS = [
+  { value: '1', label: 'Day 1 — April 15, 2026' },
+  { value: '2', label: 'Day 2 — April 17, 2026' },
+  { value: '3', label: 'Day 3 — April 22, 2026' },
+  { value: '4', label: 'Day 4 — April 24, 2026' },
+  { value: '5', label: 'Day 5 — April 29, 2026' },
+  { value: '6', label: 'Day 6 — May 1, 2026' },
+];
+
+const DAY_LABEL = {
+  '1': 'April 15, 2026', '2': 'April 17, 2026', '3': 'April 22, 2026',
+  '4': 'April 24, 2026', '5': 'April 29, 2026', '6': 'May 1, 2026',
+};
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [pw, setPw] = useState('');
@@ -12,21 +26,16 @@ export default function AdminPage() {
   const [participants, setParticipants] = useState([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [certDate, setCertDate] = useState('');
+  const [trainingDay, setTrainingDay] = useState('');
   const [adding, setAdding] = useState(false);
   const [sending, setSending] = useState(null);
   const [msg, setMsg] = useState('');
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    if (authed) fetchParticipants();
-  }, [authed]);
+  useEffect(() => { if (authed) fetchParticipants(); }, [authed]);
 
   const fetchParticipants = async () => {
-    const { data } = await supabase
-      .from('participants')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data } = await supabase.from('participants').select('*').order('created_at', { ascending: false });
     if (data) setParticipants(data);
   };
 
@@ -38,36 +47,23 @@ export default function AdminPage() {
   const handleAdd = async () => {
     if (!name.trim() || !email.trim()) return setMsg('Please fill in both name and email.');
     setAdding(true);
-    const insertData = {
-      name: name.trim(),
-      email: email.trim(),
-    };
-    if (certDate) insertData.cert_date = certDate;
-
-    const { error } = await supabase.from('participants').insert([insertData]);
+    const { error } = await supabase.from('participants').insert([{
+      name: name.trim(), email: email.trim(), cert_date: trainingDay || null,
+    }]);
     if (error) setMsg('❌ Error: ' + error.message);
-    else {
-      setMsg('✅ Participant added!');
-      setName('');
-      setEmail('');
-      setCertDate('');
-      fetchParticipants();
-    }
+    else { setMsg('✅ Participant added!'); setName(''); setEmail(''); setTrainingDay(''); fetchParticipants(); }
     setAdding(false);
   };
 
   const handleSendEmail = async (participant) => {
-    setSending(participant.id);
-    setMsg('');
+    setSending(participant.id); setMsg('');
     try {
       await getCertificateDataUrl(participant.name, participant.cert_date || null);
       await emailjs.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
         process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
         {
-          to_name: participant.name,
-          to_email: participant.email,
-          email: participant.email,
+          to_name: participant.name, to_email: participant.email, email: participant.email,
           message: `Congratulations! Please find your e-certificate for DATA INSIGHTS 2026.`,
           certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(participant.name)}`,
         },
@@ -94,130 +90,93 @@ export default function AdminPage() {
   );
 
   if (!authed) return (
-    <div style={styles.loginWrap}>
-      <div style={styles.loginCard}>
-        <div style={styles.logoCircle}>🎓</div>
-        <h2 style={styles.loginTitle}>Admin Login</h2>
-        <p style={styles.loginSub}>DATA INSIGHTS 2026</p>
-        <input
-          style={styles.input}
-          type="password"
-          placeholder="Enter admin password"
-          value={pw}
-          onChange={e => setPw(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleLogin()}
-        />
-        {pwError && <p style={styles.error}>{pwError}</p>}
-        <button style={styles.btnPrimary} onClick={handleLogin}>Login</button>
+    <div style={S.loginWrap}>
+      <div style={S.loginCard}>
+        <div style={S.logoCircle}>🎓</div>
+        <h2 style={S.loginTitle}>Admin Login</h2>
+        <p style={S.loginSub}>DATA INSIGHTS 2026</p>
+        <input style={S.input} type="password" placeholder="Enter admin password"
+          value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+        {pwError && <p style={S.error}>{pwError}</p>}
+        <button style={S.btnPrimary} onClick={handleLogin}>Login</button>
       </div>
     </div>
   );
 
   return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <div style={styles.headerInner}>
+    <div style={S.page}>
+      <header style={S.header}>
+        <div style={S.headerInner}>
           <div>
-            <h1 style={styles.headerTitle}>🎓 Admin Panel</h1>
-            <p style={styles.headerSub}>DATA INSIGHTS 2026 — E-Certificate Manager</p>
+            <h1 style={S.headerTitle}>🎓 Admin Panel</h1>
+            <p style={S.headerSub}>DATA INSIGHTS 2026 — E-Certificate Manager</p>
           </div>
-          <a href="/" style={styles.viewPublicBtn}>View Public Page ↗</a>
+          <a href="/" style={S.viewPublicBtn}>View Public Page ↗</a>
         </div>
       </header>
-
-      <main style={styles.main}>
-        {/* Add participant form */}
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>Add Participant</h2>
-          <div style={styles.formRow}>
-            <input
-              style={styles.input}
-              placeholder="Full name (as it appears on certificate)"
-              value={name}
-              onChange={e => setName(e.target.value)}
-            />
-            <input
-              style={styles.input}
-              placeholder="Gmail address"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              type="email"
-            />
-            <div style={styles.dateWrap}>
-              <label style={styles.dateLabel}>Certificate Date (optional)</label>
-              <input
-                style={{ ...styles.input, minWidth: 160 }}
-                type="date"
-                value={certDate}
-                onChange={e => setCertDate(e.target.value)}
-              />
+      <main style={S.main}>
+        <div style={S.card}>
+          <h2 style={S.cardTitle}>Add Participant</h2>
+          <div style={S.formRow}>
+            <input style={S.input} placeholder="Full name (as it appears on certificate)"
+              value={name} onChange={e => setName(e.target.value)} />
+            <input style={S.input} placeholder="Gmail address" type="email"
+              value={email} onChange={e => setEmail(e.target.value)} />
+            <div style={S.selectWrap}>
+              <label style={S.selectLabel}>Training Day</label>
+              <select style={S.select} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
+                <option value="">— Select Day —</option>
+                {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </select>
             </div>
-            <button style={styles.btnPrimary} onClick={handleAdd} disabled={adding}>
+            <button style={S.btnPrimary} onClick={handleAdd} disabled={adding}>
               {adding ? 'Adding...' : '+ Add'}
             </button>
           </div>
-          {msg && <p style={msg.startsWith('✅') ? styles.success : styles.error}>{msg}</p>}
+          {msg && <p style={msg.startsWith('✅') ? S.success : S.error}>{msg}</p>}
         </div>
 
-        {/* Participants list */}
-        <div style={styles.card}>
-          <div style={styles.listHeader}>
-            <h2 style={styles.cardTitle}>Participants ({participants.length})</h2>
-            <input
-              style={{ ...styles.input, maxWidth: 260, marginBottom: 0 }}
-              placeholder="Search name or email..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+        <div style={S.card}>
+          <div style={S.listHeader}>
+            <h2 style={S.cardTitle}>Participants ({participants.length})</h2>
+            <input style={{ ...S.input, maxWidth: 260, marginBottom: 0 }}
+              placeholder="Search name or email..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-
           {filtered.length === 0 ? (
-            <p style={styles.empty}>No participants yet. Add one above!</p>
+            <p style={S.empty}>No participants yet. Add one above!</p>
           ) : (
-            <div style={styles.tableWrap}>
-              <table style={styles.table}>
+            <div style={S.tableWrap}>
+              <table style={S.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>#</th>
-                    <th style={styles.th}>Name</th>
-                    <th style={styles.th}>Email</th>
-                    <th style={styles.th}>Cert Date</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Actions</th>
+                    {['#','Name','Email','Training Day','Status','Actions'].map(h => (
+                      <th key={h} style={S.th}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((p, i) => (
-                    <tr key={p.id} style={i % 2 === 0 ? styles.trEven : styles.trOdd}>
-                      <td style={styles.td}>{i + 1}</td>
-                      <td style={{ ...styles.td, fontWeight: 500 }}>{p.name}</td>
-                      <td style={{ ...styles.td, color: '#555' }}>{p.email}</td>
-                      <td style={{ ...styles.td, color: '#555', fontSize: 12 }}>
-                        {p.cert_date
-                          ? new Date(p.cert_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
-                          : <span style={{ color: '#9ca3af' }}>Today</span>}
+                    <tr key={p.id} style={i % 2 === 0 ? S.trEven : S.trOdd}>
+                      <td style={S.td}>{i + 1}</td>
+                      <td style={{ ...S.td, fontWeight: 500 }}>{p.name}</td>
+                      <td style={{ ...S.td, color: '#555' }}>{p.email}</td>
+                      <td style={{ ...S.td, fontSize: 12, color: '#555' }}>
+                        {p.cert_date ? DAY_LABEL[p.cert_date] || `Day ${p.cert_date}` : <span style={{ color: '#9ca3af' }}>Not set</span>}
                       </td>
-                      <td style={styles.td}>
-                        <span style={p.email_sent ? styles.badgeSent : styles.badgePending}>
+                      <td style={S.td}>
+                        <span style={p.email_sent ? S.badgeSent : S.badgePending}>
                           {p.email_sent ? '✅ Sent' : '⏳ Pending'}
                         </span>
                       </td>
-                      <td style={styles.td}>
-                        <div style={styles.actionRow}>
-                          <button
-                            style={styles.btnSend}
-                            onClick={() => handleSendEmail(p)}
-                            disabled={sending === p.id}
-                          >
+                      <td style={S.td}>
+                        <div style={S.actionRow}>
+                          <button style={S.btnSend} onClick={() => handleSendEmail(p)} disabled={sending === p.id}>
                             {sending === p.id ? 'Sending...' : '📧 Send Email'}
                           </button>
-                          <button
-                            style={styles.btnDownload}
-                            onClick={() => downloadCertificate(p.name, p.cert_date || null)}
-                          >
+                          <button style={S.btnDownload} onClick={() => downloadCertificate(p.name, p.cert_date || null)}>
                             ⬇ Download
                           </button>
-                          <button style={styles.btnDelete} onClick={() => handleDelete(p.id)}>🗑</button>
+                          <button style={S.btnDelete} onClick={() => handleDelete(p.id)}>🗑</button>
                         </div>
                       </td>
                     </tr>
@@ -232,7 +191,7 @@ export default function AdminPage() {
   );
 }
 
-const styles = {
+const S = {
   page: { minHeight: '100vh', background: '#f5f6fa', fontFamily: 'Inter, sans-serif' },
   header: { background: 'linear-gradient(135deg, #1a1060 0%, #2d1b8e 100%)', padding: '0 24px' },
   headerInner: { maxWidth: 1100, margin: '0 auto', padding: '20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -244,8 +203,9 @@ const styles = {
   cardTitle: { fontSize: 17, fontWeight: 600, color: '#1a1060', margin: '0 0 16px' },
   formRow: { display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' },
   input: { flex: 1, minWidth: 200, padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, outline: 'none', marginBottom: 0 },
-  dateWrap: { display: 'flex', flexDirection: 'column', gap: 4 },
-  dateLabel: { fontSize: 12, color: '#6b7280', fontWeight: 500 },
+  selectWrap: { display: 'flex', flexDirection: 'column', gap: 4 },
+  selectLabel: { fontSize: 12, color: '#6b7280', fontWeight: 500 },
+  select: { padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, outline: 'none', background: '#fff', minWidth: 200, cursor: 'pointer' },
   btnPrimary: { background: '#1a1060', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
   success: { color: '#16a34a', fontSize: 14, margin: '10px 0 0', background: '#f0fdf4', padding: '8px 12px', borderRadius: 6 },
   error: { color: '#dc2626', fontSize: 14, margin: '10px 0 0', background: '#fef2f2', padding: '8px 12px', borderRadius: 6 },
