@@ -2,17 +2,37 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { getCertificateDataUrl } from '../certificateGenerator';
 
+// Dynamic helper to get the current training day label based on actual date
+const getCurrentDayLabel = () => {
+  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  
+  const days = {
+    'April 15, 2026': 'Day 1',
+    'April 17, 2026': 'Day 2',
+    'April 22, 2026': 'Day 3',
+    'April 24, 2026': 'Day 4',
+    'April 29, 2026': 'Day 5',
+  };
+
+  return days[today] || "the Training Series"; 
+};
+
 export default function PresentationPage() {
   const [participants, setParticipants] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0); // 0 will be Intro
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [currentCertUrl, setCurrentCertUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
+
+  const fullThemeTitle = "DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications";
+  const trainingDayLabel = getCurrentDayLabel();
 
   useEffect(() => {
     const fetchParticipants = async () => {
       const { data } = await supabase.from('participants').select('*');
       if (data) {
+        // Only show participants assigned to "today's" day for the presentation
+        // Or remove the filter if you want to show everyone regardless of the date
         const sorted = data.sort((a, b) => a.name.localeCompare(b.name));
         setParticipants(sorted);
       }
@@ -21,7 +41,6 @@ export default function PresentationPage() {
     fetchParticipants();
   }, []);
 
-  // Total slides = Participants + Intro (1) + Ending (1)
   const totalSlides = participants.length + 2;
 
   const changeSlide = useCallback((direction) => {
@@ -46,7 +65,6 @@ export default function PresentationPage() {
   }, [changeSlide]);
 
   useEffect(() => {
-    // Only fetch certificate if we are NOT on Intro (0) or Ending (last)
     const participantIndex = currentIndex - 1;
     if (participants[participantIndex]) {
       getCertificateDataUrl(participants[participantIndex].name, participants[participantIndex].cert_date)
@@ -56,22 +74,20 @@ export default function PresentationPage() {
 
   if (loading) return <div style={S.load}>Loading...</div>;
 
-  // Logic to determine what to show
   const isIntro = currentIndex === 0;
   const isEnding = currentIndex === totalSlides - 1;
-  const currentParticipant = participants[currentIndex - 1];
 
   return (
     <div style={S.container}>
       <div style={{ ...S.slideWrapper, opacity: isVisible ? 1 : 0, transform: isVisible ? 'scale(1)' : 'scale(0.95)' }}>
         
-        {/* INTRO SLIDE */}
+        {/* INTRO SLIDE - Updated with Full Theme Title */}
         {isIntro && (
           <div style={S.textSlide}>
-            <h2 style={S.subTitle}>DATA INSIGHTS 2026</h2>
+            <h2 style={S.subTitle}>{fullThemeTitle}</h2>
             <h1 style={S.mainTitle}>Recognition Rites</h1>
             <div style={S.divider}></div>
-            <p style={S.desc}>Virtual Awarding of E-Certificates</p>
+            <p style={S.desc}>Presentation of Certificates for {trainingDayLabel}</p>
           </div>
         )}
 
@@ -80,20 +96,21 @@ export default function PresentationPage() {
           <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
         )}
 
-        {/* ENDING SLIDE */}
+        {/* ENDING SLIDE - Updated to show specific Day */}
         {isEnding && (
           <div style={S.textSlide}>
             <h1 style={S.mainTitle}>Congratulations!</h1>
-            <p style={S.desc}>To all the participants of Day 1 - 5</p>
+            <p style={S.desc}>To all the participants of {trainingDayLabel}</p>
             <div style={S.divider}></div>
-            <h2 style={S.subTitle}>Thank you for joining us!</h2>
+            <h2 style={S.subTitle}>Thank you for participating!</h2>
+            <p style={{...S.desc, fontSize: '14px', marginTop: '40px'}}>{fullThemeTitle}</p>
           </div>
         )}
 
       </div>
       
       <div style={S.counter}>
-        {isIntro ? 'START' : isEnding ? 'END' : `${currentIndex} / ${participants.length}`}
+        {isIntro ? 'INTRO' : isEnding ? 'FINISH' : `${currentIndex} / ${participants.length}`}
       </div>
     </div>
   );
@@ -102,12 +119,12 @@ export default function PresentationPage() {
 const S = {
   container: { backgroundColor: '#000', height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontFamily: 'serif' },
   slideWrapper: { display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.5s ease-in-out', width: '100%', height: '100%' },
-  certImg: { maxHeight: '92vh', maxWidth: '92vw', boxShadow: '0 0 100px rgba(201, 168, 76, 0.2)', objectFit: 'contain' },
-  textSlide: { textAlign: 'center', color: '#fff', padding: '40px' },
-  mainTitle: { fontSize: '64px', margin: '10px 0', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '4px' },
-  subTitle: { fontSize: '24px', color: '#fff', fontWeight: '300', letterSpacing: '2px' },
-  desc: { fontSize: '20px', color: '#aaa', marginTop: '20px', fontStyle: 'italic' },
-  divider: { width: '100px', height: '2px', background: '#c9a84c', margin: '30px auto' },
-  counter: { position: 'absolute', bottom: '20px', right: '30px', color: 'rgba(255,255,255,0.2)', fontSize: '14px', fontFamily: 'sans-serif' },
+  certImg: { maxHeight: '92vh', maxWidth: '92vw', boxShadow: '0 0 100px rgba(201, 168, 76, 0.15)', objectFit: 'contain' },
+  textSlide: { textAlign: 'center', color: '#fff', padding: '0 10%' },
+  mainTitle: { fontSize: '72px', margin: '20px 0', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '4px', fontWeight: 'bold' },
+  subTitle: { fontSize: '18px', color: '#fff', fontWeight: '300', letterSpacing: '2px', lineHeight: '1.6', maxWidth: '800px', margin: '0 auto' },
+  desc: { fontSize: '24px', color: '#ccc', marginTop: '20px', fontStyle: 'italic' },
+  divider: { width: '120px', height: '3px', background: '#c9a84c', margin: '40px auto' },
+  counter: { position: 'absolute', bottom: '20px', right: '30px', color: 'rgba(255,255,255,0.1)', fontSize: '12px', fontFamily: 'sans-serif' },
   load: { height: '100vh', background: '#000', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center' }
 };
