@@ -7,6 +7,7 @@ export default function PresentationPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentCertUrl, setCurrentCertUrl] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isVisible, setIsVisible] = useState(true);
 
   // 1. Load participants in alphabetical order
   useEffect(() => {
@@ -21,26 +22,34 @@ export default function PresentationPage() {
     fetchParticipants();
   }, []);
 
-  // 2. Navigation Logic
-  const nextSlide = useCallback(() => {
-    if (currentIndex < participants.length - 1) setCurrentIndex(prev => prev + 1);
+  // 2. Navigation with Animation Trigger
+  const changeSlide = useCallback((direction) => {
+    // Start Fade Out
+    setIsVisible(false);
+
+    // Wait for fade out animation (300ms) before changing the content
+    setTimeout(() => {
+      if (direction === 'next' && currentIndex < participants.length - 1) {
+        setCurrentIndex(prev => prev + 1);
+      } else if (direction === 'prev' && currentIndex > 0) {
+        setCurrentIndex(prev => prev - 1);
+      }
+      // Start Fade In
+      setIsVisible(true);
+    }, 300);
   }, [currentIndex, participants]);
 
-  const prevSlide = useCallback(() => {
-    if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
-  }, [currentIndex]);
-
-  // 3. Keyboard Listeners (Space or Arrows)
+  // 3. Keyboard Listeners
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
-      if (e.key === 'ArrowLeft') prevSlide();
+      if (e.key === 'ArrowRight' || e.key === ' ') changeSlide('next');
+      if (e.key === 'ArrowLeft') changeSlide('prev');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nextSlide, prevSlide]);
+  }, [changeSlide]);
 
-  // 4. Generate Certificate Image for current slide
+  // 4. Generate Certificate Image
   useEffect(() => {
     if (participants[currentIndex]) {
       getCertificateDataUrl(participants[currentIndex].name, participants[currentIndex].cert_date)
@@ -52,13 +61,25 @@ export default function PresentationPage() {
 
   return (
     <div style={S.container}>
-      {currentCertUrl ? (
-        <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
-      ) : (
-        <div style={{color: '#fff'}}>No participants found.</div>
-      )}
+      <div 
+        style={{
+          ...S.slideWrapper,
+          opacity: isVisible ? 1 : 0,
+          transform: isVisible ? 'scale(1)' : 'scale(0.98)',
+        }}
+      >
+        {currentCertUrl ? (
+          <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
+        ) : (
+          <div style={{color: '#fff'}}>Preparing slide...</div>
+        )}
+      </div>
       
-      {/* Small indicator for the Admin (visible in Meet) */}
+      {/* Participant Name Overlay (Optional: makes it look like a real production) */}
+      <div style={{...S.nameTag, opacity: isVisible ? 1 : 0}}>
+         {participants[currentIndex]?.name}
+      </div>
+
       <div style={S.counter}>
         {currentIndex + 1} / {participants.length}
       </div>
@@ -72,23 +93,46 @@ const S = {
     height: '100vh',
     width: '100vw',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    fontFamily: 'sans-serif'
+  },
+  slideWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'opacity 0.4s ease-in-out, transform 0.4s ease-in-out', // The "Life" part
+    width: '100%',
+    height: '100%'
   },
   certImg: {
-    maxHeight: '98vh',
-    maxWidth: '98vw',
-    boxShadow: '0 0 50px rgba(0,0,0,0.8)',
-    objectFit: 'contain'
+    maxHeight: '90vh',
+    maxWidth: '90vw',
+    boxShadow: '0 0 80px rgba(0,0,0,0.9)',
+    objectFit: 'contain',
+    borderRadius: '4px'
+  },
+  nameTag: {
+    position: 'absolute',
+    bottom: '40px',
+    background: 'rgba(26, 16, 96, 0.8)',
+    color: '#fff',
+    padding: '8px 24px',
+    borderRadius: '50px',
+    fontSize: '18px',
+    fontWeight: '600',
+    letterSpacing: '1px',
+    transition: 'opacity 0.4s ease',
+    border: '1px solid #c9a84c'
   },
   counter: {
     position: 'absolute',
-    bottom: '10px',
+    top: '20px',
     right: '20px',
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: '12px',
-    fontFamily: 'sans-serif'
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: '14px',
   },
   load: {
     height: '100vh',
