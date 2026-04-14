@@ -94,7 +94,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const citeWidth = (logoCite.width / logoCite.height) * citeHeight;
 
   const centerX = W / 2;
-  const gap = 180;
+  const gap = 210;
 
   const liangaY = 135; // ← reference line
   const logoY = liangaY - baseHeight; // align bottom to text
