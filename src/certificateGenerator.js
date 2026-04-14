@@ -28,6 +28,7 @@ const drawOrdinalInline = (ctx, x, y, number) => {
   return width + ctx.measureText(suffix).width;
 };
 
+// Official Schedule from University Letter
 const DAY_DATES = {
   1: { day: 15, month: 'April', year: 2026 },
   2: { day: 17, month: 'April', year: 2026 },
@@ -53,37 +54,32 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   // ── BACKGROUND & OPACITY ─────────────────────────
   ctx.drawImage(bg, 0, 0, W, H);
-  ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; // Correct 0.25 opacity
+  
+  // Instructor Feedback: Lessened opacity to 0.25
+  ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; 
   ctx.fillRect(0, 0, W, H);
 
-  // ── DATE LOGIC ─────────────────────────
-  let sessionDay, sessionMonth, sessionYear;
-  const selectedDay = Number(trainingDay);
-  if (selectedDay && DAY_DATES[selectedDay]) {
-    const d = DAY_DATES[selectedDay];
-    sessionDay = d.day;
-    sessionMonth = d.month;
-    sessionYear = d.year;
+  // ── LOGIC: DATE CALCULATIONS ───────────────────
+  // 1. Session Date (From Admin Panel selection)
+  let sDay, sMonth, sYear;
+  const selected = Number(trainingDay);
+  if (selected && DAY_DATES[selected]) {
+    sDay = DAY_DATES[selected].day;
+    sMonth = DAY_DATES[selected].month;
+    sYear = DAY_DATES[selected].year;
   } else {
-    sessionDay = 15;
-    sessionMonth = 'April';
-    sessionYear = 2026;
+    sDay = 15; sMonth = 'April'; sYear = 2026;
   }
 
-  // Truly Automatic Given Date (Current system date)
+  // 2. Given Date (Automatic Today's Date)
   const now = new Date();
-  const givenDayNum = now.getDate();
-  const givenMonthName = now.toLocaleString('default', { month: 'long' });
-  const givenYearNum = now.getFullYear();
+  const gDayNum = now.getDate();
+  const gMonth = now.toLocaleString('default', { month: 'long' });
+  const gYear = now.getFullYear();
 
   ctx.textAlign = 'center';
 
-  // ── HEADER ─────────────────────────
-  const baseHeight = 65;
-  const nemsuWidth = (logoNemsu.width / logoNemsu.height) * baseHeight;
-  const centerX = W / 2;
-  ctx.drawImage(logoNemsu, centerX - 210 - nemsuWidth / 2, 135 - baseHeight, nemsuWidth, baseHeight);
-  
+  // ── HEADER SECTION ─────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 85);
@@ -101,50 +97,53 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  // Participant Name
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#ffffff'; // White name text
   ctx.font = '52px "Lucida Calligraphy", cursive';
   ctx.fillText(participantName.toUpperCase(), W / 2, 365);
 
-  // ── RESTORED BODY TEXT ─────────────────────────
+  // ── FULL BODY TEXT (Single Date) ─────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
-
-  // Line 1: Series Title
+  
+  // Title
   ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, 410);
   
-  // Line 2: Venue and Date (Shows only 1 session date as requested)
-  ctx.fillText(`held virtually via Google Meet on ${sessionMonth} ${sessionDay}, ${sessionYear} from 8:00 AM to 12:00 PM, in recognition of commitment`, W / 2, 410 + lineGap);
+  // Session date
+  ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from 8:00 AM to 12:00 PM, in recognition of commitment`, W / 2, 410 + lineGap);
   
-  // Line 3: Recognition
-  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + lineGap * 2);
+  // Closing phrase
+  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + (lineGap * 2));
 
-  // ── AUTOMATIC GIVEN DATE SECTION ─────────────────────────
-  ctx.font = '14px Arial';
+  // ── GIVEN DATE (Auto-Date) ─────────────────────────
+  ctx.textAlign = 'center'; 
+  const y = 500;
+  ctx.fillStyle = '#d6e6ff';
+  ctx.fillText('Given this ', W / 2, y);
+
+  // Special Ordinal Drawing logic (keeps '14th' correctly positioned while centered)
+  const part1 = 'Given this ';
+  const part2 = ` of ${gMonth}, ${gYear} at North Eastern Mindanao State University – Lianga Campus,`;
+  const totalWidth = ctx.measureText(part1).width + 30 + ctx.measureText(part2).width;
+  let startX = (W / 2) - (totalWidth / 2);
+
   ctx.textAlign = 'left';
-  const yPos = 410 + lineGap * 4;
-  let xPos = W / 2 - 380; // Adjusted X to fit the longer campus name
-  
-  ctx.fillStyle = '#d6e6ff';
-  ctx.fillText('Given this ', xPos, yPos);
-  xPos += ctx.measureText('Given this ').width;
-  
+  ctx.fillText(part1, startX, y);
+  startX += ctx.measureText(part1).width;
   ctx.fillStyle = '#ffffff';
-  xPos += drawOrdinalInline(ctx, xPos, yPos, givenDayNum); 
-  
+  startX += drawOrdinalInline(ctx, startX, y, gDayNum); 
   ctx.fillStyle = '#d6e6ff';
-  const givenSuffix = ` of ${givenMonthName}, ${givenYearNum} at `;
-  ctx.fillText(givenSuffix, xPos, yPos);
-  xPos += ctx.measureText(givenSuffix).width;
-  
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('North Eastern Mindanao State University – Lianga Campus, Lianga, Surigao del Sur', xPos, yPos);
+  ctx.fillText(part2, startX, y);
+
+  ctx.textAlign = 'center';
+  ctx.fillText('Lianga, Surigao del Sur', W / 2, y + lineGap);
 
   // ── SIGNATURE ─────────────────────────
-  ctx.globalCompositeOperation = 'multiply';
+  // Final Modification: Making the signature lighter
+  ctx.globalAlpha = 0.5; // Set to 50% opacity for a softer look (Default is 1.0)
   ctx.drawImage(logoSig, W / 2 - 32, 618, 65, 38);
-  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1.0; // Reset back to full opacity for subsequent drawing
+
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 13px Arial';
@@ -156,14 +155,4 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
   pdf.addImage(imgData, 'PNG', 0, 0, W, H);
   return { pdf, imgData };
-};
-
-export const downloadCertificate = async (name, day) => {
-  const { pdf } = await generateCertificate(name, day);
-  pdf.save(`Certificate_${name.replace(/\s+/g, '_')}.pdf`);
-};
-
-export const getCertificateDataUrl = async (name, day) => {
-  const { imgData } = await generateCertificate(name, day);
-  return imgData;
 };
