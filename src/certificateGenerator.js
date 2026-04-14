@@ -15,7 +15,7 @@ const getOrdinal = (n) => {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
 
-// ✅ SUPERSCRIPT FIX
+// ✅ SUPERSCRIPT HELPER
 const drawOrdinalInline = (ctx, x, y, number) => {
   const baseFont = ctx.font;
   const smallFont = baseFont.replace(/\d+px/, '9px');
@@ -57,10 +57,16 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     loadImage('/logo-signature.png'),
   ]);
 
-  // ── BACKGROUND (UNCHANGED) ─────────────────────────
+  // ── BACKGROUND ─────────────────────────
   ctx.drawImage(bg, 0, 0, W, H);
 
-  ctx.fillStyle = 'rgba(10, 20, 60, 0.65)';
+  ctx.fillStyle = 'rgba(10, 20, 60, 0.45)';
+  ctx.fillRect(0, 0, W, H);
+
+  const gradient = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 500);
+  gradient.addColorStop(0, 'rgba(255,255,255,0.15)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W, H);
 
   // ── DATE ─────────────────────────
@@ -79,90 +85,99 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   ctx.textAlign = 'center';
 
-  // ── HEADER TEXT (UNCHANGED) ─────────────────────────
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '500 14px Georgia, serif';
-  ctx.fillText('Republic of the Philippines', W / 2, 85);
+  // ── LOGOS (FIXED ALIGNMENT) ─────────────────────────
+  const baseHeight = 65;
+  const rightScale = 1.15;
 
-  ctx.font = 'bold 16px Georgia, serif';
-  ctx.fillText('North Eastern Mindanao State University', W / 2, 110);
-
-  ctx.font = '13px Georgia, serif';
-  ctx.fillText('Lianga Campus', W / 2, 140);
-
-  // ── LOGOS (FIXED ALIGNMENT WITH LIANGA CAMPUS) ─────
-  const logoHeight = 70;
-
-  const nemsuWidth = (logoNemsu.width / logoNemsu.height) * logoHeight;
-  const citeWidth = (logoCite.width / logoCite.height) * logoHeight;
-
-  // Align bottom of logos with "Lianga Campus" (y = 140)
-  const logoY = 140 - logoHeight;
+  const nemsuWidth = (logoNemsu.width / logoNemsu.height) * baseHeight;
+  const citeHeight = baseHeight * rightScale;
+  const citeWidth = (logoCite.width / logoCite.height) * citeHeight;
 
   const centerX = W / 2;
   const gap = 180;
+
+  const liangaY = 135; // ← reference line
+  const logoY = liangaY - baseHeight; // align bottom to text
 
   ctx.drawImage(
     logoNemsu,
     centerX - gap - nemsuWidth / 2,
     logoY,
     nemsuWidth,
-    logoHeight
+    baseHeight
   );
 
   ctx.drawImage(
     logoCite,
     centerX + gap - citeWidth / 2,
-    logoY,
+    liangaY - citeHeight, // align bottom
     citeWidth,
-    logoHeight
+    citeHeight
   );
 
-  // Remaining header
-  ctx.font = 'bold 12px Georgia, serif';
-  ctx.fillText('College of Information Technology Education', W / 2, 170);
-  ctx.fillText('Department of Computer Studies', W / 2, 190);
+  // ── HEADER ─────────────────────────
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '13px Arial';
+  ctx.fillText('Republic of the Philippines', W / 2, 85);
 
-  // ── TITLE (UNCHANGED) ─────────────────────────
-  ctx.font = 'bold 46px Georgia, serif';
-  ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 260);
+  ctx.font = 'bold 16px Arial';
+  ctx.fillText('North Eastern Mindanao State University', W / 2, 110);
 
-  ctx.font = 'italic 16px Georgia, serif';
-  ctx.fillText('This certificate is hereby presented to', W / 2, 300);
+  ctx.font = '13px Arial';
+  ctx.fillText('Lianga Campus', W / 2, 135);
 
-  // ── NAME (UNCHANGED) ─────────────────────────
-  ctx.font = 'bold 64px Georgia, serif';
-  ctx.fillText(participantName.toUpperCase(), W / 2, 390);
+  ctx.font = 'bold 13px Arial';
+  ctx.fillText('College of Information Technology Education', W / 2, 165);
+  ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // ── BODY (UNCHANGED) ─────────────────────────
-  ctx.font = '13.5px Georgia, serif';
+  // ── TITLE ─────────────────────────
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 46px Calibri, Arial';
+  ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 250);
+
+  // ── SUBTEXT ─────────────────────────
+  ctx.fillStyle = '#d6e6ff';
+  ctx.font = '14px Arial';
+  ctx.fillText('This certificate is hereby presented to', W / 2, 295);
+
+  // ── NAME ─────────────────────────
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '52px "Lucida Calligraphy", cursive';
+  ctx.fillText(participantName.toUpperCase(), W / 2, 365);
+
+  // ── BODY ─────────────────────────
+  ctx.fillStyle = '#d6e6ff';
+  ctx.font = '14px Arial';
+
+  const lineGap = 22;
+
   ctx.fillText(
-    'for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques,',
+    'for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications',
     W / 2,
-    440
+    410
   );
-  ctx.fillText('and Applications', W / 2, 460);
 
   ctx.fillText(
     'held virtually via Google Meet on April 15, 17, 22, 24, 29 & May 1, 2026 from 8:00 AM to 12:00 PM, in recognition of commitment',
     W / 2,
-    485
+    410 + lineGap
   );
 
   ctx.fillText(
     'to learning and professional development through active engagement in the training sessions.',
     W / 2,
-    505
+    410 + lineGap * 2
   );
 
-  // ── GIVEN DATE (FIXED ONLY THIS) ─────────────────────────
-  ctx.font = '13.5px Georgia, serif';
-  ctx.textAlign = 'center';
+  // ── GIVEN DATE (FIXED) ─────────────────────────
+  ctx.font = '14px Arial';
+  ctx.textAlign = 'left';
+
+  const y = 410 + lineGap * 4;
 
   const part1 = 'Given this ';
   const part2 = ` of ${month}, ${year} at `;
-  const part3 =
-    'North Eastern Mindanao State University – Lianga Campus,';
+  const part3 = 'North Eastern Mindanao State University – Lianga Campus,';
 
   const totalWidth =
     ctx.measureText(part1).width +
@@ -172,37 +187,37 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   let x = W / 2 - totalWidth / 2;
 
-  ctx.fillStyle = 'rgba(200,220,255,0.9)';
-  ctx.textAlign = 'left';
-  ctx.fillText(part1, x, 540);
+  ctx.fillStyle = '#d6e6ff';
+  ctx.fillText(part1, x, y);
   x += ctx.measureText(part1).width;
 
-  // DAY (white + superscript)
+  // DAY with superscript
   ctx.fillStyle = '#ffffff';
-  x += drawOrdinalInline(ctx, x, 540, day);
+  x += drawOrdinalInline(ctx, x, y, day);
 
-  // normal
-  ctx.fillStyle = 'rgba(200,220,255,0.9)';
-  ctx.fillText(part2, x, 540);
+  // normal text
+  ctx.fillStyle = '#d6e6ff';
+  ctx.fillText(part2, x, y);
   x += ctx.measureText(part2).width;
 
   // UNIVERSITY WHITE
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(part3, x, 540);
+  ctx.fillText(part3, x, y);
 
   ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(200,220,255,0.9)';
-  ctx.fillText('Lianga, Surigao del Sur', W / 2, 560);
+  ctx.fillStyle = '#d6e6ff';
+  ctx.fillText('Lianga, Surigao del Sur', W / 2, y + 22);
 
-  // ── SIGNATURE (UNCHANGED) ─────────────────────────
-  ctx.drawImage(logoSig, W / 2 - 50, 600, 100, 73);
+  // ── SIGNATURE ─────────────────────────
+  ctx.drawImage(logoSig, W / 2 - 60, 560, 120, 80);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 14px Georgia, serif';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 690);
+  ctx.font = 'bold 13px Arial';
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 660);
 
-  ctx.font = 'italic 11px Georgia, serif';
-  ctx.fillText('BSCS Program Coordinator', W / 2, 710);
+  ctx.fillStyle = '#d6e6ff';
+  ctx.font = '13px Arial';
+  ctx.fillText('BSCS Program Coordinator', W / 2, 680);
 
   // ── EXPORT ─────────────────────────
   const imgData = canvas.toDataURL('image/png', 1.0);
