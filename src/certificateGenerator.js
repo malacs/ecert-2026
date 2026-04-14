@@ -28,7 +28,6 @@ const drawOrdinalInline = (ctx, x, y, number) => {
   return width + ctx.measureText(suffix).width;
 };
 
-// Official Schedule for the Training Series
 const DAY_DATES = {
   1: { day: 15, month: 'April', year: 2026 },
   2: { day: 17, month: 'April', year: 2026 },
@@ -52,14 +51,12 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     loadImage('/logo-signature.png'),
   ]);
 
-  // ── BACKGROUND ─────────────────────────
+  // ── BACKGROUND & OPACITY ─────────────────────────
   ctx.drawImage(bg, 0, 0, W, H);
-  
-  // Instructor Feedback: Opacity at 0.25 (lighter)
-  ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; 
+  ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; // Correct 0.25 opacity
   ctx.fillRect(0, 0, W, H);
 
-  // ── LOGIC: SESSION DATE (From Admin Selection) ────────────────
+  // ── DATE LOGIC ─────────────────────────
   let sessionDay, sessionMonth, sessionYear;
   const selectedDay = Number(trainingDay);
   if (selectedDay && DAY_DATES[selectedDay]) {
@@ -73,7 +70,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sessionYear = 2026;
   }
 
-  // ── LOGIC: GIVEN DATE (Automatic Today's Date) ────────────────
+  // Truly Automatic Given Date (Current system date)
   const now = new Date();
   const givenDayNum = now.getDate();
   const givenMonthName = now.toLocaleString('default', { month: 'long' });
@@ -81,7 +78,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   ctx.textAlign = 'center';
 
-  // ── HEADER & LOGOS ─────────────────────────
+  // ── HEADER ─────────────────────────
   const baseHeight = 65;
   const nemsuWidth = (logoNemsu.width / logoNemsu.height) * baseHeight;
   const centerX = W / 2;
@@ -98,30 +95,36 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // ── TITLE & NAME ─────────────────────────
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 250);
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  ctx.fillStyle = '#ffffff'; // White for name (or change to #C9A84C for Gold)
+  // Participant Name
+  ctx.fillStyle = '#ffffff';
   ctx.font = '52px "Lucida Calligraphy", cursive';
   ctx.fillText(participantName.toUpperCase(), W / 2, 365);
 
-  // ── BODY TEXT (Specific Session Date) ─────────────────────────
+  // ── RESTORED BODY TEXT ─────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
-  ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series', W / 2, 410);
-  ctx.fillText(`held virtually via Google Meet on ${sessionMonth} ${sessionDay}, ${sessionYear} from 8:00 AM to 12:00 PM,`, W / 2, 410 + lineGap);
-  ctx.fillText('in recognition of commitment to learning and professional development.', W / 2, 410 + lineGap * 2);
 
-  // ── GIVEN DATE SECTION (The Automatic Part) ─────────────────────────
+  // Line 1: Series Title
+  ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, 410);
+  
+  // Line 2: Venue and Date (Shows only 1 session date as requested)
+  ctx.fillText(`held virtually via Google Meet on ${sessionMonth} ${sessionDay}, ${sessionYear} from 8:00 AM to 12:00 PM, in recognition of commitment`, W / 2, 410 + lineGap);
+  
+  // Line 3: Recognition
+  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + lineGap * 2);
+
+  // ── AUTOMATIC GIVEN DATE SECTION ─────────────────────────
   ctx.font = '14px Arial';
   ctx.textAlign = 'left';
   const yPos = 410 + lineGap * 4;
-  let xPos = W / 2 - 300;
+  let xPos = W / 2 - 380; // Adjusted X to fit the longer campus name
   
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText('Given this ', xPos, yPos);
@@ -136,7 +139,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   xPos += ctx.measureText(givenSuffix).width;
   
   ctx.fillStyle = '#ffffff';
-  ctx.fillText('NEMSU – Lianga Campus, Lianga, Surigao del Sur', xPos, yPos);
+  ctx.fillText('North Eastern Mindanao State University – Lianga Campus, Lianga, Surigao del Sur', xPos, yPos);
 
   // ── SIGNATURE ─────────────────────────
   ctx.globalCompositeOperation = 'multiply';
@@ -149,7 +152,6 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText('BSCS Program Coordinator', W / 2, 680);
 
-  // ── PDF EXPORT ─────────────────────────
   const imgData = canvas.toDataURL('image/png', 1.0);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
   pdf.addImage(imgData, 'PNG', 0, 0, W, H);
