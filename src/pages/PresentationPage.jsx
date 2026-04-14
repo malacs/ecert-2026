@@ -4,12 +4,11 @@ import { getCertificateDataUrl } from '../certificateGenerator';
 
 export default function PresentationPage() {
   const [participants, setParticipants] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0); // 0 will be Intro
   const [currentCertUrl, setCurrentCertUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
 
-  // 1. Load participants and sort A-Z
   useEffect(() => {
     const fetchParticipants = async () => {
       const { data } = await supabase.from('participants').select('*');
@@ -22,21 +21,21 @@ export default function PresentationPage() {
     fetchParticipants();
   }, []);
 
-  // 2. Navigation with Fade Transition
-  const changeSlide = useCallback((direction) => {
-    setIsVisible(false); // Trigger fade out
+  // Total slides = Participants + Intro (1) + Ending (1)
+  const totalSlides = participants.length + 2;
 
+  const changeSlide = useCallback((direction) => {
+    setIsVisible(false);
     setTimeout(() => {
-      if (direction === 'next' && currentIndex < participants.length - 1) {
+      if (direction === 'next' && currentIndex < totalSlides - 1) {
         setCurrentIndex(prev => prev + 1);
       } else if (direction === 'prev' && currentIndex > 0) {
         setCurrentIndex(prev => prev - 1);
       }
-      setIsVisible(true); // Trigger fade in
-    }, 300); // Matches the CSS transition time
-  }, [currentIndex, participants]);
+      setIsVisible(true);
+    }, 300);
+  }, [currentIndex, totalSlides]);
 
-  // 3. Keyboard Listeners
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowRight' || e.key === ' ') changeSlide('next');
@@ -46,80 +45,69 @@ export default function PresentationPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [changeSlide]);
 
-  // 4. Generate Certificate Image
   useEffect(() => {
-    if (participants[currentIndex]) {
-      getCertificateDataUrl(participants[currentIndex].name, participants[currentIndex].cert_date)
+    // Only fetch certificate if we are NOT on Intro (0) or Ending (last)
+    const participantIndex = currentIndex - 1;
+    if (participants[participantIndex]) {
+      getCertificateDataUrl(participants[participantIndex].name, participants[participantIndex].cert_date)
         .then(setCurrentCertUrl);
     }
   }, [currentIndex, participants]);
 
-  if (loading) return <div style={S.load}>Loading Presentation...</div>;
+  if (loading) return <div style={S.load}>Loading...</div>;
+
+  // Logic to determine what to show
+  const isIntro = currentIndex === 0;
+  const isEnding = currentIndex === totalSlides - 1;
+  const currentParticipant = participants[currentIndex - 1];
 
   return (
     <div style={S.container}>
-      <div 
-        style={{
-          ...S.slideWrapper,
-          opacity: isVisible ? 1 : 0,
-          transform: isVisible ? 'scale(1)' : 'scale(0.98)',
-        }}
-      >
-        {currentCertUrl ? (
-          <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
-        ) : (
-          <div style={{color: '#fff'}}>Loading Certificate...</div>
+      <div style={{ ...S.slideWrapper, opacity: isVisible ? 1 : 0, transform: isVisible ? 'scale(1)' : 'scale(0.95)' }}>
+        
+        {/* INTRO SLIDE */}
+        {isIntro && (
+          <div style={S.textSlide}>
+            <h2 style={S.subTitle}>DATA INSIGHTS 2026</h2>
+            <h1 style={S.mainTitle}>Recognition Rites</h1>
+            <div style={S.divider}></div>
+            <p style={S.desc}>Virtual Awarding of E-Certificates</p>
+          </div>
         )}
+
+        {/* CERTIFICATE SLIDE */}
+        {!isIntro && !isEnding && currentCertUrl && (
+          <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
+        )}
+
+        {/* ENDING SLIDE */}
+        {isEnding && (
+          <div style={S.textSlide}>
+            <h1 style={S.mainTitle}>Congratulations!</h1>
+            <p style={S.desc}>To all the participants of Day 1 - 5</p>
+            <div style={S.divider}></div>
+            <h2 style={S.subTitle}>Thank you for joining us!</h2>
+          </div>
+        )}
+
       </div>
       
-      {/* Ghost Counter: very subtle so only you notice the progress */}
       <div style={S.counter}>
-        {currentIndex + 1} / {participants.length}
+        {isIntro ? 'START' : isEnding ? 'END' : `${currentIndex} / ${participants.length}`}
       </div>
     </div>
   );
 }
 
 const S = {
-  container: {
-    backgroundColor: '#000', // Black background for a cinematic feel
-    height: '100vh',
-    width: '100vw',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  slideWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'opacity 0.4s ease-in-out, transform 0.4s ease-in-out',
-    width: '100%',
-    height: '100%'
-  },
-  certImg: {
-    maxHeight: '95vh', // Slightly smaller to ensure no scrolling
-    maxWidth: '95vw',
-    boxShadow: '0 0 60px rgba(0,0,0,0.9)',
-    objectFit: 'contain',
-    borderRadius: '2px'
-  },
-  counter: {
-    position: 'absolute',
-    bottom: '15px',
-    right: '20px',
-    color: 'rgba(255,255,255,0.15)', // Very faint
-    fontSize: '12px',
-    fontFamily: 'sans-serif'
-  },
-  load: {
-    height: '100vh',
-    background: '#000',
-    color: '#fff',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    fontFamily: 'sans-serif'
-  }
+  container: { backgroundColor: '#000', height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontFamily: 'serif' },
+  slideWrapper: { display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.5s ease-in-out', width: '100%', height: '100%' },
+  certImg: { maxHeight: '92vh', maxWidth: '92vw', boxShadow: '0 0 100px rgba(201, 168, 76, 0.2)', objectFit: 'contain' },
+  textSlide: { textAlign: 'center', color: '#fff', padding: '40px' },
+  mainTitle: { fontSize: '64px', margin: '10px 0', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '4px' },
+  subTitle: { fontSize: '24px', color: '#fff', fontWeight: '300', letterSpacing: '2px' },
+  desc: { fontSize: '20px', color: '#aaa', marginTop: '20px', fontStyle: 'italic' },
+  divider: { width: '100px', height: '2px', background: '#c9a84c', margin: '30px auto' },
+  counter: { position: 'absolute', bottom: '20px', right: '30px', color: 'rgba(255,255,255,0.2)', fontSize: '14px', fontFamily: 'sans-serif' },
+  load: { height: '100vh', background: '#000', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center' }
 };
