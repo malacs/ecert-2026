@@ -60,7 +60,7 @@ export default function AdminPage() {
       setMsg(`✅ Email sent to ${participant.email}`);
       fetchParticipants();
     } catch (e) {
-      setMsg('❌ Failed to send email. Check EmailJS config. Error: ' + e.text);
+      setMsg('❌ Failed to send email. Error: ' + (e?.text || e?.message || JSON.stringify(e)));
     }
     setSending(null);
   };
