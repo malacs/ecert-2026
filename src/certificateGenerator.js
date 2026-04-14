@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+
 const loadImage = (src) =>
   new Promise((resolve, reject) => {
     const img = new Image();
@@ -7,11 +8,13 @@ const loadImage = (src) =>
     img.onerror = reject;
     img.src = src;
   });
+
 const getOrdinal = (n) => {
   const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
+
 const drawOrdinalInline = (ctx, x, y, number) => {
   const baseFont = ctx.font;
   const smallFont = baseFont.replace(/\d+px/, '9px');
@@ -24,14 +27,15 @@ const drawOrdinalInline = (ctx, x, y, number) => {
   ctx.font = baseFont;
   return width + ctx.measureText(suffix).width;
 };
+
 const DAY_DATES = {
   1: { day: 15, month: 'April', year: 2026 },
   2: { day: 17, month: 'April', year: 2026 },
   3: { day: 22, month: 'April', year: 2026 },
   4: { day: 24, month: 'April', year: 2026 },
   5: { day: 29, month: 'April', year: 2026 },
-  6: { day: 1, month: 'May', year: 2026 },
 };
+
 export const generateCertificate = async (participantName, trainingDay = null) => {
   const canvas = document.createElement('canvas');
   const W = 1123;
@@ -39,22 +43,28 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
+
   const [bg, logoNemsu, logoCite, logoSig] = await Promise.all([
     loadImage('/cert-bg.png'),
     loadImage('/logo-nemsu.png'),
     loadImage('/logo-cite.png'),
     loadImage('/logo-signature.png'),
   ]);
+
   // ── BACKGROUND ─────────────────────────
   ctx.drawImage(bg, 0, 0, W, H);
-  ctx.fillStyle = 'rgba(10, 20, 60, 0.45)';
+  
+  // Instructor Feedback: Lessened opacity from 0.45 to 0.25 for a lighter background
+  ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; 
   ctx.fillRect(0, 0, W, H);
+
   const gradient = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 500);
   gradient.addColorStop(0, 'rgba(255,255,255,0.15)');
   gradient.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W, H);
-  // ── DATE ─────────────────────────
+
+  // ── DATE LOGIC ─────────────────────────
   let day, month, year;
   const selectedDay = Number(trainingDay);
   if (selectedDay && DAY_DATES[selectedDay]) {
@@ -68,7 +78,11 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     month = now.toLocaleString('default', { month: 'long' });
     year = now.getFullYear();
   }
+
+  const fullDateString = `${month} ${day}, ${year}`;
+
   ctx.textAlign = 'center';
+
   // ── LOGOS ─────────────────────────
   const baseHeight = 65;
   const rightScale = 1.15;
@@ -79,8 +93,10 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const gap = 210;
   const liangaY = 135;
   const logoY = liangaY - baseHeight;
+
   ctx.drawImage(logoNemsu, centerX - gap - nemsuWidth / 2, logoY, nemsuWidth, baseHeight);
   ctx.drawImage(logoCite, centerX + gap - citeWidth / 2, liangaY - citeHeight, citeWidth, citeHeight);
+
   // ── HEADER ─────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
@@ -92,6 +108,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = 'bold 13px Arial';
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
+
   // ── TITLE ─────────────────────────
   const titleY = 250;
   const subtitleGap = 20;
@@ -101,11 +118,13 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, titleY + subtitleGap);
+
   // ── NAME ─────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.font = '52px "Lucida Calligraphy", cursive';
   ctx.fillText(participantName.toUpperCase(), W / 2, 365);
-  // ── BODY ─────────────────────────
+
+  // ── BODY (Updated to show 1 date) ─────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
@@ -113,14 +132,17 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     'for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications',
     W / 2, 410
   );
+  
+  // Changed from listing all dates to showing only the participant's session date
   ctx.fillText(
-    'held virtually via Google Meet on April 15, 17, 22, 24, 29 & May 1, 2026 from 8:00 AM to 12:00 PM, in recognition of commitment',
+    `held virtually via Google Meet on ${fullDateString} from 8:00 AM to 12:00 PM, in recognition of commitment`,
     W / 2, 410 + lineGap
   );
   ctx.fillText(
     'to learning and professional development through active engagement in the training sessions.',
     W / 2, 410 + lineGap * 2
   );
+
   // ── GIVEN DATE ─────────────────────────
   ctx.font = '14px Arial';
   ctx.textAlign = 'left';
@@ -128,6 +150,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const part1 = 'Given this ';
   const part2 = ` of ${month}, ${year} at `;
   const part3 = 'North Eastern Mindanao State University – Lianga Campus,';
+
   let x = W / 2 - 300;
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText(part1, x, y);
@@ -139,9 +162,11 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   x += ctx.measureText(part2).width;
   ctx.fillStyle = '#ffffff';
   ctx.fillText(part3, x, y);
+
   ctx.textAlign = 'center';
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, y + 22);
+
   // ── SIGNATURE ─────────────────────────
   const sigW = 65;
   const sigH = 38;
@@ -156,6 +181,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '13px Arial';
   ctx.fillText('BSCS Program Coordinator', W / 2, 680);
+
   // ── EXPORT ─────────────────────────
   const imgData = canvas.toDataURL('image/png', 1.0);
   const pdf = new jsPDF({
@@ -166,10 +192,12 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   pdf.addImage(imgData, 'PNG', 0, 0, W, H);
   return { pdf, imgData };
 };
+
 export const downloadCertificate = async (participantName, trainingDay = null) => {
   const { pdf } = await generateCertificate(participantName, trainingDay);
   pdf.save(`Certificate_${participantName.replace(/\s+/g, '_')}.pdf`);
 };
+
 export const getCertificateDataUrl = async (participantName, trainingDay = null) => {
   const { imgData } = await generateCertificate(participantName, trainingDay);
   return imgData;
