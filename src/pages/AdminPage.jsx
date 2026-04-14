@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { downloadCertificate, getCertificateDataUrl } from '../certificateGenerator';
+import { downloadCertificate } from '../certificateGenerator';
 import emailjs from '@emailjs/browser';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admin2026';
@@ -34,12 +34,6 @@ export default function AdminPage() {
   const [msg, setMsg] = useState('');
   const [search, setSearch] = useState('');
 
-  // Presentation State
-  const [isPresenting, setIsPresenting] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentCertUrl, setCurrentCertUrl] = useState('');
-  const presRef = useRef(null); // Reference for fullscreen
-
   useEffect(() => { if (authed) fetchParticipants(); }, [authed]);
 
   const fetchParticipants = async () => {
@@ -50,57 +44,10 @@ export default function AdminPage() {
     }
   };
 
-  // Launch Fullscreen Presentation
-  const startPresentation = async () => {
-    setCurrentIndex(0);
-    setIsPresenting(true);
-    if (presRef.current?.requestFullscreen) {
-      try {
-        await presRef.current.requestFullscreen();
-      } catch (err) {
-        console.error("Fullscreen failed", err);
-      }
-    }
+  // NEW PRESENTATION LOGIC: Opens a clean tab
+  const startPresentation = () => {
+    window.open('/presentation', '_blank');
   };
-
-  const nextSlide = () => {
-    if (currentIndex < participants.length - 1) setCurrentIndex(prev => prev + 1);
-  };
-
-  const prevSlide = () => {
-    if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
-  };
-
-  const handleKeyDown = useCallback((e) => {
-    if (!isPresenting) return;
-    if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
-    if (e.key === 'ArrowLeft') prevSlide();
-    if (e.key === 'Escape') setIsPresenting(false);
-  }, [isPresenting, currentIndex, participants]);
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
-
-  useEffect(() => {
-    if (isPresenting && participants[currentIndex]) {
-      const loadCert = async () => {
-        const url = await getCertificateDataUrl(participants[currentIndex].name, participants[currentIndex].cert_date);
-        setCurrentCertUrl(url);
-      };
-      loadCert();
-    }
-  }, [isPresenting, currentIndex, participants]);
-
-  // Handle exiting fullscreen via browser button
-  useEffect(() => {
-    const exitHandler = () => {
-      if (!document.fullscreenElement) setIsPresenting(false);
-    };
-    document.addEventListener('fullscreenchange', exitHandler);
-    return () => document.removeEventListener('fullscreenchange', exitHandler);
-  }, []);
 
   const handleLogin = () => {
     if (pw === ADMIN_PASSWORD) { setAuthed(true); setPwError(''); }
@@ -167,21 +114,6 @@ export default function AdminPage() {
 
   return (
     <div style={S.page}>
-      {/* ── PRESENTATION MODE (HIDDEN UNTIL STARTED) ── */}
-      <div ref={presRef} style={{ ...S.presOverlay, display: isPresenting ? 'flex' : 'none' }}>
-        <div style={S.presContent}>
-          {currentCertUrl && <img src={currentCertUrl} alt="Cert" style={S.presImg} />}
-        </div>
-        
-        {/* These controls are visible to the admin, but hidden if you just present the "Tab" in Meet */}
-        <div style={S.presControls}>
-          <button style={S.navBtn} onClick={prevSlide}>◀</button>
-          <span style={S.presCounter}>{currentIndex + 1} / {participants.length}</span>
-          <button style={S.navBtn} onClick={nextSlide}>▶</button>
-          <button style={S.exitBtn} onClick={() => document.exitFullscreen()}>Exit [Esc]</button>
-        </div>
-      </div>
-
       <header style={S.header}>
         <div style={S.headerInner}>
           <div>
@@ -196,7 +128,6 @@ export default function AdminPage() {
       </header>
 
       <main style={S.main}>
-        {/* ADD PARTICIPANT CARD */}
         <div style={S.card}>
           <h2 style={S.cardTitle}>Add Participant</h2>
           <div style={S.formRow}>
@@ -211,7 +142,6 @@ export default function AdminPage() {
           {msg && <p style={msg.startsWith('✅') ? S.success : S.error}>{msg}</p>}
         </div>
 
-        {/* LIST CARD */}
         <div style={S.card}>
           <div style={S.listHeader}>
             <h2 style={S.cardTitle}>Participants (A-Z)</h2>
@@ -236,7 +166,7 @@ export default function AdminPage() {
                     </td>
                     <td style={S.td}>
                       <div style={S.actionRow}>
-                        <button style={S.btnSend} onClick={() => handleSendEmail(p)}>Email</button>
+                        <button style={S.btnSend} onClick={() => handleSendEmail(p)}>{sending === p.id ? '...' : 'Email'}</button>
                         <button style={S.btnDownload} onClick={() => downloadCertificate(p.name, p.cert_date)}>⬇</button>
                         <button style={S.btnDelete} onClick={() => handleDelete(p.id)}>🗑</button>
                       </div>
@@ -285,33 +215,4 @@ const S = {
   loginCard: { background: '#fff', padding: 40, borderRadius: 12, textAlign: 'center' },
   logoCircle: { fontSize: 40 },
   loginTitle: { margin: '10px 0' },
-
-  // ── PRESENTATION OVERLAY STYLES ──
-  presOverlay: { 
-    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
-    background: '#000', zIndex: 9999, flexDirection: 'column', 
-    alignItems: 'center', justifyContent: 'center' 
-  },
-  presContent: { 
-    width: '90%', height: 'auto', display: 'flex', 
-    justifyContent: 'center', alignItems: 'center' 
-  },
-  presImg: { 
-    maxWidth: '100%', maxHeight: '85vh', 
-    boxShadow: '0 0 50px rgba(0,0,0,0.8)', border: '1px solid #333' 
-  },
-  presControls: { 
-    position: 'absolute', bottom: 30, display: 'flex', 
-    alignItems: 'center', gap: 20, background: 'rgba(0,0,0,0.6)', 
-    padding: '10px 20px', borderRadius: 50 
-  },
-  navBtn: { 
-    background: '#fff', border: 'none', width: 40, height: 40, 
-    borderRadius: '50%', cursor: 'pointer', fontWeight: 'bold' 
-  },
-  presCounter: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  exitBtn: { 
-    background: 'red', color: '#fff', border: 'none', 
-    padding: '6px 12px', borderRadius: 4, cursor: 'pointer', marginLeft: 10 
-  }
 };
