@@ -28,7 +28,7 @@ const drawOrdinalInline = (ctx, x, y, number) => {
   return width + ctx.measureText(suffix).width;
 };
 
-// Official Schedule from University Letter
+// Official Schedule for the Training Series
 const DAY_DATES = {
   1: { day: 15, month: 'April', year: 2026 },
   2: { day: 17, month: 'April', year: 2026 },
@@ -55,17 +55,11 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   // ── BACKGROUND ─────────────────────────
   ctx.drawImage(bg, 0, 0, W, H);
   
-  // Instructor Feedback: Lessened opacity to 0.25 to make it less dark
+  // Instructor Feedback: Opacity at 0.25 (lighter)
   ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; 
   ctx.fillRect(0, 0, W, H);
 
-  const gradient = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 500);
-  gradient.addColorStop(0, 'rgba(255,255,255,0.15)');
-  gradient.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, W, H);
-
-  // ── SESSION DATE (Based on Training Day Selection) ─────────────────────────
+  // ── LOGIC: SESSION DATE (From Admin Selection) ────────────────
   let sessionDay, sessionMonth, sessionYear;
   const selectedDay = Number(trainingDay);
   if (selectedDay && DAY_DATES[selectedDay]) {
@@ -79,7 +73,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sessionYear = 2026;
   }
 
-  // ── GIVEN DATE (Always uses Today's Automatic Date) ─────────────────────────
+  // ── LOGIC: GIVEN DATE (Automatic Today's Date) ────────────────
   const now = new Date();
   const givenDayNum = now.getDate();
   const givenMonthName = now.toLocaleString('default', { month: 'long' });
@@ -87,14 +81,12 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   ctx.textAlign = 'center';
 
-  // ── LOGOS & HEADER ─────────────────────────
+  // ── HEADER & LOGOS ─────────────────────────
   const baseHeight = 65;
   const nemsuWidth = (logoNemsu.width / logoNemsu.height) * baseHeight;
   const centerX = W / 2;
-  const logoY = 135 - baseHeight;
-  ctx.drawImage(logoNemsu, centerX - 210 - nemsuWidth / 2, logoY, nemsuWidth, baseHeight);
-  // (Rest of header/title logic remains same)
-
+  ctx.drawImage(logoNemsu, centerX - 210 - nemsuWidth / 2, 135 - baseHeight, nemsuWidth, baseHeight);
+  
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 85);
@@ -106,17 +98,18 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
+  // ── TITLE & NAME ─────────────────────────
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 250);
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#ffffff'; // White for name (or change to #C9A84C for Gold)
   ctx.font = '52px "Lucida Calligraphy", cursive';
   ctx.fillText(participantName.toUpperCase(), W / 2, 365);
 
-  // ── BODY TEXT (Only 1 Session Date) ─────────────────────────
+  // ── BODY TEXT (Specific Session Date) ─────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
@@ -124,26 +117,26 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText(`held virtually via Google Meet on ${sessionMonth} ${sessionDay}, ${sessionYear} from 8:00 AM to 12:00 PM,`, W / 2, 410 + lineGap);
   ctx.fillText('in recognition of commitment to learning and professional development.', W / 2, 410 + lineGap * 2);
 
-  // ── GIVEN DATE SECTION (Uses Today's Date) ─────────────────────────
+  // ── GIVEN DATE SECTION (The Automatic Part) ─────────────────────────
   ctx.font = '14px Arial';
   ctx.textAlign = 'left';
-  const y = 410 + lineGap * 4;
-  let x = W / 2 - 300;
+  const yPos = 410 + lineGap * 4;
+  let xPos = W / 2 - 300;
   
   ctx.fillStyle = '#d6e6ff';
-  ctx.fillText('Given this ', x, y);
-  x += ctx.measureText('Given this ').width;
+  ctx.fillText('Given this ', xPos, yPos);
+  xPos += ctx.measureText('Given this ').width;
   
   ctx.fillStyle = '#ffffff';
-  x += drawOrdinalInline(ctx, x, y, givenDayNum); // Shows "14th" if today is the 14th
+  xPos += drawOrdinalInline(ctx, xPos, yPos, givenDayNum); 
   
   ctx.fillStyle = '#d6e6ff';
-  const part2 = ` of ${givenMonthName}, ${givenYearNum} at `;
-  ctx.fillText(part2, x, y);
-  x += ctx.measureText(part2).width;
+  const givenSuffix = ` of ${givenMonthName}, ${givenYearNum} at `;
+  ctx.fillText(givenSuffix, xPos, yPos);
+  xPos += ctx.measureText(givenSuffix).width;
   
   ctx.fillStyle = '#ffffff';
-  ctx.fillText('NEMSU – Lianga Campus, Lianga, Surigao del Sur', x, y);
+  ctx.fillText('NEMSU – Lianga Campus, Lianga, Surigao del Sur', xPos, yPos);
 
   // ── SIGNATURE ─────────────────────────
   ctx.globalCompositeOperation = 'multiply';
@@ -156,8 +149,19 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText('BSCS Program Coordinator', W / 2, 680);
 
+  // ── PDF EXPORT ─────────────────────────
   const imgData = canvas.toDataURL('image/png', 1.0);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
   pdf.addImage(imgData, 'PNG', 0, 0, W, H);
   return { pdf, imgData };
+};
+
+export const downloadCertificate = async (name, day) => {
+  const { pdf } = await generateCertificate(name, day);
+  pdf.save(`Certificate_${name.replace(/\s+/g, '_')}.pdf`);
+};
+
+export const getCertificateDataUrl = async (name, day) => {
+  const { imgData } = await generateCertificate(name, day);
+  return imgData;
 };
