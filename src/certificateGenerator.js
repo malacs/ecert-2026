@@ -138,7 +138,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   // ── SUBTEXT ─────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
-  ctx.fillText('This certificate is hereby presented to', W / 2, 295);
+  ctx.fillText('This certificate is hereby presented to', W / 2, 275);
 
   // ── NAME ─────────────────────────
   ctx.fillStyle = '#ffffff';
