@@ -65,7 +65,7 @@ export default function AdminPage() {
         {
           to_name: participant.name, to_email: participant.email, email: participant.email,
           message: `Congratulations! Please find your e-certificate for DATA INSIGHTS 2026.`,
-          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(participant.name)}`,
+          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(participant.name)}/${participant.cert_date || ''}`,
         },
         process.env.REACT_APP_EMAILJS_PUBLIC_KEY
       );
