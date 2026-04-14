@@ -206,7 +206,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   // ── SIGNATURE (UPDATED BASED ON IMAGE) ─────────────────────────
   ctx.filter = 'brightness(0.6) contrast(1.2)';
-  ctx.drawImage(logoSig, W / 2 - 50, 600, 100, 65); // higher + smaller
+  ctx.drawImage(logoSig, W / 2 - 50, 628, 70, 45); // higher + smaller
   ctx.filter = 'none';
 
   ctx.fillStyle = '#ffffff';
