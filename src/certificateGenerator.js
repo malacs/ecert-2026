@@ -61,23 +61,33 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     year = now.getFullYear();
   }
 
-  // ── LOGOS in corners ──────────────────────────────────────────────
-  const logoSize = 78;
-  const pad = 26;
-  ctx.drawImage(logoNemsu, pad, pad, logoSize, logoSize);
-  ctx.drawImage(logoCite, W - pad - logoSize, pad, logoSize, logoSize);
-
   // ── HEADER TEXT ───────────────────────────────────────────────────
   ctx.textAlign = 'center';
 
+  // "Republic of the Philippines"
   ctx.fillStyle = 'rgba(255,255,255,0.88)';
   ctx.font = '500 13px Georgia, serif';
   ctx.fillText('Republic of the Philippines', W / 2, 46);
 
+  // "North Eastern Mindanao State University"
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 15px Georgia, serif';
-  ctx.fillText('North Eastern Mindanao State University', W / 2, 65);
+  const universityTitle = 'North Eastern Mindanao State University';
+  ctx.fillText(universityTitle, W / 2, 65);
 
+  // ── LOGOS (Dynamic positioning beside the University Title) ──────
+  const logoSize = 70; // Adjusted size
+  const textWidth = ctx.measureText(universityTitle).width;
+  const spacing = 35;  // Gap between text and logo
+  
+  const leftLogoX = (W / 2) - (textWidth / 2) - logoSize - spacing;
+  const rightLogoX = (W / 2) + (textWidth / 2) + spacing;
+  const logoY = 32;    // Vertically centered with the top header lines
+
+  ctx.drawImage(logoNemsu, leftLogoX, logoY, logoSize, logoSize);
+  ctx.drawImage(logoCite, rightLogoX, logoY, logoSize, logoSize);
+
+  // ── REMAINING HEADER ──────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.83)';
   ctx.font = '13px Georgia, serif';
   ctx.fillText('Lianga Campus', W / 2, 82);
@@ -85,8 +95,8 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.strokeStyle = '#c9a84c';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(120, 94);
-  ctx.lineTo(W - 120, 94);
+  ctx.moveTo(W / 2 - 380, 94); // Shortened the line to avoid hitting the logos
+  ctx.lineTo(W / 2 + 380, 94);
   ctx.stroke();
 
   ctx.fillStyle = 'rgba(255,255,255,0.86)';
@@ -151,7 +161,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, 508);
 
-  // ── SIGNATURE (lighter) ───────────────────────────────────────────
+  // ── SIGNATURE ─────────────────────────────────────────────────────
   ctx.globalAlpha = 0.38;
   ctx.drawImage(logoSig, W / 2 - 50, 608, 100, 73);
   ctx.globalAlpha = 1.0;
