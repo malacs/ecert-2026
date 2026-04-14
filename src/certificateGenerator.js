@@ -69,7 +69,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W, H);
 
-  // ── DATE (FIXED) ─────────────────────────
+  // ── DATE ─────────────────────────
   let day, month, year;
 
   const selectedDay = Number(trainingDay);
@@ -133,7 +133,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // ── TITLE + SUBTEXT (FIXED SPACING) ─────────────────────────
+  // ── TITLE ─────────────────────────
   const titleY = 250;
   const subtitleGap = 20;
 
@@ -184,7 +184,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const part2 = ` of ${month}, ${year} at `;
   const part3 = 'North Eastern Mindanao State University – Lianga Campus,';
 
-  let x = W / 2 - 300; // simplified centering
+  let x = W / 2 - 300;
 
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText(part1, x, y);
@@ -204,8 +204,10 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, y + 22);
 
-  // ── SIGNATURE ─────────────────────────
-  ctx.drawImage(logoSig, W / 2 - 60, 560, 120, 80);
+  // ── SIGNATURE (UPDATED) ─────────────────────────
+  ctx.filter = 'brightness(0.6) contrast(1.2)';
+  ctx.drawImage(logoSig, W / 2 - 60, 585, 120, 80); // moved down
+  ctx.filter = 'none';
 
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 13px Arial';
