@@ -75,11 +75,11 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   // ── LOGOS (NEMSU on Left, CITE on Right) ──────────────────────────
   const logoSize = 75; // Using fixed size for W and H to ensure square shape
   const textWidth = ctx.measureText(universityTitle).width;
-  const spacing = 45; 
+  const spacing = 38; 
   
   const leftLogoX = (W / 2) - (textWidth / 2) - logoSize - spacing;
   const rightLogoX = (W / 2) + (textWidth / 2) + spacing;
-  const logoY = 38; 
+  const logoY = 42; 
 
   // Forced square dimensions to fix "oval" issue
   ctx.drawImage(logoNemsu, leftLogoX, logoY, logoSize, logoSize); 
