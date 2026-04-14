@@ -163,7 +163,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const sigH = 45;
   const sigX = W / 2 - sigW / 2; // perfectly centered
   const sigY = 610;               // just above the name text at 660
-  ctx.filter = 'invert(1) brightness(1.5)';
+
   ctx.drawImage(logoSig, sigX, sigY, sigW, sigH);
   ctx.filter = 'none';
   ctx.fillStyle = '#ffffff';
