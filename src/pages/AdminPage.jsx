@@ -44,17 +44,18 @@ export default function AdminPage() {
     setSending(participant.id);
     setMsg('');
     try {
-      const imgData = await getCertificateDataUrl(participant.name);
+      await getCertificateDataUrl(participant.name);
       await emailjs.send(
-        process.env.REACT_APP_EMAILJS_SERVICE_ID || 'YOUR_SERVICE_ID',
-        process.env.REACT_APP_EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID',
+        process.env.REACT_APP_EMAILJS_SERVICE_ID,
+        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
         {
           to_name: participant.name,
           to_email: participant.email,
-          message: `Congratulations! Please find your e-certificate for DATA INSIGHTS 2026 attached.`,
+          email: participant.email,        // ← fixes the {{email}} Reply To field
+          message: `Congratulations! Please find your e-certificate for DATA INSIGHTS 2026.`,
           certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(participant.name)}`,
         },
-        process.env.REACT_APP_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY'
+        process.env.REACT_APP_EMAILJS_PUBLIC_KEY
       );
       await supabase.from('participants').update({ email_sent: true }).eq('id', participant.id);
       setMsg(`✅ Email sent to ${participant.email}`);
@@ -109,7 +110,6 @@ export default function AdminPage() {
       </header>
 
       <main style={styles.main}>
-        {/* Add participant form */}
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>Add Participant</h2>
           <div style={styles.formRow}>
@@ -133,7 +133,6 @@ export default function AdminPage() {
           {msg && <p style={msg.startsWith('✅') ? styles.success : styles.error}>{msg}</p>}
         </div>
 
-        {/* Participants list */}
         <div style={styles.card}>
           <div style={styles.listHeader}>
             <h2 style={styles.cardTitle}>Participants ({participants.length})</h2>
