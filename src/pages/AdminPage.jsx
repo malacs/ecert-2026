@@ -12,6 +12,7 @@ export default function AdminPage() {
   const [participants, setParticipants] = useState([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [certDate, setCertDate] = useState('');
   const [adding, setAdding] = useState(false);
   const [sending, setSending] = useState(null);
   const [msg, setMsg] = useState('');
@@ -22,7 +23,10 @@ export default function AdminPage() {
   }, [authed]);
 
   const fetchParticipants = async () => {
-    const { data } = await supabase.from('participants').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase
+      .from('participants')
+      .select('*')
+      .order('created_at', { ascending: false });
     if (data) setParticipants(data);
   };
 
@@ -34,9 +38,21 @@ export default function AdminPage() {
   const handleAdd = async () => {
     if (!name.trim() || !email.trim()) return setMsg('Please fill in both name and email.');
     setAdding(true);
-    const { error } = await supabase.from('participants').insert([{ name: name.trim(), email: email.trim() }]);
-    if (error) setMsg('Error: ' + error.message);
-    else { setMsg('✅ Participant added!'); setName(''); setEmail(''); fetchParticipants(); }
+    const insertData = {
+      name: name.trim(),
+      email: email.trim(),
+    };
+    if (certDate) insertData.cert_date = certDate;
+
+    const { error } = await supabase.from('participants').insert([insertData]);
+    if (error) setMsg('❌ Error: ' + error.message);
+    else {
+      setMsg('✅ Participant added!');
+      setName('');
+      setEmail('');
+      setCertDate('');
+      fetchParticipants();
+    }
     setAdding(false);
   };
 
@@ -44,14 +60,14 @@ export default function AdminPage() {
     setSending(participant.id);
     setMsg('');
     try {
-      await getCertificateDataUrl(participant.name);
+      await getCertificateDataUrl(participant.name, participant.cert_date || null);
       await emailjs.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
         process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
         {
           to_name: participant.name,
           to_email: participant.email,
-          email: participant.email,        // ← fixes the {{email}} Reply To field
+          email: participant.email,
           message: `Congratulations! Please find your e-certificate for DATA INSIGHTS 2026.`,
           certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(participant.name)}`,
         },
@@ -110,6 +126,7 @@ export default function AdminPage() {
       </header>
 
       <main style={styles.main}>
+        {/* Add participant form */}
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>Add Participant</h2>
           <div style={styles.formRow}>
@@ -126,6 +143,15 @@ export default function AdminPage() {
               onChange={e => setEmail(e.target.value)}
               type="email"
             />
+            <div style={styles.dateWrap}>
+              <label style={styles.dateLabel}>Certificate Date (optional)</label>
+              <input
+                style={{ ...styles.input, minWidth: 160 }}
+                type="date"
+                value={certDate}
+                onChange={e => setCertDate(e.target.value)}
+              />
+            </div>
             <button style={styles.btnPrimary} onClick={handleAdd} disabled={adding}>
               {adding ? 'Adding...' : '+ Add'}
             </button>
@@ -133,6 +159,7 @@ export default function AdminPage() {
           {msg && <p style={msg.startsWith('✅') ? styles.success : styles.error}>{msg}</p>}
         </div>
 
+        {/* Participants list */}
         <div style={styles.card}>
           <div style={styles.listHeader}>
             <h2 style={styles.cardTitle}>Participants ({participants.length})</h2>
@@ -154,6 +181,7 @@ export default function AdminPage() {
                     <th style={styles.th}>#</th>
                     <th style={styles.th}>Name</th>
                     <th style={styles.th}>Email</th>
+                    <th style={styles.th}>Cert Date</th>
                     <th style={styles.th}>Status</th>
                     <th style={styles.th}>Actions</th>
                   </tr>
@@ -164,6 +192,11 @@ export default function AdminPage() {
                       <td style={styles.td}>{i + 1}</td>
                       <td style={{ ...styles.td, fontWeight: 500 }}>{p.name}</td>
                       <td style={{ ...styles.td, color: '#555' }}>{p.email}</td>
+                      <td style={{ ...styles.td, color: '#555', fontSize: 12 }}>
+                        {p.cert_date
+                          ? new Date(p.cert_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+                          : <span style={{ color: '#9ca3af' }}>Today</span>}
+                      </td>
                       <td style={styles.td}>
                         <span style={p.email_sent ? styles.badgeSent : styles.badgePending}>
                           {p.email_sent ? '✅ Sent' : '⏳ Pending'}
@@ -171,10 +204,17 @@ export default function AdminPage() {
                       </td>
                       <td style={styles.td}>
                         <div style={styles.actionRow}>
-                          <button style={styles.btnSend} onClick={() => handleSendEmail(p)} disabled={sending === p.id}>
+                          <button
+                            style={styles.btnSend}
+                            onClick={() => handleSendEmail(p)}
+                            disabled={sending === p.id}
+                          >
                             {sending === p.id ? 'Sending...' : '📧 Send Email'}
                           </button>
-                          <button style={styles.btnDownload} onClick={() => downloadCertificate(p.name)}>
+                          <button
+                            style={styles.btnDownload}
+                            onClick={() => downloadCertificate(p.name, p.cert_date || null)}
+                          >
                             ⬇ Download
                           </button>
                           <button style={styles.btnDelete} onClick={() => handleDelete(p.id)}>🗑</button>
@@ -202,9 +242,11 @@ const styles = {
   main: { maxWidth: 1100, margin: '32px auto', padding: '0 24px' },
   card: { background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 24, marginBottom: 24 },
   cardTitle: { fontSize: 17, fontWeight: 600, color: '#1a1060', margin: '0 0 16px' },
-  formRow: { display: 'flex', gap: 12, flexWrap: 'wrap' },
+  formRow: { display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' },
   input: { flex: 1, minWidth: 200, padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, outline: 'none', marginBottom: 0 },
-  btnPrimary: { background: '#1a1060', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  dateWrap: { display: 'flex', flexDirection: 'column', gap: 4 },
+  dateLabel: { fontSize: 12, color: '#6b7280', fontWeight: 500 },
+  btnPrimary: { background: '#1a1060', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
   success: { color: '#16a34a', fontSize: 14, margin: '10px 0 0', background: '#f0fdf4', padding: '8px 12px', borderRadius: 6 },
   error: { color: '#dc2626', fontSize: 14, margin: '10px 0 0', background: '#fef2f2', padding: '8px 12px', borderRadius: 6 },
   listHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 },
