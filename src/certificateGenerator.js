@@ -28,6 +28,7 @@ const drawOrdinalInline = (ctx, x, y, number) => {
   return width + ctx.measureText(suffix).width;
 };
 
+// Official Schedule
 const DAY_DATES = {
   1: { day: 15, month: 'April', year: 2026 },
   2: { day: 17, month: 'April', year: 2026 },
@@ -51,12 +52,13 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     loadImage('/logo-signature.png'),
   ]);
 
-  // ── BACKGROUND ─────────────────────────
+  // ── BACKGROUND & OPACITY ─────────────────────────
   ctx.drawImage(bg, 0, 0, W, H);
-  ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; 
+  ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; // Correct 0.25 opacity
   ctx.fillRect(0, 0, W, H);
 
-  // ── DATE CALCULATIONS ───────────────────
+  // ── DATE CALCULATIONS ─────────────────────────
+  // 1. Session Date (From selection)
   let sDay, sMonth, sYear;
   const selected = Number(trainingDay);
   if (selected && DAY_DATES[selected]) {
@@ -67,13 +69,15 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026;
   }
 
+  // 2. Given Date (Automatic Today's Date - April 14)
   const now = new Date();
   const gDayNum = now.getDate();
-  const gMonth = now.toLocaleString('default', { month: 'long' });
-  const gYear = now.getFullYear();
+  const gMonthName = now.toLocaleString('default', { month: 'long' });
+  const gYearNum = now.getFullYear();
 
-  // ── HEADER ─────────────────────────────
   ctx.textAlign = 'center';
+
+  // ── HEADER SECTION ─────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 85);
@@ -91,52 +95,73 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#ffffff'; // White for name
   ctx.font = '52px "Lucida Calligraphy", cursive';
   ctx.fillText(participantName.toUpperCase(), W / 2, 365);
 
-  // ── BODY TEXT ──────────────────────────
+  // ── BODY TEXT (Fixed full title wording) ─────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
-  
   ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, 410);
   ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from 8:00 AM to 12:00 PM, in recognition of commitment`, W / 2, 410 + lineGap);
-  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + (lineGap * 2));
+  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + lineGap * 2);
 
-  // ── GIVEN DATE & ADDRESS (Fixed Layout) ──
+  // ── GIVEN DATE & ADDRESS (Fixed Layout) ─────────────────────────
+  ctx.textAlign = 'center'; 
   const yGiven = 500;
-  ctx.textAlign = 'center';
+  ctx.fillStyle = '#d6e6ff';
   
-  // Logic to center the "Given this [Ordinal] of..." line
-  const p1 = 'Given this ';
-  const p2 = ` of ${gMonth}, ${gYear} at North Eastern Mindanao State University – Lianga Campus,`;
-  const totalW = ctx.measureText(p1).width + 30 + ctx.measureText(p2).width;
+  // Ordinal math for centered '14th'
+  const part1 = 'Given this ';
+  const part2 = ` of ${gMonthName}, ${gYearNum} at North Eastern Mindanao State University – Lianga Campus,`;
+  const totalW = ctx.measureText(part1).width + 30 + ctx.measureText(part2).width;
   let startX = (W / 2) - (totalW / 2);
 
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#d6e6ff';
-  ctx.fillText(p1, startX, yGiven);
-  startX += ctx.measureText(p1).width;
+  ctx.fillText(part1, startX, yGiven);
+  startX += ctx.measureText(part1).width;
   ctx.fillStyle = '#ffffff';
-  startX += drawOrdinalInline(ctx, startX, yGiven, gDayNum);
+  startX += drawOrdinalInline(ctx, startX, yGiven, gDayNum); 
   ctx.fillStyle = '#d6e6ff';
-  ctx.fillText(p2, startX, yGiven);
+  ctx.fillText(part2, startX, yGiven);
 
-  // Separate line for the Address
+  // Separate line for address
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // ── SIGNATURE (Lighter) ────────────────
-  ctx.globalAlpha = 0.35; // Reduced from 0.5 to be even lighter
-  ctx.drawImage(logoSig, W / 2 - 32, 618, 65, 38);
-  ctx.globalAlpha = 1.0;
+  // ── SIGNATURE (Visible Gold Fix) ─────────────────────────
+  const sigW = 65;
+  const sigH = 38;
+  const sigX = W / 2 - sigW / 2;
+  const sigY = 618;
 
-  ctx.textAlign = 'center';
+  // Final Fix: Tints the signature image to Gold and uses Lighten mode
+  const sigCanvas = document.createElement('canvas');
+  const sigCtx = sigCanvas.getContext('2d');
+  sigCanvas.width = sigW;
+  sigCanvas.height = sigH;
+  
+  sigCtx.drawImage(logoSig, 0, 0, sigW, sigH);
+  
+  // Tints the signature image data to Gold (#C9A84C)
+  sigCtx.globalCompositeOperation = 'source-atop';
+  sigCtx.fillStyle = '#C9A84C'; 
+  sigCtx.fillRect(0, 0, sigW, sigH);
+  
+  // Draws the tinted gold signature onto the main certificate using Lighten mode
+  ctx.globalCompositeOperation = 'lighten'; // Ensures visibility against the dark background
+  ctx.drawImage(sigCanvas, sigX, sigY, sigW, sigH);
+  
+  // Restore default composite mode for subsequent drawing
+  ctx.globalCompositeOperation = 'source-over';
+  
+  // (Signature info remains white/d6e6ff)
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 13px Arial';
   ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 660);
   ctx.fillStyle = '#d6e6ff';
+  ctx.font = '13px Arial';
   ctx.fillText('BSCS Program Coordinator', W / 2, 680);
 
   const imgData = canvas.toDataURL('image/png', 1.0);
@@ -145,12 +170,12 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   return { pdf, imgData };
 };
 
-export const downloadCertificate = async (name, day) => {
-  const { pdf } = await generateCertificate(name, day);
-  pdf.save(`Certificate_${name.replace(/\s+/g, '_')}.pdf`);
+export const downloadCertificate = async (participantName, trainingDay = null) => {
+  const { pdf } = await generateCertificate(participantName, trainingDay);
+  pdf.save(`Certificate_${participantName.replace(/\s+/g, '_')}.pdf`);
 };
 
-export const getCertificateDataUrl = async (name, day) => {
-  const { imgData } = await generateCertificate(name, day);
+export const getCertificateDataUrl = async (participantName, trainingDay = null) => {
+  const { imgData } = await generateCertificate(participantName, trainingDay);
   return imgData;
 };
