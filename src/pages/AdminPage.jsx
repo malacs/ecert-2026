@@ -5,18 +5,21 @@ import emailjs from '@emailjs/browser';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admin2026';
 
+// Updated to match the official schedule from the University Letter
 const TRAINING_DAYS = [
   { value: '1', label: 'Day 1 — April 15, 2026' },
   { value: '2', label: 'Day 2 — April 17, 2026' },
   { value: '3', label: 'Day 3 — April 22, 2026' },
   { value: '4', label: 'Day 4 — April 24, 2026' },
   { value: '5', label: 'Day 5 — April 29, 2026' },
-  { value: '6', label: 'Day 6 — May 1, 2026' },
 ];
 
 const DAY_LABEL = {
-  '1': 'April 15, 2026', '2': 'April 17, 2026', '3': 'April 22, 2026',
-  '4': 'April 24, 2026', '5': 'April 29, 2026', '6': 'May 1, 2026',
+  '1': 'April 15, 2026', 
+  '2': 'April 17, 2026', 
+  '3': 'April 22, 2026',
+  '4': 'April 24, 2026', 
+  '5': 'April 29, 2026',
 };
 
 export default function AdminPage() {
