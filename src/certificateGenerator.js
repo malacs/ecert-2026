@@ -28,7 +28,6 @@ const drawOrdinalInline = (ctx, x, y, number) => {
   return width + ctx.measureText(suffix).width;
 };
 
-// Official Schedule from University Letter
 const DAY_DATES = {
   1: { day: 15, month: 'April', year: 2026 },
   2: { day: 17, month: 'April', year: 2026 },
@@ -52,15 +51,12 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     loadImage('/logo-signature.png'),
   ]);
 
-  // ── BACKGROUND & OPACITY ─────────────────────────
+  // ── BACKGROUND ─────────────────────────
   ctx.drawImage(bg, 0, 0, W, H);
-  
-  // Instructor Feedback: Lessened opacity to 0.25
   ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; 
   ctx.fillRect(0, 0, W, H);
 
-  // ── LOGIC: DATE CALCULATIONS ───────────────────
-  // 1. Session Date (From Admin Panel selection)
+  // ── DATE CALCULATIONS ───────────────────
   let sDay, sMonth, sYear;
   const selected = Number(trainingDay);
   if (selected && DAY_DATES[selected]) {
@@ -71,15 +67,13 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026;
   }
 
-  // 2. Given Date (Automatic Today's Date)
   const now = new Date();
   const gDayNum = now.getDate();
   const gMonth = now.toLocaleString('default', { month: 'long' });
   const gYear = now.getFullYear();
 
+  // ── HEADER ─────────────────────────────
   ctx.textAlign = 'center';
-
-  // ── HEADER SECTION ─────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 85);
@@ -97,52 +91,46 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  ctx.fillStyle = '#ffffff'; // White name text
+  ctx.fillStyle = '#ffffff';
   ctx.font = '52px "Lucida Calligraphy", cursive';
   ctx.fillText(participantName.toUpperCase(), W / 2, 365);
 
-  // ── FULL BODY TEXT (Single Date) ─────────────────────────
+  // ── BODY TEXT ──────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
   
-  // Title
   ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, 410);
-  
-  // Session date
   ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from 8:00 AM to 12:00 PM, in recognition of commitment`, W / 2, 410 + lineGap);
-  
-  // Closing phrase
   ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + (lineGap * 2));
 
-  // ── GIVEN DATE (Auto-Date) ─────────────────────────
-  ctx.textAlign = 'center'; 
-  const y = 500;
-  ctx.fillStyle = '#d6e6ff';
-  ctx.fillText('Given this ', W / 2, y);
-
-  // Special Ordinal Drawing logic (keeps '14th' correctly positioned while centered)
-  const part1 = 'Given this ';
-  const part2 = ` of ${gMonth}, ${gYear} at North Eastern Mindanao State University – Lianga Campus,`;
-  const totalWidth = ctx.measureText(part1).width + 30 + ctx.measureText(part2).width;
-  let startX = (W / 2) - (totalWidth / 2);
+  // ── GIVEN DATE & ADDRESS (Fixed Layout) ──
+  const yGiven = 500;
+  ctx.textAlign = 'center';
+  
+  // Logic to center the "Given this [Ordinal] of..." line
+  const p1 = 'Given this ';
+  const p2 = ` of ${gMonth}, ${gYear} at North Eastern Mindanao State University – Lianga Campus,`;
+  const totalW = ctx.measureText(p1).width + 30 + ctx.measureText(p2).width;
+  let startX = (W / 2) - (totalW / 2);
 
   ctx.textAlign = 'left';
-  ctx.fillText(part1, startX, y);
-  startX += ctx.measureText(part1).width;
-  ctx.fillStyle = '#ffffff';
-  startX += drawOrdinalInline(ctx, startX, y, gDayNum); 
   ctx.fillStyle = '#d6e6ff';
-  ctx.fillText(part2, startX, y);
+  ctx.fillText(p1, startX, yGiven);
+  startX += ctx.measureText(p1).width;
+  ctx.fillStyle = '#ffffff';
+  startX += drawOrdinalInline(ctx, startX, yGiven, gDayNum);
+  ctx.fillStyle = '#d6e6ff';
+  ctx.fillText(p2, startX, yGiven);
 
+  // Separate line for the Address
   ctx.textAlign = 'center';
-  ctx.fillText('Lianga, Surigao del Sur', W / 2, y + lineGap);
+  ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // ── SIGNATURE ─────────────────────────
-  // Final Modification: Making the signature lighter
-  ctx.globalAlpha = 0.5; // Set to 50% opacity for a softer look (Default is 1.0)
+  // ── SIGNATURE (Lighter) ────────────────
+  ctx.globalAlpha = 0.35; // Reduced from 0.5 to be even lighter
   ctx.drawImage(logoSig, W / 2 - 32, 618, 65, 38);
-  ctx.globalAlpha = 1.0; // Reset back to full opacity for subsequent drawing
+  ctx.globalAlpha = 1.0;
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
@@ -155,4 +143,14 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
   pdf.addImage(imgData, 'PNG', 0, 0, W, H);
   return { pdf, imgData };
+};
+
+export const downloadCertificate = async (name, day) => {
+  const { pdf } = await generateCertificate(name, day);
+  pdf.save(`Certificate_${name.replace(/\s+/g, '_')}.pdf`);
+};
+
+export const getCertificateDataUrl = async (name, day) => {
+  const { imgData } = await generateCertificate(name, day);
+  return imgData;
 };
