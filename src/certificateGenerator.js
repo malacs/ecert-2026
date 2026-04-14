@@ -15,6 +15,25 @@ const getOrdinal = (n) => {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
 
+// ── SUPERSCRIPT DRAWER ─────────────────────────
+const drawOrdinal = (ctx, x, y, number) => {
+  const baseFont = '14px Arial';
+  const superFont = '9px Arial';
+
+  const n = number.toString();
+  const suffix = getOrdinal(number).replace(n, '');
+
+  ctx.font = baseFont;
+  ctx.fillText(n, x, y);
+
+  const width = ctx.measureText(n).width;
+
+  ctx.font = superFont;
+  ctx.fillText(suffix, x + width + 1, y - 6);
+
+  return ctx.measureText(n + suffix).width;
+};
+
 const DAY_DATES = {
   1: { day: 15, month: 'April', year: 2026 },
   2: { day: 17, month: 'April', year: 2026 },
@@ -39,20 +58,19 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     loadImage('/logo-signature.png'),
   ]);
 
-  // ── BACKGROUND (LIGHTER OVERLAY FOR BORDER VISIBILITY) ─────────
+  // ── BACKGROUND ─────────────────────────
   ctx.drawImage(bg, 0, 0, W, H);
 
-  ctx.fillStyle = 'rgba(10, 20, 60, 0.45)'; // LIGHTER
+  ctx.fillStyle = 'rgba(10, 20, 60, 0.45)'; // lighter for border visibility
   ctx.fillRect(0, 0, W, H);
 
-  // Glow
   const gradient = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 500);
   gradient.addColorStop(0, 'rgba(255,255,255,0.15)');
   gradient.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W, H);
 
-  // ── DATE ─────────────────────────────
+  // ── DATE ─────────────────────────
   let day, month, year;
   if (trainingDay && DAY_DATES[parseInt(trainingDay)]) {
     const d = DAY_DATES[parseInt(trainingDay)];
@@ -68,9 +86,9 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   ctx.textAlign = 'center';
 
-  // ── LOGOS (RIGHT SIDE SLIGHTLY BIGGER) ───────────────
+  // ── LOGOS ─────────────────────────
   const baseHeight = 65;
-  const rightScale = 1.15; // bigger right logo
+  const rightScale = 1.15;
 
   const nemsuWidth = (logoNemsu.width / logoNemsu.height) * baseHeight;
   const citeHeight = baseHeight * rightScale;
@@ -80,7 +98,6 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const gap = 180;
   const logoY = 50;
 
-  // Left logo
   ctx.drawImage(
     logoNemsu,
     centerX - gap - nemsuWidth / 2,
@@ -89,7 +106,6 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     baseHeight
   );
 
-  // Right logo (bigger)
   ctx.drawImage(
     logoCite,
     centerX + gap - citeWidth / 2,
@@ -98,7 +114,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     citeHeight
   );
 
-  // ── HEADER ─────────────────────────────
+  // ── HEADER ─────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 85);
@@ -113,22 +129,22 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // ── TITLE (BIGGER) ─────────────────────────────
+  // ── TITLE ─────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 250);
 
-  // ── SUBTEXT ─────────────────────────────
+  // ── SUBTEXT ─────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 295);
 
-  // ── NAME (BIGGER + BETTER SPACING) ─────────────
+  // ── NAME ─────────────────────────
   ctx.fillStyle = '#ffffff';
   ctx.font = '52px "Lucida Calligraphy", cursive';
   ctx.fillText(participantName.toUpperCase(), W / 2, 365);
 
-  // ── BODY (BETTER LINE SPACING) ─────────────
+  // ── BODY ─────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
 
@@ -152,16 +168,61 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     410 + lineGap * 2
   );
 
-  // ── GIVEN DATE ─────────────────────────────
-  ctx.fillText(
-    `Given this ${getOrdinal(day)} of ${month}, ${year} at North Eastern Mindanao State University – Lianga Campus,`,
-    W / 2,
-    410 + lineGap * 4
-  );
+  // ── GIVEN DATE WITH SUPERSCRIPT + WHITE EMPHASIS ─────────
+  ctx.textAlign = 'left';
 
-  ctx.fillText('Lianga, Surigao del Sur', W / 2, 410 + lineGap * 5);
+  let startX = centerX - 260;
+  const y = 500;
 
-  // ── SIGNATURE ─────────────────────────────
+  ctx.fillStyle = '#d6e6ff';
+  ctx.font = '14px Arial';
+  ctx.fillText('Given this ', startX, y);
+  startX += ctx.measureText('Given this ').width;
+
+  // DAY (white + glow)
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(255,255,255,0.4)';
+  ctx.shadowBlur = 8;
+
+  startX += drawOrdinal(ctx, startX, y, day);
+
+  // reset
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#d6e6ff';
+  ctx.fillText(' of ', startX, y);
+  startX += ctx.measureText(' of ').width;
+
+  // MONTH + YEAR (white + glow)
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(255,255,255,0.4)';
+  ctx.shadowBlur = 8;
+
+  const dateText = `${month}, ${year}`;
+  ctx.fillText(dateText, startX, y);
+  startX += ctx.measureText(dateText).width;
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#d6e6ff';
+  ctx.fillText(' at ', startX, y);
+  startX += ctx.measureText(' at ').width;
+
+  // UNIVERSITY (white + glow)
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(255,255,255,0.4)';
+  ctx.shadowBlur = 8;
+
+  const uniText =
+    'North Eastern Mindanao State University – Lianga Campus,';
+  ctx.fillText(uniText, startX, y);
+
+  ctx.shadowBlur = 0;
+
+  // second line
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#d6e6ff';
+  ctx.fillText('Lianga, Surigao del Sur', W / 2, 525);
+
+  // ── SIGNATURE ─────────────────────────
   ctx.drawImage(logoSig, W / 2 - 60, 560, 120, 80);
 
   ctx.fillStyle = '#ffffff';
@@ -172,7 +233,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '13px Arial';
   ctx.fillText('BSCS Program Coordinator', W / 2, 680);
 
-  // ── EXPORT ─────────────────────────────
+  // ── EXPORT ─────────────────────────
   const imgData = canvas.toDataURL('image/png', 1.0);
   const pdf = new jsPDF({
     orientation: 'landscape',
