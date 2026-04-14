@@ -69,10 +69,13 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W, H);
 
-  // ── DATE ─────────────────────────
+  // ── DATE (FIXED) ─────────────────────────
   let day, month, year;
-  if (trainingDay && DAY_DATES[parseInt(trainingDay)]) {
-    const d = DAY_DATES[parseInt(trainingDay)];
+
+  const selectedDay = Number(trainingDay);
+
+  if (selectedDay && DAY_DATES[selectedDay]) {
+    const d = DAY_DATES[selectedDay];
     day = d.day;
     month = d.month;
     year = d.year;
@@ -85,7 +88,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   ctx.textAlign = 'center';
 
-  // ── LOGOS (FIXED ALIGNMENT) ─────────────────────────
+  // ── LOGOS ─────────────────────────
   const baseHeight = 65;
   const rightScale = 1.15;
 
@@ -96,8 +99,8 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const centerX = W / 2;
   const gap = 210;
 
-  const liangaY = 135; // ← reference line
-  const logoY = liangaY - baseHeight; // align bottom to text
+  const liangaY = 135;
+  const logoY = liangaY - baseHeight;
 
   ctx.drawImage(
     logoNemsu,
@@ -110,7 +113,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.drawImage(
     logoCite,
     centerX + gap - citeWidth / 2,
-    liangaY - citeHeight, // align bottom
+    liangaY - citeHeight,
     citeWidth,
     citeHeight
   );
@@ -130,15 +133,17 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // ── TITLE ─────────────────────────
+  // ── TITLE + SUBTEXT (FIXED SPACING) ─────────────────────────
+  const titleY = 250;
+  const subtitleGap = 20;
+
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 46px Calibri, Arial';
-  ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 250);
+  ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, titleY);
 
-  // ── SUBTEXT ─────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
-  ctx.fillText('This certificate is hereby presented to', W / 2, 275);
+  ctx.fillText('This certificate is hereby presented to', W / 2, titleY + subtitleGap);
 
   // ── NAME ─────────────────────────
   ctx.fillStyle = '#ffffff';
@@ -169,7 +174,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     410 + lineGap * 2
   );
 
-  // ── GIVEN DATE (FIXED) ─────────────────────────
+  // ── GIVEN DATE ─────────────────────────
   ctx.font = '14px Arial';
   ctx.textAlign = 'left';
 
@@ -179,28 +184,19 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const part2 = ` of ${month}, ${year} at `;
   const part3 = 'North Eastern Mindanao State University – Lianga Campus,';
 
-  const totalWidth =
-    ctx.measureText(part1).width +
-    ctx.measureText(getOrdinal(day)).width +
-    ctx.measureText(part2).width +
-    ctx.measureText(part3).width;
-
-  let x = W / 2 - totalWidth / 2;
+  let x = W / 2 - 300; // simplified centering
 
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText(part1, x, y);
   x += ctx.measureText(part1).width;
 
-  // DAY with superscript
   ctx.fillStyle = '#ffffff';
   x += drawOrdinalInline(ctx, x, y, day);
 
-  // normal text
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText(part2, x, y);
   x += ctx.measureText(part2).width;
 
-  // UNIVERSITY WHITE
   ctx.fillStyle = '#ffffff';
   ctx.fillText(part3, x, y);
 
@@ -221,6 +217,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   // ── EXPORT ─────────────────────────
   const imgData = canvas.toDataURL('image/png', 1.0);
+
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'px',
