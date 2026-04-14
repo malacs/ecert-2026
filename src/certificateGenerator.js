@@ -147,28 +147,28 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   // ── INSTRUCTOR SECTION (No Blue Line) ─────────────────────────────
   
-  // Blurry white glow for signature area
+  // 1. Blurry white glow for signature area (Moved Y from 610 to 580)
   ctx.save();
   ctx.shadowColor = "rgba(255, 255, 255, 0.4)";
   ctx.shadowBlur = 20;
   ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-  ctx.fillRect(W / 2 - 100, 610, 200, 60); 
+  ctx.fillRect(W / 2 - 100, 580, 200, 60); 
   ctx.restore();
 
-  // Signature Image
+  // 2. Signature Image (Moved Y from 615 to 585)
   ctx.globalAlpha = 0.8;
-  ctx.drawImage(logoSig, W / 2 - 50, 615, 100, 73);
+  ctx.drawImage(logoSig, W / 2 - 50, 585, 100, 73);
   ctx.globalAlpha = 1.0;
 
-  // Instructor Name
+  // 3. Instructor Name (Moved Y from 690 to 660)
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 14px Georgia, serif';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 690);
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 660);
 
-  // Coordinator Title
+  // 4. Coordinator Title (Moved Y from 708 to 678)
   ctx.fillStyle = 'rgba(195,218,255,0.84)';
   ctx.font = 'italic 11px Georgia, serif';
-  ctx.fillText('BSCS Program Coordinator', W / 2, 708);
+  ctx.fillText('BSCS Program Coordinator', W / 2, 678);
 
   const imgData = canvas.toDataURL('image/png', 1.0);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
