@@ -204,9 +204,9 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, y + 22);
 
-  // ── SIGNATURE (UPDATED) ─────────────────────────
+  // ── SIGNATURE (UPDATED BASED ON IMAGE) ─────────────────────────
   ctx.filter = 'brightness(0.6) contrast(1.2)';
-  ctx.drawImage(logoSig, W / 2 - 60, 585, 120, 80); // moved down
+  ctx.drawImage(logoSig, W / 2 - 50, 545, 100, 65); // higher + smaller
   ctx.filter = 'none';
 
   ctx.fillStyle = '#ffffff';
