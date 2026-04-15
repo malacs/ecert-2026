@@ -74,7 +74,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   ctx.textAlign = 'center';
 
-  // ── LOGOS (FINAL FIXED) ─────────────────────────
+  // ── LOGOS (CLOSER + BALANCED) ─────────────────────────
   const logoHeight = 75;
   const logoTop = 75;
 
@@ -84,7 +84,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const nemsuWidth = logoHeight * nemsuRatio;
   const citeWidth  = logoHeight * citeRatio;
 
-  const centerOffset = 260;
+  const centerOffset = 220; // 🔥 adjusted closer
 
   const leftX  = (W / 2) - centerOffset - nemsuWidth / 2;
   const rightX = (W / 2) + centerOffset - citeWidth / 2;
@@ -96,10 +96,13 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 85);
+
   ctx.font = 'bold 16px Arial';
   ctx.fillText('North Eastern Mindanao State University', W / 2, 110);
+
   ctx.font = '13px Arial';
   ctx.fillText('Lianga Campus', W / 2, 135);
+
   ctx.font = 'bold 13px Arial';
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
