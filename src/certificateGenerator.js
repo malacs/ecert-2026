@@ -75,11 +75,13 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   ctx.textAlign = 'center';
 
-  // ── HEADER SECTION (Logos Added) ─────────────────────────
-  // Added only these drawImage lines to place the logos
+  // ── HEADER SECTION (Logos Adjusted Closer) ─────────────────────────
   const logoSize = 75; 
-  ctx.drawImage(logoNemsu, W / 2 - 325, 80, logoSize, logoSize);
-  ctx.drawImage(logoCite, W / 2 + 250, 80, logoSize, logoSize);
+  const logoTop = 80;
+
+  // Final Fix: Moved them closer to the central text (reduced the +/- values)
+  ctx.drawImage(logoNemsu, W / 2 - 305, logoTop, logoSize, logoSize); // NEMSU closer
+  ctx.drawImage(logoCite, W / 2 + 230, logoTop, logoSize, logoSize); // CITE closer
 
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
