@@ -28,6 +28,18 @@ const drawOrdinalInline = (ctx, x, y, number) => {
   return width + ctx.measureText(suffix).width;
 };
 
+// ✅ AUTO-FIT FUNCTION FOR LONG NAMES
+const fitTextToWidth = (ctx, text, maxWidth, initialSize, fontFamily) => {
+  let fontSize = initialSize;
+
+  do {
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    fontSize--;
+  } while (ctx.measureText(text).width > maxWidth && fontSize > 20);
+
+  return fontSize;
+};
+
 const DAY_DATES = {
   1: { day: 15, month: 'April', year: 2026 },
   2: { day: 17, month: 'April', year: 2026 },
@@ -84,7 +96,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const nemsuWidth = logoHeight * nemsuRatio;
   const citeWidth  = logoHeight * citeRatio;
 
-  const centerOffset = 220; // 🔥 adjusted closer
+  const centerOffset = 220;
 
   const leftX  = (W / 2) - centerOffset - nemsuWidth / 2;
   const rightX = (W / 2) + centerOffset - citeWidth / 2;
@@ -115,10 +127,21 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  // Name (Lucida Calligraphy)
+  // ── NAME (AUTO-FIT) ─────────────────────────
   ctx.fillStyle = '#ffffff';
-  ctx.font = '52px "Lucida Calligraphy", cursive';
-  ctx.fillText(participantName.toUpperCase(), W / 2, 365);
+  const nameText = participantName.toUpperCase();
+  const maxNameWidth = W - 200;
+
+  const fittedSize = fitTextToWidth(
+    ctx,
+    nameText,
+    maxNameWidth,
+    52,
+    '"Lucida Calligraphy", cursive'
+  );
+
+  ctx.font = `${fittedSize}px "Lucida Calligraphy", cursive`;
+  ctx.fillText(nameText, W / 2, 365);
 
   // Body
   ctx.fillStyle = '#d6e6ff';
