@@ -54,11 +54,10 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   // ── BACKGROUND & OPACITY ─────────────────────────
   ctx.drawImage(bg, 0, 0, W, H);
-  ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; // Correct 0.25 opacity
+  ctx.fillStyle = 'rgba(10, 20, 60, 0.25)'; 
   ctx.fillRect(0, 0, W, H);
 
   // ── DATE CALCULATIONS ─────────────────────────
-  // 1. Session Date (From selection)
   let sDay, sMonth, sYear;
   const selected = Number(trainingDay);
   if (selected && DAY_DATES[selected]) {
@@ -69,7 +68,6 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026;
   }
 
-  // 2. Given Date (Automatic Today's Date - April 14)
   const now = new Date();
   const gDayNum = now.getDate();
   const gMonthName = now.toLocaleString('default', { month: 'long' });
@@ -77,7 +75,12 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   ctx.textAlign = 'center';
 
-  // ── HEADER SECTION ─────────────────────────
+  // ── HEADER SECTION (Logos Added) ─────────────────────────
+  // Added only these drawImage lines to place the logos
+  const logoSize = 75; 
+  ctx.drawImage(logoNemsu, W / 2 - 325, 80, logoSize, logoSize);
+  ctx.drawImage(logoCite, W / 2 + 250, 80, logoSize, logoSize);
+
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 85);
@@ -95,11 +98,11 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  ctx.fillStyle = '#ffffff'; // White for name
+  ctx.fillStyle = '#ffffff'; 
   ctx.font = '52px "Lucida Calligraphy", cursive';
   ctx.fillText(participantName.toUpperCase(), W / 2, 365);
 
-  // ── BODY TEXT (Fixed full title wording) ─────────────────────────
+  // ── BODY TEXT ─────────────────────────
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
@@ -107,12 +110,11 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from 8:00 AM to 12:00 PM, in recognition of commitment`, W / 2, 410 + lineGap);
   ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + lineGap * 2);
 
-  // ── GIVEN DATE & ADDRESS (Fixed Layout) ─────────────────────────
+  // ── GIVEN DATE ─────────────────────────
   ctx.textAlign = 'center'; 
   const yGiven = 500;
   ctx.fillStyle = '#d6e6ff';
   
-  // Ordinal math for centered '14th'
   const part1 = 'Given this ';
   const part2 = ` of ${gMonthName}, ${gYearNum} at North Eastern Mindanao State University – Lianga Campus,`;
   const totalW = ctx.measureText(part1).width + 30 + ctx.measureText(part2).width;
@@ -126,37 +128,28 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText(part2, startX, yGiven);
 
-  // Separate line for address
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // ── SIGNATURE (Visible Gold Fix) ─────────────────────────
+  // ── SIGNATURE ─────────────────────────
   const sigW = 65;
   const sigH = 38;
   const sigX = W / 2 - sigW / 2;
   const sigY = 618;
 
-  // Final Fix: Tints the signature image to Gold and uses Lighten mode
   const sigCanvas = document.createElement('canvas');
   const sigCtx = sigCanvas.getContext('2d');
   sigCanvas.width = sigW;
   sigCanvas.height = sigH;
-  
   sigCtx.drawImage(logoSig, 0, 0, sigW, sigH);
-  
-  // Tints the signature image data to Gold (#C9A84C)
   sigCtx.globalCompositeOperation = 'source-atop';
   sigCtx.fillStyle = '#C9A84C'; 
   sigCtx.fillRect(0, 0, sigW, sigH);
   
-  // Draws the tinted gold signature onto the main certificate using Lighten mode
-  ctx.globalCompositeOperation = 'lighten'; // Ensures visibility against the dark background
+  ctx.globalCompositeOperation = 'lighten'; 
   ctx.drawImage(sigCanvas, sigX, sigY, sigW, sigH);
-  
-  // Restore default composite mode for subsequent drawing
   ctx.globalCompositeOperation = 'source-over';
   
-  // (Signature info remains white/d6e6ff)
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 13px Arial';
   ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 660);
