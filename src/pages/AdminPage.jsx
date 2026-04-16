@@ -111,7 +111,7 @@ export default function AdminPage() {
 
   const currentParticipants = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // --- ADVANCED LOGIN UI ---
+  // --- LOGIN UI ---
   if (!authed) return (
     <div style={S.loginPage}>
       <style>{`
@@ -132,19 +132,11 @@ export default function AdminPage() {
           onKeyDown={e => e.key === 'Enter' && handleLogin()}
         />
         <button style={S.loginBtn} onClick={handleLogin}>Unlock Dashboard</button>
-        
-        <div style={S.loginDivider}>
-          <span style={{ color: '#5c6b8a', fontSize: '12px', background: '#1a1060', padding: '0 10px' }}>OR</span>
-        </div>
-
-        <button style={S.presBtn} onClick={() => navigate('/presentation')}>
-          📺 Start Presentation
-        </button>
       </div>
     </div>
   );
 
-  // --- MAIN DASHBOARD UI ---
+  // --- DASHBOARD UI ---
   return (
     <div style={S.page}>
       <style>{`
@@ -153,22 +145,26 @@ export default function AdminPage() {
       <header style={S.header}>
         <div style={S.headerInner}>
           <h1 style={S.headerTitle}>🎓 Admin Dashboard</h1>
-          <div style={{display: 'flex', gap: 12}}>
+          <div style={{display: 'flex', gap: 10}}>
+             <button style={S.presBtnInline} onClick={() => navigate('/presentation')}>
+               📺 Presentation
+             </button>
              <button style={S.refreshBtn} onClick={fetchParticipants}>
                <span style={loading ? S.spinning : {}}>🔄</span> Refresh
              </button>
              <button style={S.sendAllBtn} onClick={handleSendAll} disabled={sendingAll}>
-               {sendingAll ? '⏳ Processing...' : '📧 Send All (Current Filter)'}
+               {sendingAll ? '⏳ Sending...' : '📧 Send All'}
              </button>
           </div>
         </div>
       </header>
 
       <main style={S.main}>
+        {/* Manual Add Card */}
         <div style={S.card}>
-          <h3 style={{marginTop: 0, color: '#1a1060', fontSize: '16px'}}>Manual Entry</h3>
+          <h3 style={{marginTop: 0, color: '#1a1060', fontSize: '15px'}}>Manual Entry</h3>
           <div style={S.formRow}>
-            <input style={S.input} placeholder="PARTICIPANT NAME" value={name} onChange={e => setName(e.target.value)} />
+            <input style={S.input} placeholder="NAME" value={name} onChange={e => setName(e.target.value)} />
             <input style={S.input} placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
             <select style={S.select} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
               <option value="">Select Day</option>
@@ -178,6 +174,7 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* List Card */}
         <div style={S.card}>
           <div style={S.listHeader}>
             <div style={S.filterBar}>
@@ -223,21 +220,20 @@ const S = {
   loginCard: { width: '360px', padding: '40px', borderRadius: '24px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' },
   loginInput: { width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', marginBottom: '20px', outline: 'none', textAlign: 'center' },
   loginBtn: { width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: '#4f46e5', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' },
-  loginDivider: { margin: '25px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', height: '1px', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  presBtn: { width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #4f46e5', background: 'transparent', color: '#818cf8', fontWeight: 'bold', cursor: 'pointer' },
 
   // Dashboard Styles
   page: { minHeight: '100vh', background: '#f4f7fe', fontFamily: 'Inter, system-ui, sans-serif' },
   header: { background: '#1a1060', padding: '15px 40px', color: 'white' },
   headerInner: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' },
-  headerTitle: { fontSize: '20px', margin: 0, fontWeight: '600' },
-  refreshBtn: { background: '#ffffff15', border: '1px solid #ffffff33', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' },
-  sendAllBtn: { background: '#c9a84c', color: '#1a1060', border: 'none', padding: '8px 18px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
+  headerTitle: { fontSize: '18px', margin: 0, fontWeight: '600' },
+  presBtnInline: { background: '#ffffff15', border: '1px solid #ffffff33', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
+  refreshBtn: { background: '#ffffff15', border: '1px solid #ffffff33', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
+  sendAllBtn: { background: '#c9a84c', color: '#1a1060', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
   main: { padding: '30px', maxWidth: '1200px', margin: '0 auto' },
   card: { background: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', marginBottom: '25px' },
   formRow: { display: 'flex', gap: '10px' },
-  input: { padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', flex: 1 },
-  select: { padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', background: '#fff' },
+  input: { padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', flex: 1, fontSize: '14px' },
+  select: { padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', background: '#fff', fontSize: '14px' },
   btnPrimary: { background: '#1a1060', color: 'white', border: 'none', padding: '0 25px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' },
   filterBar: { display: 'flex', gap: '6px' },
   filterBtn: { background: '#f0f2f5', border: 'none', padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontSize: '13px' },
@@ -246,6 +242,8 @@ const S = {
   thRow: { borderBottom: '2px solid #f0f0f0' },
   th: { textAlign: 'left', padding: '15px 12px', color: '#666', fontSize: '12px' },
   td: { padding: '15px 12px', borderBottom: '1px solid #f8f8f8', fontSize: '14px' },
+  trEven: { background: '#ffffff' },
+  trOdd: { background: '#fafafa' },
   badgeSent: { background: '#e6ffed', color: '#22863a', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' },
   badgePending: { background: '#fff9e6', color: '#b08800', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' },
   btnSend: { background: '#1a1060', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' },
