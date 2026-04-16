@@ -35,8 +35,7 @@ export default function AdminPage() {
   const [sendingAll, setSendingAll] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all'); 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const [showDayPicker, setShowDayPicker] = useState(false); // New State
 
   useEffect(() => { if (authed) fetchParticipants(); }, [authed]);
 
@@ -75,7 +74,7 @@ export default function AdminPage() {
   };
 
   const handleSendAll = async () => {
-    if (selectedFilter === 'all') return alert("Please select a specific Day first.");
+    if (selectedFilter === 'all') return alert("Please select a specific Day filter first.");
     const targets = filtered.filter(p => !p.email_sent);
     if (targets.length === 0) return alert("All emails sent for this view!");
     if (!window.confirm(`Send ${targets.length} certificates?`)) return;
@@ -105,11 +104,9 @@ export default function AdminPage() {
 
   const filtered = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase());
-    const matchesDay = selectedFilter === 'all' || String(p.cert_date).includes(String(selectedFilter));
+    const matchesDay = selectedFilter === 'all' || String(p.cert_date) === String(selectedFilter);
     return matchesSearch && matchesDay;
   });
-
-  const currentParticipants = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // --- LOGIN UI ---
   if (!authed) return (
@@ -141,13 +138,38 @@ export default function AdminPage() {
     <div style={S.page}>
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal { background: white; padding: 30px; border-radius: 16px; width: 90%; max-width: 400px; text-align: center; }
       `}</style>
+
+      {/* DAY PICKER MODAL */}
+      {showDayPicker && (
+        <div className="overlay">
+          <div className="modal">
+            <h2 style={{color: '#1a1060', marginBottom: '10px'}}>Select Presentation Day</h2>
+            <p style={{color: '#666', fontSize: '14px', marginBottom: '20px'}}>Which day's participants do you want to show?</p>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+              {TRAINING_DAYS.map(day => (
+                <button 
+                  key={day.value} 
+                  style={S.modalBtn}
+                  onClick={() => navigate(`/presentation?day=${day.value}`)}
+                >
+                  {day.label}
+                </button>
+              ))}
+              <button style={S.cancelBtn} onClick={() => setShowDayPicker(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header style={S.header}>
         <div style={S.headerInner}>
           <h1 style={S.headerTitle}>🎓 Admin Dashboard</h1>
           <div style={{display: 'flex', gap: 10}}>
-             <button style={S.presBtnInline} onClick={() => navigate('/presentation')}>
-               📺 Presentation
+             <button style={S.presBtnInline} onClick={() => setShowDayPicker(true)}>
+               📺 Start Presentation
              </button>
              <button style={S.refreshBtn} onClick={fetchParticipants}>
                <span style={loading ? S.spinning : {}}>🔄</span> Refresh
@@ -160,7 +182,6 @@ export default function AdminPage() {
       </header>
 
       <main style={S.main}>
-        {/* Manual Add Card */}
         <div style={S.card}>
           <h3 style={{marginTop: 0, color: '#1a1060', fontSize: '15px'}}>Manual Entry</h3>
           <div style={S.formRow}>
@@ -174,7 +195,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* List Card */}
         <div style={S.card}>
           <div style={S.listHeader}>
             <div style={S.filterBar}>
@@ -191,7 +211,7 @@ export default function AdminPage() {
               <tr style={S.thRow}>{['#','Name','Email','Training Date','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
             </thead>
             <tbody>
-              {currentParticipants.map((p, i) => (
+              {filtered.map((p, i) => (
                 <tr key={p.id} style={i % 2 === 0 ? S.trEven : S.trOdd}>
                   <td style={S.td}>{i + 1}</td>
                   <td style={S.td}><b>{p.name}</b></td>
@@ -221,12 +241,16 @@ const S = {
   loginInput: { width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', marginBottom: '20px', outline: 'none', textAlign: 'center' },
   loginBtn: { width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: '#4f46e5', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' },
 
+  // Modal Styles
+  modalBtn: { padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', background: '#fff', cursor: 'pointer', textAlign: 'left', fontWeight: '500', transition: '0.2s', ':hover': {background: '#f0f2f5'} },
+  cancelBtn: { padding: '10px', marginTop: '10px', background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontWeight: '600' },
+
   // Dashboard Styles
   page: { minHeight: '100vh', background: '#f4f7fe', fontFamily: 'Inter, system-ui, sans-serif' },
   header: { background: '#1a1060', padding: '15px 40px', color: 'white' },
   headerInner: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' },
   headerTitle: { fontSize: '18px', margin: 0, fontWeight: '600' },
-  presBtnInline: { background: '#ffffff15', border: '1px solid #ffffff33', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
+  presBtnInline: { background: '#ffffff25', border: '1px solid #ffffff44', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' },
   refreshBtn: { background: '#ffffff15', border: '1px solid #ffffff33', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
   sendAllBtn: { background: '#c9a84c', color: '#1a1060', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
   main: { padding: '30px', maxWidth: '1200px', margin: '0 auto' },
