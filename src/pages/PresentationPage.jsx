@@ -111,62 +111,99 @@ export default function PresentationPage() {
 
   return (
     <div style={S.container}>
-      {/* Background glow for ambience */}
-      <div style={S.bgGlow}></div>
+      {/* This is the new "moving glowing blue" effect.
+        It uses a CSS pseudo-element to create a large rotating gradient background.
+        The container (S.container) has a smaller `inset: 10px` mask 
+        which reveals the edge of this background, making it look like a 
+        moving border highlight.
+      */}
+      <style>{`
+        #presenter-border::before {
+          content: '';
+          position: absolute;
+          width: 200%;
+          height: 200%;
+          background: conic-gradient(
+            transparent 0%, 
+            #0ea5e9 15%, 
+            #0ea5e9 30%, 
+            transparent 45%, 
+            transparent 100%
+          );
+          animation: border-spin 10s linear infinite;
+        }
 
-      <div style={{ 
-        ...S.slideWrapper, 
-        opacity: isVisible ? 1 : 0, 
-        transform: isVisible ? 'scale(1) translateY(0)' : 'scale(0.98) translateY(10px)' 
-      }}>
-        
-        {/* INTRO SLIDE */}
-        {isIntro && (
-          <div style={S.textSlide}>
-            <h2 style={S.subTitle}>{fullThemeTitle}</h2>
-            <h1 style={S.mainTitle}>Recognition Rites</h1>
-            <div style={S.divider}></div>
-            <p style={S.desc}>Presentation of Certificates for <br/><strong>{trainingDayLabel}</strong></p>
-          </div>
-        )}
-
-        {/* CERTIFICATE SLIDE (Participants) */}
-        {!isIntro && !isEnding && currentCertUrl && (
-          <div style={S.certWrapper}>
-            <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
-          </div>
-        )}
-
-        {/* ENDING SLIDE */}
-        {isEnding && (
-          <div style={S.textSlide}>
-            <h1 style={S.mainTitle}>Congratulations!</h1>
-            <p style={S.desc}>To all the participants of {trainingDayLabel}</p>
-            <div style={S.divider}></div>
-            <h2 style={S.subTitle}>Thank you for participating!</h2>
-            <p style={{...S.desc, fontSize: '14px', marginTop: '40px', fontStyle: 'normal', opacity: 0.6}}>{fullThemeTitle}</p>
-          </div>
-        )}
-
-      </div>
+        @keyframes border-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
       
-      {/* Progress Indicator */}
-      <div style={S.counter}>
-        {isIntro ? 'BEGIN PRESENTATION' : isEnding ? 'END OF SESSION' : `PARTICIPANT ${currentIndex} OF ${participants.length}`}
-      </div>
+      {/* The border container itself */}
+      <div id="presenter-border" style={S.borderContainer}></div>
 
-      {/* Subtle Hint for the operator */}
-      <div style={S.hint}>Use Arrow Keys to Navigate</div>
+      {/* Main Content Area (masked to create the border) */}
+      <div style={S.maskedContent}>
+        <div style={{ 
+          ...S.slideWrapper, 
+          opacity: isVisible ? 1 : 0, 
+          transform: isVisible ? 'scale(1) translateY(0)' : 'scale(0.98) translateY(10px)' 
+        }}>
+          
+          {/* INTRO SLIDE */}
+          {isIntro && (
+            <div style={S.textSlide}>
+              <h2 style={S.subTitle}>{fullThemeTitle}</h2>
+              <h1 style={S.mainTitle}>Recognition Rites</h1>
+              <div style={S.divider}></div>
+              <p style={S.desc}>Presentation of Certificates for <br/><strong>{trainingDayLabel}</strong></p>
+            </div>
+          )}
+
+          {/* CERTIFICATE SLIDE (Participants) */}
+          {!isIntro && !isEnding && currentCertUrl && (
+            <div style={S.certWrapper}>
+              <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
+            </div>
+          )}
+
+          {/* ENDING SLIDE */}
+          {isEnding && (
+            <div style={S.textSlide}>
+              <h1 style={S.mainTitle}>Congratulations!</h1>
+              <p style={S.desc}>To all the participants of {trainingDayLabel}</p>
+              <div style={S.divider}></div>
+              <h2 style={S.subTitle}>Thank you for participating!</h2>
+              <p style={{...S.desc, fontSize: '14px', marginTop: '40px', fontStyle: 'normal', opacity: 0.6}}>{fullThemeTitle}</p>
+            </div>
+          )}
+
+        </div>
+        
+        {/* Progress Indicator */}
+        <div style={S.counter}>
+          {isIntro ? 'BEGIN PRESENTATION' : isEnding ? 'END OF SESSION' : `PARTICIPANT ${currentIndex} OF ${participants.length}`}
+        </div>
+
+        {/* Subtle Hint for the operator */}
+        <div style={S.hint}>Use Arrow Keys to Navigate</div>
+      </div>
     </div>
   );
 }
 
 const S = {
-  container: { backgroundColor: '#050505', height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontFamily: "'Playfair Display', serif", position: 'relative' },
-  bgGlow: { position: 'absolute', width: '50vw', height: '50vw', background: 'radial-gradient(circle, rgba(201, 168, 76, 0.08) 0%, rgba(0,0,0,0) 70%)', top: '25%', left: '25%', zIndex: 0 },
-  slideWrapper: { display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.4s ease-out', width: '100%', height: '100%', zIndex: 1 },
+  // New Container Styles for the Border Masking
+  container: { backgroundColor: '#000', height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' },
+  
+  borderContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  
+  maskedContent: { position: 'absolute', inset: '8px', backgroundColor: '#000', zIndex: 1, borderRadius: '12px', overflow: 'hidden', fontFamily: "'Playfair Display', serif", },
+
+  // Rest of the styles are the same, just slightly tweaked for the new masking
+  slideWrapper: { display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.4s ease-out', width: '100%', height: '100%' },
   certWrapper: { padding: '20px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', boxShadow: '0 30px 60px rgba(0,0,0,0.5)' },
-  certImg: { maxHeight: '88vh', maxWidth: '90vw', objectFit: 'contain', display: 'block' },
+  certImg: { maxHeight: '85vh', maxWidth: '88vw', objectFit: 'contain', display: 'block' },
   textSlide: { textAlign: 'center', color: '#fff', padding: '0 10%' },
   mainTitle: { fontSize: '72px', margin: '20px 0', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '4px', fontWeight: 'bold', textShadow: '0 4px 10px rgba(0,0,0,0.5)' },
   subTitle: { fontSize: '18px', color: '#fff', fontWeight: '300', letterSpacing: '2px', lineHeight: '1.6', maxWidth: '800px', margin: '0 auto', opacity: 0.9 },
