@@ -3,7 +3,8 @@ import { supabase } from '../supabaseClient';
 import { downloadCertificate } from '../certificateGenerator';
 import emailjs from '@emailjs/browser';
 
-const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admin2026';
+// UPDATED PASSWORD
+const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admindatamining2026!';
 
 const TRAINING_DAYS = [
   { value: '1', label: 'Day 1 — April 15, 2026' },
@@ -34,8 +35,8 @@ export default function AdminPage() {
   const [msg, setMsg] = useState('');
   const [search, setSearch] = useState('');
   
-  // NEW STATES FOR FILTERING AND PAGINATION
-  const [selectedFilter, setSelectedFilter] = useState('all'); // 'all', '1', '2', etc.
+  // FILTER & PAGINATION STATE
+  const [selectedFilter, setSelectedFilter] = useState('all'); 
   const [showPresModal, setShowPresModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
@@ -45,6 +46,7 @@ export default function AdminPage() {
   const fetchParticipants = async () => {
     const { data } = await supabase.from('participants').select('*');
     if (data) {
+      // Sort A-Z by default
       const sorted = data.sort((a, b) => a.name.localeCompare(b.name));
       setParticipants(sorted);
     }
@@ -100,16 +102,15 @@ export default function AdminPage() {
     fetchParticipants();
   };
 
-  // ── FILTERING LOGIC ─────────────────────────
+  // ── FILTERING LOGIC ──
   const filtered = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
                           p.email.toLowerCase().includes(search.toLowerCase());
-    const matchesDay = selectedFilter === 'all' || p.cert_date === selectedFilter;
-    
+    const matchesDay = selectedFilter === 'all' || String(p.cert_date) === String(selectedFilter);
     return matchesSearch && matchesDay;
   });
 
-  // ── PAGINATION LOGIC ─────────────────────────
+  // ── PAGINATION LOGIC ──
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -176,13 +177,12 @@ export default function AdminPage() {
           {msg && <p style={msg.startsWith('✅') ? S.success : S.error}>{msg}</p>}
         </div>
 
-        {/* LIST CARD */}
+        {/* LIST SECTION */}
         <div style={S.card}>
           <div style={S.listHeader}>
             <div style={{display: 'flex', alignItems: 'center', gap: 15}}>
-              <h2 style={{...S.cardTitle, margin: 0}}>Participants</h2>
+              <h2 style={{...S.cardTitle, margin: 0}}>Participant List</h2>
               
-              {/* NEW DAY FILTER BUTTONS */}
               <div style={S.filterBar}>
                 <button 
                   style={selectedFilter === 'all' ? S.filterBtnActive : S.filterBtn} 
@@ -202,7 +202,7 @@ export default function AdminPage() {
 
             <input 
               style={{ ...S.input, maxWidth: 200 }} 
-              placeholder="Search by name..." 
+              placeholder="Search..." 
               value={search} 
               onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} 
             />
@@ -211,7 +211,7 @@ export default function AdminPage() {
           <div style={S.tableWrap}>
             <table style={S.table}>
               <thead>
-                <tr>{['#','Name','Email','Day','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
+                <tr>{['#','Name','Email','Training Date','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
               </thead>
               <tbody>
                 {currentParticipants.map((p, i) => (
@@ -219,7 +219,11 @@ export default function AdminPage() {
                     <td style={S.td}>{indexOfFirstItem + i + 1}</td>
                     <td style={{ ...S.td, fontWeight: 600 }}>{p.name}</td>
                     <td style={S.td}>{p.email}</td>
-                    <td style={S.td}>{DAY_LABEL[p.cert_date] || '—'}</td>
+                    <td style={S.td}>
+                        <span style={{color: '#1a1060', fontWeight: 'bold'}}>
+                           {DAY_LABEL[p.cert_date] || '—'}
+                        </span>
+                    </td>
                     <td style={S.td}>
                       <span style={p.email_sent ? S.badgeSent : S.badgePending}>
                         {p.email_sent ? 'Sent' : 'Pending'}
@@ -245,7 +249,7 @@ export default function AdminPage() {
               onClick={() => setCurrentPage(prev => prev - 1)}
               style={currentPage === 1 ? S.pageBtnDisabled : S.pageBtn}
             >Back</button>
-            <span style={S.pageInfo}>Page {currentPage} of {totalPages || 1} ({filtered.length} total)</span>
+            <span style={S.pageInfo}>Page {currentPage} of {totalPages || 1}</span>
             <button 
               disabled={currentPage === totalPages || totalPages === 0} 
               onClick={() => setCurrentPage(prev => prev + 1)}
@@ -259,7 +263,6 @@ export default function AdminPage() {
 }
 
 const S = {
-  // Keeping your existing styles and adding the new filter styles
   page: { minHeight: '100vh', background: '#f8f9fc', fontFamily: 'sans-serif' },
   header: { background: '#1a1060', padding: '10px 24px' },
   headerInner: { maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -294,18 +297,15 @@ const S = {
   logoCircle: { fontSize: 40 },
   loginTitle: { margin: '10px 0' },
 
-  // FILTER BAR STYLES
   filterBar: { display: 'flex', gap: 5, background: '#f0f2f5', padding: '4px', borderRadius: 6 },
   filterBtn: { background: 'transparent', border: 'none', padding: '5px 12px', borderRadius: 4, fontSize: 12, cursor: 'pointer', color: '#666' },
   filterBtnActive: { background: '#1a1060', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 4, fontSize: 12, cursor: 'pointer' },
 
-  // MODAL STYLES
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal: { background: '#fff', padding: 30, borderRadius: 12, width: '100%', maxWidth: 400 },
-  modalBtn: { background: '#f0f2f5', border: '1px solid #ddd', padding: '12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', fontSize: 14, marginBottom: 5 },
-  modalCancel: { marginTop: 10, background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 14 },
+  modalBtn: { background: '#f0f2f5', border: '1px solid #ddd', padding: '12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', fontSize: 14, marginBottom: 5, width: '100%' },
+  modalCancel: { marginTop: 10, background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 14, width: '100%' },
 
-  // PAGINATION STYLES
   pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, marginTop: 20 },
   pageBtn: { background: '#1a1060', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: 4, cursor: 'pointer' },
   pageBtnDisabled: { background: '#ccc', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: 4, cursor: 'not-allowed' },
