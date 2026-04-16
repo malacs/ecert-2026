@@ -23,7 +23,7 @@ export default function PresentationPage() {
 
   useEffect(() => {
     const fetchParticipants = async () => {
-      // 1. Get the 'day' parameter from the URL (sent by Admin Page)
+      // 1. Get the 'day' parameter from the URL (sent by Admin Page picker)
       const params = new URLSearchParams(window.location.search);
       const selectedDay = params.get('day');
 
@@ -42,6 +42,7 @@ export default function PresentationPage() {
 
       const { data } = await query;
       if (data) {
+        // Sort alphabetically so the presentation feels organized
         const sorted = data.sort((a, b) => a.name.localeCompare(b.name));
         setParticipants(sorted);
       }
@@ -50,10 +51,12 @@ export default function PresentationPage() {
     fetchParticipants();
   }, []);
 
+  // Slides = Intro + All Participants + Ending
   const totalSlides = participants.length + 2;
 
   const changeSlide = useCallback((direction) => {
     setIsVisible(false);
+    // Short timeout allows the fade-out before the content changes
     setTimeout(() => {
       if (direction === 'next' && currentIndex < totalSlides - 1) {
         setCurrentIndex(prev => prev + 1);
@@ -64,17 +67,18 @@ export default function PresentationPage() {
     }, 300);
   }, [currentIndex, totalSlides]);
 
+  // Handle Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') changeSlide('next');
-      if (e.key === 'ArrowLeft') changeSlide('prev');
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') changeSlide('next');
+      if (e.key === 'ArrowLeft' || e.key === 'Backspace') changeSlide('prev');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [changeSlide]);
 
+  // Pre-generate the certificate for the current slide
   useEffect(() => {
-    // Only fetch certificate if we are between Intro and Ending
     const participantIndex = currentIndex - 1;
     if (participants[participantIndex]) {
       getCertificateDataUrl(participants[participantIndex].name, participants[participantIndex].cert_date)
@@ -84,12 +88,37 @@ export default function PresentationPage() {
 
   if (loading) return <div style={S.load}>Loading Presentation...</div>;
 
+  // Handle case where no participants are registered for the selected day
+  if (participants.length === 0) {
+    return (
+      <div style={S.container}>
+        <div style={S.textSlide}>
+          <h1 style={S.mainTitle}>No Participants Found</h1>
+          <p style={S.desc}>There are no registered participants for {trainingDayLabel} yet.</p>
+          <button 
+            onClick={() => window.history.back()} 
+            style={{marginTop: '30px', padding: '10px 20px', background: '#c9a84c', border: 'none', cursor: 'pointer', borderRadius: '5px', fontWeight: 'bold'}}
+          >
+            Go Back to Admin
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const isIntro = currentIndex === 0;
   const isEnding = currentIndex === totalSlides - 1;
 
   return (
     <div style={S.container}>
-      <div style={{ ...S.slideWrapper, opacity: isVisible ? 1 : 0, transform: isVisible ? 'scale(1)' : 'scale(0.95)' }}>
+      {/* Background glow for ambience */}
+      <div style={S.bgGlow}></div>
+
+      <div style={{ 
+        ...S.slideWrapper, 
+        opacity: isVisible ? 1 : 0, 
+        transform: isVisible ? 'scale(1) translateY(0)' : 'scale(0.98) translateY(10px)' 
+      }}>
         
         {/* INTRO SLIDE */}
         {isIntro && (
@@ -97,13 +126,15 @@ export default function PresentationPage() {
             <h2 style={S.subTitle}>{fullThemeTitle}</h2>
             <h1 style={S.mainTitle}>Recognition Rites</h1>
             <div style={S.divider}></div>
-            <p style={S.desc}>Presentation of Certificates for {trainingDayLabel}</p>
+            <p style={S.desc}>Presentation of Certificates for <br/><strong>{trainingDayLabel}</strong></p>
           </div>
         )}
 
-        {/* CERTIFICATE SLIDE */}
+        {/* CERTIFICATE SLIDE (Participants) */}
         {!isIntro && !isEnding && currentCertUrl && (
-          <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
+          <div style={S.certWrapper}>
+            <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
+          </div>
         )}
 
         {/* ENDING SLIDE */}
@@ -113,28 +144,35 @@ export default function PresentationPage() {
             <p style={S.desc}>To all the participants of {trainingDayLabel}</p>
             <div style={S.divider}></div>
             <h2 style={S.subTitle}>Thank you for participating!</h2>
-            <p style={{...S.desc, fontSize: '14px', marginTop: '40px'}}>{fullThemeTitle}</p>
+            <p style={{...S.desc, fontSize: '14px', marginTop: '40px', fontStyle: 'normal', opacity: 0.6}}>{fullThemeTitle}</p>
           </div>
         )}
 
       </div>
       
+      {/* Progress Indicator */}
       <div style={S.counter}>
-        {isIntro ? 'INTRO' : isEnding ? 'FINISH' : `${currentIndex} / ${participants.length}`}
+        {isIntro ? 'BEGIN PRESENTATION' : isEnding ? 'END OF SESSION' : `PARTICIPANT ${currentIndex} OF ${participants.length}`}
       </div>
+
+      {/* Subtle Hint for the operator */}
+      <div style={S.hint}>Use Arrow Keys to Navigate</div>
     </div>
   );
 }
 
 const S = {
-  container: { backgroundColor: '#000', height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontFamily: 'serif' },
-  slideWrapper: { display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.5s ease-in-out', width: '100%', height: '100%' },
-  certImg: { maxHeight: '92vh', maxWidth: '92vw', boxShadow: '0 0 100px rgba(201, 168, 76, 0.15)', objectFit: 'contain' },
+  container: { backgroundColor: '#050505', height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontFamily: "'Playfair Display', serif", position: 'relative' },
+  bgGlow: { position: 'absolute', width: '50vw', height: '50vw', background: 'radial-gradient(circle, rgba(201, 168, 76, 0.08) 0%, rgba(0,0,0,0) 70%)', top: '25%', left: '25%', zIndex: 0 },
+  slideWrapper: { display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.4s ease-out', width: '100%', height: '100%', zIndex: 1 },
+  certWrapper: { padding: '20px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', boxShadow: '0 30px 60px rgba(0,0,0,0.5)' },
+  certImg: { maxHeight: '88vh', maxWidth: '90vw', objectFit: 'contain', display: 'block' },
   textSlide: { textAlign: 'center', color: '#fff', padding: '0 10%' },
-  mainTitle: { fontSize: '72px', margin: '20px 0', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '4px', fontWeight: 'bold' },
-  subTitle: { fontSize: '18px', color: '#fff', fontWeight: '300', letterSpacing: '2px', lineHeight: '1.6', maxWidth: '800px', margin: '0 auto' },
-  desc: { fontSize: '24px', color: '#ccc', marginTop: '20px', fontStyle: 'italic' },
-  divider: { width: '120px', height: '3px', background: '#c9a84c', margin: '40px auto' },
-  counter: { position: 'absolute', bottom: '20px', right: '30px', color: 'rgba(255,255,255,0.1)', fontSize: '12px', fontFamily: 'sans-serif' },
-  load: { height: '100vh', background: '#000', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center' }
+  mainTitle: { fontSize: '72px', margin: '20px 0', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '4px', fontWeight: 'bold', textShadow: '0 4px 10px rgba(0,0,0,0.5)' },
+  subTitle: { fontSize: '18px', color: '#fff', fontWeight: '300', letterSpacing: '2px', lineHeight: '1.6', maxWidth: '800px', margin: '0 auto', opacity: 0.9 },
+  desc: { fontSize: '26px', color: '#ddd', marginTop: '20px', fontStyle: 'italic', fontWeight: '300' },
+  divider: { width: '150px', height: '2px', background: 'linear-gradient(90deg, transparent, #c9a84c, transparent)', margin: '40px auto' },
+  counter: { position: 'absolute', bottom: '30px', left: '40px', color: 'rgba(201, 168, 76, 0.4)', fontSize: '11px', fontFamily: 'sans-serif', letterSpacing: '2px', fontWeight: 'bold' },
+  hint: { position: 'absolute', bottom: '30px', right: '40px', color: 'rgba(255, 255, 255, 0.1)', fontSize: '10px', fontFamily: 'sans-serif', letterSpacing: '1px' },
+  load: { height: '100vh', background: '#000', color: '#c9a84c', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '20px', letterSpacing: '2px' }
 };
