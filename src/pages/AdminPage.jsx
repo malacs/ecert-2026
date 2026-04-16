@@ -33,6 +33,11 @@ export default function AdminPage() {
   const [sending, setSending] = useState(null);
   const [msg, setMsg] = useState('');
   const [search, setSearch] = useState('');
+  
+  // NEW STATES
+  const [showPresModal, setShowPresModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   useEffect(() => { if (authed) fetchParticipants(); }, [authed]);
 
@@ -44,9 +49,11 @@ export default function AdminPage() {
     }
   };
 
-  // NEW PRESENTATION LOGIC: Opens a clean tab
-  const startPresentation = () => {
-    window.open('/presentation', '_blank');
+  // NEW PRESENTATION LOGIC: Opens modal first
+  const handleLaunchPresentation = (dayValue) => {
+    // Pass the selected day as a URL parameter so the Presentation page knows what to filter
+    window.open(`/presentation?day=${dayValue}`, '_blank');
+    setShowPresModal(false);
   };
 
   const handleLogin = () => {
@@ -94,10 +101,16 @@ export default function AdminPage() {
     fetchParticipants();
   };
 
+  // PAGINATION LOGIC
   const filtered = participants.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.email.toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentParticipants = filtered.slice(indexOfFirstItem, indexOfLastItem);
 
   if (!authed) return (
     <div style={S.loginWrap}>
@@ -114,6 +127,24 @@ export default function AdminPage() {
 
   return (
     <div style={S.page}>
+      {/* PRESENTATION DAY SELECTION MODAL */}
+      {showPresModal && (
+        <div style={S.modalOverlay}>
+          <div style={S.modal}>
+            <h3 style={S.cardTitle}>Select Training Day to Present</h3>
+            <p style={{fontSize: 12, color: '#666', marginBottom: 15}}>Only participants assigned to this day will be shown.</p>
+            <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+              {TRAINING_DAYS.map(d => (
+                <button key={d.value} style={S.modalBtn} onClick={() => handleLaunchPresentation(d.value)}>
+                  {d.label}
+                </button>
+              ))}
+              <button style={S.modalCancel} onClick={() => setShowPresModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header style={S.header}>
         <div style={S.headerInner}>
           <div>
@@ -121,13 +152,14 @@ export default function AdminPage() {
             <p style={S.headerSub}>DATA INSIGHTS 2026</p>
           </div>
           <div style={{display: 'flex', gap: 12}}>
-            <button style={S.presLaunchBtn} onClick={startPresentation}>🖥 Start Presentation</button>
+            <button style={S.presLaunchBtn} onClick={() => setShowPresModal(true)}>🖥 Start Presentation</button>
             <a href="/" style={S.viewPublicBtn}>Public Page ↗</a>
           </div>
         </div>
       </header>
 
       <main style={S.main}>
+        {/* ADD PARTICIPANT CARD */}
         <div style={S.card}>
           <h2 style={S.cardTitle}>Add Participant</h2>
           <div style={S.formRow}>
@@ -142,10 +174,16 @@ export default function AdminPage() {
           {msg && <p style={msg.startsWith('✅') ? S.success : S.error}>{msg}</p>}
         </div>
 
+        {/* LIST CARD WITH PAGINATION */}
         <div style={S.card}>
           <div style={S.listHeader}>
             <h2 style={S.cardTitle}>Participants (A-Z)</h2>
-            <input style={{ ...S.input, maxWidth: 200 }} placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input 
+              style={{ ...S.input, maxWidth: 200 }} 
+              placeholder="Search..." 
+              value={search} 
+              onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} 
+            />
           </div>
           <div style={S.tableWrap}>
             <table style={S.table}>
@@ -153,9 +191,9 @@ export default function AdminPage() {
                 <tr>{['#','Name','Email','Day','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
               </thead>
               <tbody>
-                {filtered.map((p, i) => (
+                {currentParticipants.map((p, i) => (
                   <tr key={p.id} style={i % 2 === 0 ? S.trEven : S.trOdd}>
-                    <td style={S.td}>{i + 1}</td>
+                    <td style={S.td}>{indexOfFirstItem + i + 1}</td>
                     <td style={{ ...S.td, fontWeight: 600 }}>{p.name}</td>
                     <td style={S.td}>{p.email}</td>
                     <td style={S.td}>{DAY_LABEL[p.cert_date] || '—'}</td>
@@ -176,6 +214,25 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+
+          {/* PAGINATION CONTROLS */}
+          <div style={S.pagination}>
+            <button 
+              disabled={currentPage === 1} 
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              style={currentPage === 1 ? S.pageBtnDisabled : S.pageBtn}
+            >
+              Back
+            </button>
+            <span style={S.pageInfo}>Page {currentPage} of {totalPages || 1}</span>
+            <button 
+              disabled={currentPage === totalPages || totalPages === 0} 
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              style={(currentPage === totalPages || totalPages === 0) ? S.pageBtnDisabled : S.pageBtn}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </main>
     </div>
@@ -183,6 +240,7 @@ export default function AdminPage() {
 }
 
 const S = {
+  // Existing Styles...
   page: { minHeight: '100vh', background: '#f8f9fc', fontFamily: 'sans-serif' },
   header: { background: '#1a1060', padding: '10px 24px' },
   headerInner: { maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -205,6 +263,7 @@ const S = {
   th: { textAlign: 'left', padding: '10px', background: '#f4f4f4', borderBottom: '1px solid #eee' },
   td: { padding: '10px', borderBottom: '1px solid #eee' },
   trOdd: { background: '#fafafa' },
+  trEven: { background: '#fff' },
   badgeSent: { background: '#e6ffed', color: '#22863a', padding: '2px 8px', borderRadius: 10, fontSize: 11 },
   badgePending: { background: '#fffdef', color: '#735c0f', padding: '2px 8px', borderRadius: 10, fontSize: 11 },
   actionRow: { display: 'flex', gap: 5 },
@@ -215,4 +274,16 @@ const S = {
   loginCard: { background: '#fff', padding: 40, borderRadius: 12, textAlign: 'center' },
   logoCircle: { fontSize: 40 },
   loginTitle: { margin: '10px 0' },
+
+  // NEW MODAL STYLES
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modal: { background: '#fff', padding: 30, borderRadius: 12, width: '100%', maxWidth: 400 },
+  modalBtn: { background: '#f0f2f5', border: '1px solid #ddd', padding: '12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', fontSize: 14, transition: 'all 0.2s' },
+  modalCancel: { marginTop: 10, background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 14 },
+
+  // NEW PAGINATION STYLES
+  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, marginTop: 20 },
+  pageBtn: { background: '#1a1060', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: 4, cursor: 'pointer' },
+  pageBtnDisabled: { background: '#ccc', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: 4, cursor: 'not-allowed' },
+  pageInfo: { fontSize: 13, color: '#666' }
 };
