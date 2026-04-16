@@ -8,6 +8,16 @@ import PresentationPage from './pages/PresentationPage';
 export default function App() {
   return (
     <BrowserRouter>
+      {/* This block allows the CSS to work inside your JSX file */}
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+
       <Routes>
         <Route path="/" element={<PublicPage />} />
         <Route path="/admin" element={<AdminPage />} />
