@@ -28,7 +28,7 @@ const drawOrdinalInline = (ctx, x, y, number) => {
   return width + ctx.measureText(suffix).width;
 };
 
-// ✅ AUTO-FIT FUNCTION FOR LONG NAMES
+// AUTO-FIT FUNCTION
 const fitTextToWidth = (ctx, text, maxWidth, initialSize, fontFamily) => {
   let fontSize = initialSize;
 
@@ -86,7 +86,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   ctx.textAlign = 'center';
 
-  // ── LOGOS (CLOSER + BALANCED) ─────────────────────────
+  // LOGOS
   const logoHeight = 75;
   const logoTop = 75;
 
@@ -119,7 +119,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // Title (Calibri)
+  // Title
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 250);
 
@@ -127,7 +127,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  // ── NAME (AUTO-FIT) ─────────────────────────
+  // NAME (UPDATED FONT ✅)
   ctx.fillStyle = '#ffffff';
   const nameText = participantName.toUpperCase();
   const maxNameWidth = W - 200;
@@ -137,10 +137,10 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     nameText,
     maxNameWidth,
     52,
-    '"Lucida Calligraphy", cursive'
+    'Calibri, Arial'
   );
 
-  ctx.font = `${fittedSize}px "Lucida Calligraphy", cursive`;
+  ctx.font = `bold ${fittedSize}px Calibri, Arial`;
   ctx.fillText(nameText, W / 2, 365);
 
   // Body
