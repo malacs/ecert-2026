@@ -2,19 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { getCertificateDataUrl } from '../certificateGenerator';
 
-// Dynamic helper to get the current training day label based on actual date
-const getCurrentDayLabel = () => {
-  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  
-  const days = {
-    'April 15, 2026': 'Day 1',
-    'April 17, 2026': 'Day 2',
-    'April 22, 2026': 'Day 3',
-    'April 24, 2026': 'Day 4',
-    'April 29, 2026': 'Day 5',
-  };
-
-  return days[today] || "the Training Series"; 
+// Maps the ID from the URL to a readable Label
+const DAY_MAP = {
+  '1': 'Day 1 — April 15, 2026',
+  '2': 'Day 2 — April 17, 2026',
+  '3': 'Day 3 — April 22, 2026',
+  '4': 'Day 4 — April 24, 2026',
+  '5': 'Day 5 — April 29, 2026',
 };
 
 export default function PresentationPage() {
@@ -23,16 +17,31 @@ export default function PresentationPage() {
   const [currentCertUrl, setCurrentCertUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
+  const [trainingDayLabel, setTrainingDayLabel] = useState("the Training Series");
 
   const fullThemeTitle = "DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications";
-  const trainingDayLabel = getCurrentDayLabel();
 
   useEffect(() => {
     const fetchParticipants = async () => {
-      const { data } = await supabase.from('participants').select('*');
+      // 1. Get the 'day' parameter from the URL (sent by Admin Page)
+      const params = new URLSearchParams(window.location.search);
+      const selectedDay = params.get('day');
+
+      // 2. Set the label based on the selection
+      if (selectedDay && DAY_MAP[selectedDay]) {
+        setTrainingDayLabel(DAY_MAP[selectedDay]);
+      }
+
+      // 3. Build the Supabase Query
+      let query = supabase.from('participants').select('*');
+      
+      // Filter by day if it exists in the URL
+      if (selectedDay) {
+        query = query.eq('cert_date', selectedDay);
+      }
+
+      const { data } = await query;
       if (data) {
-        // Only show participants assigned to "today's" day for the presentation
-        // Or remove the filter if you want to show everyone regardless of the date
         const sorted = data.sort((a, b) => a.name.localeCompare(b.name));
         setParticipants(sorted);
       }
@@ -65,6 +74,7 @@ export default function PresentationPage() {
   }, [changeSlide]);
 
   useEffect(() => {
+    // Only fetch certificate if we are between Intro and Ending
     const participantIndex = currentIndex - 1;
     if (participants[participantIndex]) {
       getCertificateDataUrl(participants[participantIndex].name, participants[participantIndex].cert_date)
@@ -72,7 +82,7 @@ export default function PresentationPage() {
     }
   }, [currentIndex, participants]);
 
-  if (loading) return <div style={S.load}>Loading...</div>;
+  if (loading) return <div style={S.load}>Loading Presentation...</div>;
 
   const isIntro = currentIndex === 0;
   const isEnding = currentIndex === totalSlides - 1;
@@ -81,7 +91,7 @@ export default function PresentationPage() {
     <div style={S.container}>
       <div style={{ ...S.slideWrapper, opacity: isVisible ? 1 : 0, transform: isVisible ? 'scale(1)' : 'scale(0.95)' }}>
         
-        {/* INTRO SLIDE - Updated with Full Theme Title */}
+        {/* INTRO SLIDE */}
         {isIntro && (
           <div style={S.textSlide}>
             <h2 style={S.subTitle}>{fullThemeTitle}</h2>
@@ -96,7 +106,7 @@ export default function PresentationPage() {
           <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
         )}
 
-        {/* ENDING SLIDE - Updated to show specific Day */}
+        {/* ENDING SLIDE */}
         {isEnding && (
           <div style={S.textSlide}>
             <h1 style={S.mainTitle}>Congratulations!</h1>
