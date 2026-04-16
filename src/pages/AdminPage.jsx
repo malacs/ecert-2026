@@ -34,7 +34,8 @@ export default function AdminPage() {
   const [msg, setMsg] = useState('');
   const [search, setSearch] = useState('');
   
-  // NEW STATES
+  // NEW STATES FOR FILTERING AND PAGINATION
+  const [selectedFilter, setSelectedFilter] = useState('all'); // 'all', '1', '2', etc.
   const [showPresModal, setShowPresModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
@@ -49,9 +50,7 @@ export default function AdminPage() {
     }
   };
 
-  // NEW PRESENTATION LOGIC: Opens modal first
   const handleLaunchPresentation = (dayValue) => {
-    // Pass the selected day as a URL parameter so the Presentation page knows what to filter
     window.open(`/presentation?day=${dayValue}`, '_blank');
     setShowPresModal(false);
   };
@@ -101,12 +100,16 @@ export default function AdminPage() {
     fetchParticipants();
   };
 
-  // PAGINATION LOGIC
-  const filtered = participants.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.email.toLowerCase().includes(search.toLowerCase())
-  );
+  // ── FILTERING LOGIC ─────────────────────────
+  const filtered = participants.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
+                          p.email.toLowerCase().includes(search.toLowerCase());
+    const matchesDay = selectedFilter === 'all' || p.cert_date === selectedFilter;
+    
+    return matchesSearch && matchesDay;
+  });
 
+  // ── PAGINATION LOGIC ─────────────────────────
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -127,12 +130,11 @@ export default function AdminPage() {
 
   return (
     <div style={S.page}>
-      {/* PRESENTATION DAY SELECTION MODAL */}
+      {/* PRESENTATION MODAL */}
       {showPresModal && (
         <div style={S.modalOverlay}>
           <div style={S.modal}>
             <h3 style={S.cardTitle}>Select Training Day to Present</h3>
-            <p style={{fontSize: 12, color: '#666', marginBottom: 15}}>Only participants assigned to this day will be shown.</p>
             <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
               {TRAINING_DAYS.map(d => (
                 <button key={d.value} style={S.modalBtn} onClick={() => handleLaunchPresentation(d.value)}>
@@ -159,7 +161,7 @@ export default function AdminPage() {
       </header>
 
       <main style={S.main}>
-        {/* ADD PARTICIPANT CARD */}
+        {/* ADD FORM */}
         <div style={S.card}>
           <h2 style={S.cardTitle}>Add Participant</h2>
           <div style={S.formRow}>
@@ -174,17 +176,38 @@ export default function AdminPage() {
           {msg && <p style={msg.startsWith('✅') ? S.success : S.error}>{msg}</p>}
         </div>
 
-        {/* LIST CARD WITH PAGINATION */}
+        {/* LIST CARD */}
         <div style={S.card}>
           <div style={S.listHeader}>
-            <h2 style={S.cardTitle}>Participants (A-Z)</h2>
+            <div style={{display: 'flex', alignItems: 'center', gap: 15}}>
+              <h2 style={{...S.cardTitle, margin: 0}}>Participants</h2>
+              
+              {/* NEW DAY FILTER BUTTONS */}
+              <div style={S.filterBar}>
+                <button 
+                  style={selectedFilter === 'all' ? S.filterBtnActive : S.filterBtn} 
+                  onClick={() => {setSelectedFilter('all'); setCurrentPage(1);}}
+                >All</button>
+                {TRAINING_DAYS.map(day => (
+                  <button 
+                    key={day.value}
+                    style={selectedFilter === day.value ? S.filterBtnActive : S.filterBtn} 
+                    onClick={() => {setSelectedFilter(day.value); setCurrentPage(1);}}
+                  >
+                    Day {day.value}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <input 
               style={{ ...S.input, maxWidth: 200 }} 
-              placeholder="Search..." 
+              placeholder="Search by name..." 
               value={search} 
               onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} 
             />
           </div>
+
           <div style={S.tableWrap}>
             <table style={S.table}>
               <thead>
@@ -215,23 +238,19 @@ export default function AdminPage() {
             </table>
           </div>
 
-          {/* PAGINATION CONTROLS */}
+          {/* PAGINATION */}
           <div style={S.pagination}>
             <button 
               disabled={currentPage === 1} 
               onClick={() => setCurrentPage(prev => prev - 1)}
               style={currentPage === 1 ? S.pageBtnDisabled : S.pageBtn}
-            >
-              Back
-            </button>
-            <span style={S.pageInfo}>Page {currentPage} of {totalPages || 1}</span>
+            >Back</button>
+            <span style={S.pageInfo}>Page {currentPage} of {totalPages || 1} ({filtered.length} total)</span>
             <button 
               disabled={currentPage === totalPages || totalPages === 0} 
               onClick={() => setCurrentPage(prev => prev + 1)}
               style={(currentPage === totalPages || totalPages === 0) ? S.pageBtnDisabled : S.pageBtn}
-            >
-              Next
-            </button>
+            >Next</button>
           </div>
         </div>
       </main>
@@ -240,7 +259,7 @@ export default function AdminPage() {
 }
 
 const S = {
-  // Existing Styles...
+  // Keeping your existing styles and adding the new filter styles
   page: { minHeight: '100vh', background: '#f8f9fc', fontFamily: 'sans-serif' },
   header: { background: '#1a1060', padding: '10px 24px' },
   headerInner: { maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -250,18 +269,18 @@ const S = {
   presLaunchBtn: { background: '#c9a84c', color: '#1a1060', border: 'none', padding: '8px 16px', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' },
   main: { maxWidth: 1100, margin: '20px auto', padding: '0 20px' },
   card: { background: '#fff', padding: 20, borderRadius: 8, boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: 20 },
-  cardTitle: { margin: '0 0 15px', fontSize: 16, color: '#1a1060' },
+  cardTitle: { margin: '0 0 15px', fontSize: 16, color: '#1a1060', fontWeight: 'bold' },
   formRow: { display: 'flex', gap: 10, flexWrap: 'wrap' },
   input: { border: '1px solid #ddd', padding: '8px', borderRadius: 4, flex: 1 },
   select: { border: '1px solid #ddd', padding: '8px', borderRadius: 4 },
   btnPrimary: { background: '#1a1060', color: '#fff', border: 'none', padding: '8px 20px', borderRadius: 4, cursor: 'pointer' },
   success: { color: 'green', fontSize: 13 },
   error: { color: 'red', fontSize: 13 },
-  listHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: 10 },
+  listHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   tableWrap: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th: { textAlign: 'left', padding: '10px', background: '#f4f4f4', borderBottom: '1px solid #eee' },
-  td: { padding: '10px', borderBottom: '1px solid #eee' },
+  th: { textAlign: 'left', padding: '12px 10px', background: '#f4f4f4', borderBottom: '1px solid #eee' },
+  td: { padding: '12px 10px', borderBottom: '1px solid #eee' },
   trOdd: { background: '#fafafa' },
   trEven: { background: '#fff' },
   badgeSent: { background: '#e6ffed', color: '#22863a', padding: '2px 8px', borderRadius: 10, fontSize: 11 },
@@ -275,13 +294,18 @@ const S = {
   logoCircle: { fontSize: 40 },
   loginTitle: { margin: '10px 0' },
 
-  // NEW MODAL STYLES
+  // FILTER BAR STYLES
+  filterBar: { display: 'flex', gap: 5, background: '#f0f2f5', padding: '4px', borderRadius: 6 },
+  filterBtn: { background: 'transparent', border: 'none', padding: '5px 12px', borderRadius: 4, fontSize: 12, cursor: 'pointer', color: '#666' },
+  filterBtnActive: { background: '#1a1060', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 4, fontSize: 12, cursor: 'pointer' },
+
+  // MODAL STYLES
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal: { background: '#fff', padding: 30, borderRadius: 12, width: '100%', maxWidth: 400 },
-  modalBtn: { background: '#f0f2f5', border: '1px solid #ddd', padding: '12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', fontSize: 14, transition: 'all 0.2s' },
+  modalBtn: { background: '#f0f2f5', border: '1px solid #ddd', padding: '12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', fontSize: 14, marginBottom: 5 },
   modalCancel: { marginTop: 10, background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 14 },
 
-  // NEW PAGINATION STYLES
+  // PAGINATION STYLES
   pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, marginTop: 20 },
   pageBtn: { background: '#1a1060', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: 4, cursor: 'pointer' },
   pageBtnDisabled: { background: '#ccc', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: 4, cursor: 'not-allowed' },
