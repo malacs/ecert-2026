@@ -77,10 +77,10 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026;
   }
 
-  // --- LOGO SCALING & ALIGNMENT ---
-  const maxLogoDim = 82; // Balanced size for both logos
-  const logoTop = 75;
-  const centerOffset = 235;
+  // --- UPDATED LOGO SCALING & ALIGNMENT ---
+  const maxLogoDim = 92; // Large size for visual impact
+  const logoTop = 68;    // Moved up to fit larger logos comfortably
+  const centerOffset = 238;
 
   // NEMSU Logo dimensions
   let nW, nH;
@@ -94,7 +94,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   if (cRatio > 1) { cW = maxLogoDim; cH = maxLogoDim / cRatio; } 
   else { cH = maxLogoDim; cW = maxLogoDim * cRatio; }
 
-  // Draw Logos (Centered vertically within their maxDim box)
+  // Draw Logos (Perfectly center-aligned vertically)
   ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, logoTop + (maxLogoDim - nH)/2, nW, nH);
   ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, logoTop + (maxLogoDim - cH)/2, cW, cH);
 
@@ -149,7 +149,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // Signature Implementation
+  // Signature Block
   const sigW = 65;
   const sigH = 38;
   const sigCanvas = document.createElement('canvas');
@@ -157,7 +157,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   sigCanvas.width = sigW; sigCanvas.height = sigH;
   sigCtx.drawImage(logoSig, 0, 0, sigW, sigH);
   sigCtx.globalCompositeOperation = 'source-atop';
-  sigCtx.fillStyle = '#C9A84C'; // Gold
+  sigCtx.fillStyle = '#C9A84C'; 
   sigCtx.fillRect(0, 0, sigW, sigH);
 
   ctx.globalCompositeOperation = 'lighten';
