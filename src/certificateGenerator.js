@@ -79,7 +79,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   // --- LOGO ALIGNMENT LOGIC ---
   const nemsuSize = 88; 
-  const citeSize = 140; 
+  const citeSize = 145; 
   const centerLineY = 115; // This is the horizontal "anchor" for both logos
   const centerOffset = 245;
 
