@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { getCertificateDataUrl } from '../certificateGenerator';
 
-// Maps the ID from the URL to a readable Label
 const DAY_MAP = {
   '1': 'Day 1 — April 15, 2026',
   '2': 'Day 2 — April 17, 2026',
@@ -25,18 +24,23 @@ export default function PresentationPage() {
     const fetchParticipants = async () => {
       const params = new URLSearchParams(window.location.search);
       const selectedDay = params.get('day');
+      const selectedRole = params.get('role'); // Get role from URL
 
       if (selectedDay && DAY_MAP[selectedDay]) {
         setTrainingDayLabel(DAY_MAP[selectedDay]);
       }
 
       let query = supabase.from('participants').select('*');
-      if (selectedDay) {
-        query = query.eq('cert_date', selectedDay);
+      
+      if (selectedDay) query = query.eq('cert_date', selectedDay);
+      // New Role Filter Logic
+      if (selectedRole && selectedRole !== 'All') {
+        query = query.eq('role', selectedRole);
       }
 
       const { data } = await query;
       if (data) {
+        // Sort alphabetically for a professional presentation
         const sorted = data.sort((a, b) => a.name.localeCompare(b.name));
         setParticipants(sorted);
       }
@@ -76,15 +80,15 @@ export default function PresentationPage() {
     }
   }, [currentIndex, participants]);
 
-  if (loading) return <div style={S.load}>Loading Presentation...</div>;
+  if (loading) return <div style={S.load}>Preparing Stage...</div>;
 
   if (participants.length === 0) {
     return (
       <div style={S.container}>
         <div style={S.textSlide}>
-          <h1 style={S.mainTitle}>No Participants Found</h1>
-          <p style={S.desc}>There are no registered participants for {trainingDayLabel} yet.</p>
-          <button onClick={() => window.history.back()} style={S.backBtn}>Go Back</button>
+          <h1 style={S.mainTitle}>No Records Found</h1>
+          <p style={S.desc}>No participants match the selected criteria for {trainingDayLabel}.</p>
+          <button onClick={() => window.history.back()} style={S.backBtn}>Return to Admin</button>
         </div>
       </div>
     );
@@ -95,12 +99,7 @@ export default function PresentationPage() {
 
   return (
     <div style={S.container}>
-      <div style={{ 
-        ...S.slideWrapper, 
-        opacity: isVisible ? 1 : 0, 
-        transform: isVisible ? 'scale(1)' : 'scale(0.98)' 
-      }}>
-        
+      <div style={{ ...S.slideWrapper, opacity: isVisible ? 1 : 0, transform: isVisible ? 'scale(1)' : 'scale(0.98)' }}>
         {isIntro && (
           <div style={S.textSlide}>
             <h2 style={S.subTitle}>{fullThemeTitle}</h2>
@@ -124,11 +123,10 @@ export default function PresentationPage() {
             <h2 style={S.subTitle}>Thank you for participating!</h2>
           </div>
         )}
-
       </div>
       
       <div style={S.counter}>
-        {isIntro ? 'READY' : isEnding ? 'END' : `${currentIndex} / ${participants.length}`}
+        {isIntro ? 'READY' : isEnding ? 'END' : `SLIDE ${currentIndex} OF ${participants.length}`}
       </div>
     </div>
   );
@@ -138,13 +136,13 @@ const S = {
   container: { backgroundColor: '#000', height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', fontFamily: 'serif' },
   slideWrapper: { display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.4s ease-out', width: '100%', height: '100%' },
   certWrapper: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  certImg: { maxHeight: '94vh', maxWidth: '94vw', objectFit: 'contain' },
+  certImg: { maxHeight: '94vh', maxWidth: '94vw', objectFit: 'contain', boxShadow: '0 0 50px rgba(201, 168, 76, 0.3)' },
   textSlide: { textAlign: 'center', color: '#fff', padding: '0 10%' },
   mainTitle: { fontSize: '64px', margin: '20px 0', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 'bold' },
   subTitle: { fontSize: '18px', color: '#fff', fontWeight: '300', letterSpacing: '1px', lineHeight: '1.6', maxWidth: '800px', margin: '0 auto' },
   desc: { fontSize: '24px', color: '#bbb', marginTop: '20px', fontStyle: 'italic' },
   divider: { width: '100px', height: '2px', background: '#c9a84c', margin: '40px auto' },
-  counter: { position: 'absolute', bottom: '20px', right: '30px', color: 'rgba(255, 255, 255, 0.15)', fontSize: '12px', fontFamily: 'sans-serif' },
-  load: { height: '100vh', background: '#000', color: '#c9a84c', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  counter: { position: 'absolute', bottom: '20px', right: '30px', color: 'rgba(255, 255, 255, 0.2)', fontSize: '11px', fontFamily: 'sans-serif', letterSpacing: '1px' },
+  load: { height: '100vh', background: '#000', color: '#c9a84c', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '20px' },
   backBtn: { marginTop: '30px', padding: '10px 25px', background: '#c9a84c', border: 'none', cursor: 'pointer', borderRadius: '4px', fontWeight: 'bold', color: '#000' }
 };
