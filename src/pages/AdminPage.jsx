@@ -31,16 +31,15 @@ export default function AdminPage() {
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all'); 
   const [showConfigModal, setShowConfigModal] = useState(false);
-  
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [trainingDay, setTrainingDay] = useState('');
   const [role, setRole] = useState('Student'); 
   const [adding, setAdding] = useState(false);
-  const [sendingAll, setSendingAll] = useState(false);
+  
+  // Tracking if an individual ID is sending or the whole 'batch'
+  const [sendingStatus, setSendingStatus] = useState(null); 
 
   const [presDay, setPresDay] = useState('1');
   const [presRole, setPresRole] = useState('All');
@@ -49,14 +48,6 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState({ name: '', email: '', cert_date: '', role: '' });
 
   useEffect(() => { if (authed) fetchParticipants(); }, [authed]);
-
-  useEffect(() => {
-    if (['3', '4', '5'].includes(presDay)) {
-      setPresRole('Speaker');
-    } else {
-      setPresRole('All');
-    }
-  }, [presDay]);
 
   const fetchParticipants = async () => {
     setLoading(true);
@@ -83,23 +74,36 @@ export default function AdminPage() {
     setAdding(false);
   };
 
-  const handleUpdate = async (id) => {
-    await supabase.from('participants').update({
-      name: editForm.name.toUpperCase(),
-      email: editForm.email.toLowerCase(),
-      cert_date: editForm.cert_date,
-      role: editForm.role
-    }).eq('id', id);
-    setEditingId(null);
-    fetchParticipants();
+  // --- Send Individual Email Function ---
+  const sendIndividualEmail = async (p) => {
+    setSendingStatus(p.id);
+    try {
+      await emailjs.send(
+        process.env.REACT_APP_EMAILJS_SERVICE_ID,
+        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+        { 
+          to_name: p.name, 
+          to_email: p.email, 
+          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` 
+        },
+        process.env.REACT_APP_EMAILJS_PUBLIC_KEY
+      );
+      await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+      setParticipants(prev => prev.map(item => item.id === p.id ? {...item, email_sent: true} : item));
+    } catch (e) {
+      console.error("EmailJS Error:", e);
+      alert(`Error sending to ${p.name}. Check Console.`);
+    }
+    setSendingStatus(null);
   };
 
+  // --- Improved Batch Sending with 3s Delay ---
   const handleSendAll = async () => {
     const targets = filtered.filter(p => !p.email_sent);
-    if (targets.length === 0) return alert("No pending emails.");
+    if (targets.length === 0) return alert("No pending emails found in current filtered list.");
     if(!window.confirm(`Send emails to ${targets.length} participants?`)) return;
 
-    setSendingAll(true);
+    setSendingStatus('batch');
     for (const p of targets) {
       try {
         await emailjs.send(
@@ -112,16 +116,32 @@ export default function AdminPage() {
           },
           process.env.REACT_APP_EMAILJS_PUBLIC_KEY
         );
+        // Update DB
         await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+        // Update Local UI
         setParticipants(prev => prev.map(item => item.id === p.id ? {...item, email_sent: true} : item));
-      } catch (e) { console.error(e); }
-      await new Promise(res => setTimeout(res, 1200));
+        
+        // Wait 3 seconds before next email to avoid provider blocks
+        await new Promise(res => setTimeout(res, 3000));
+      } catch (e) { 
+        console.error("Batch Failed for:", p.name, e);
+      }
     }
-    setSendingAll(false);
-    alert('Batch process complete.');
+    setSendingStatus(null);
+    alert('Batch process finished.');
   };
 
-  // --- Filter & Pagination Logic ---
+  const handleUpdate = async (id) => {
+    await supabase.from('participants').update({
+      name: editForm.name.toUpperCase(),
+      email: editForm.email.toLowerCase(),
+      cert_date: editForm.cert_date,
+      role: editForm.role
+    }).eq('id', id);
+    setEditingId(null);
+    fetchParticipants();
+  };
+
   const filtered = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === String(selectedFilter);
@@ -129,16 +149,10 @@ export default function AdminPage() {
   });
 
   const pendingCount = filtered.filter(p => !p.email_sent).length;
-  
-  // Calculate total pages
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  // Get current slice
   const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // Reset to page 1 if search or filter changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, selectedFilter]);
+  useEffect(() => { setCurrentPage(1); }, [search, selectedFilter]);
 
   if (!authed) return (
     <div style={S.loginPage}>
@@ -162,11 +176,11 @@ export default function AdminPage() {
                </span>
              )}
              <button 
-               style={{...S.sendAllBtn, opacity: (sendingAll || pendingCount === 0) ? 0.6 : 1}} 
+               style={{...S.sendAllBtn, opacity: (sendingStatus === 'batch' || pendingCount === 0) ? 0.6 : 1}} 
                onClick={handleSendAll} 
-               disabled={sendingAll || pendingCount === 0}
+               disabled={sendingStatus === 'batch' || pendingCount === 0}
              >
-               {sendingAll ? '⏳ Sending...' : '📧 Send All'}
+               {sendingStatus === 'batch' ? '⏳ Sending...' : '📧 Send All'}
              </button>
              <button style={S.presBtn} onClick={() => setShowConfigModal(true)}>📺 Presentation</button>
              <button style={S.logoutBtn} onClick={() => {localStorage.clear(); window.location.reload();}}>Logout</button>
@@ -175,6 +189,7 @@ export default function AdminPage() {
       </header>
 
       <main style={S.main}>
+        {/* ADD PARTICIPANT FORM */}
         <div style={S.card}>
           <div style={S.formRow}>
             <input style={S.input} placeholder="FULL NAME" value={name} onChange={e => setName(e.target.value)} />
@@ -191,6 +206,7 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* SEARCH & FILTER */}
         <div style={S.card}>
           <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
             <input style={{...S.input, maxWidth: 350}} placeholder="Search by name..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -203,7 +219,7 @@ export default function AdminPage() {
           <table style={S.table}>
             <thead>
               <tr style={S.thRow}>
-                {['#','Name','Role','Email','Date','Email Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}
+                {['#','Name','Role','Email','Date','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -238,6 +254,14 @@ export default function AdminPage() {
                         {p.email_sent ? <span style={{color: '#22863a', fontWeight: 'bold'}}>✅ Sent</span> : <span style={{color: '#888'}}>⏳ Pending</span>}
                       </td>
                       <td style={S.td}>
+                         {/* INDIVIDUAL SEND BUTTON */}
+                         <button 
+                           style={{...S.btnSingleSend, opacity: (sendingStatus) ? 0.6 : 1}} 
+                           disabled={!!sendingStatus}
+                           onClick={() => sendIndividualEmail(p)}
+                         >
+                           {sendingStatus === p.id ? '...' : '✉️ Send'}
+                         </button>
                          <button style={S.btnEdit} onClick={() => { setEditingId(p.id); setEditForm(p); }}>Edit</button>
                          <button style={S.btnDelete} onClick={async () => { if(window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id',p.id); fetchParticipants(); } }}>🗑</button>
                       </td>
@@ -248,25 +272,11 @@ export default function AdminPage() {
             </tbody>
           </table>
 
-          {/* --- PAGINATION CONTROLS --- */}
+          {/* PAGINATION */}
           <div style={S.paginationRow}>
-            <button 
-              style={{...S.pageBtn, opacity: currentPage === 1 ? 0.5 : 1}} 
-              disabled={currentPage === 1} 
-              onClick={() => setCurrentPage(prev => prev - 1)}
-            >
-              ← Back
-            </button>
-            <span style={S.pageInfo}>
-              Page <b>{currentPage}</b> of <b>{totalPages || 1}</b>
-            </span>
-            <button 
-              style={{...S.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1}} 
-              disabled={currentPage === totalPages || totalPages === 0} 
-              onClick={() => setCurrentPage(prev => prev + 1)}
-            >
-              Next →
-            </button>
+            <button style={{...S.pageBtn, opacity: currentPage === 1 ? 0.5 : 1}} disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}>← Back</button>
+            <span style={S.pageInfo}>Page <b>{currentPage}</b> of <b>{totalPages || 1}</b></span>
+            <button style={{...S.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1}} disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)}>Next →</button>
           </div>
         </div>
       </main>
@@ -298,7 +308,6 @@ export default function AdminPage() {
 }
 
 const S = {
-  // ... (keep previous styles the same)
   loginPage: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#04050a' },
   loginCard: { padding: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px', textAlign: 'center' },
   loginInput: { padding: '12px', borderRadius: '8px', border: 'none', width: '250px', display: 'block', margin: '10px auto' },
@@ -328,8 +337,7 @@ const S = {
   btnEdit: { background: '#f0f2f5', border: 'none', padding: '5px 10px', borderRadius: '5px', marginRight: '5px', cursor: 'pointer' },
   btnSave: { background: '#22863a', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer' },
   btnDelete: { background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer' },
-
-  // ADD THESE: Pagination Styles
+  btnSingleSend: { background: '#4f46e5', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', marginRight: '5px', cursor: 'pointer', fontSize: '12px' },
   paginationRow: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '20px' },
   pageBtn: { padding: '8px 16px', background: '#1a1060', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' },
   pageInfo: { fontSize: '14px', color: '#444' }
