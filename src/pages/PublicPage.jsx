@@ -1,29 +1,19 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { downloadCertificate } from '../certificateGenerator'; // Ensure this path is correct
-
-const TRAINING_DAYS = [
-  { value: '1', label: 'Day 1 (April 15)' },
-  { value: '2', label: 'Day 2 (April 17)' },
-  { value: '3', label: 'Day 3 (April 22)' },
-  { value: '4', label: 'Day 4 (April 24)' },
-  { value: '5', label: 'Day 5 (April 29)' },
-];
+import { downloadCertificate } from '../certificateGenerator';
 
 export default function PublicPage() {
   const [search, setSearch] = useState('');
-  const [selectedDay, setSelectedDay] = useState('1'); 
+  const [selectedDay, setSelectedDay] = useState('1'); // Default to Day 1
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!search.trim()) return;
 
     setLoading(true);
-    setSearched(true);
-
+    // Logic: Filter by both name and the specific day selected
     const { data, error } = await supabase
       .from('participants')
       .select('*')
@@ -31,8 +21,7 @@ export default function PublicPage() {
       .eq('cert_date', selectedDay);
 
     if (error) {
-      console.error("Supabase Error:", error);
-      alert("Error searching for participant.");
+      alert("Error fetching certificate");
     } else {
       setResults(data || []);
     }
@@ -42,61 +31,50 @@ export default function PublicPage() {
   return (
     <div style={S.container}>
       <div style={S.card}>
-        <h1 style={S.title}>Claim Your E-Certificate</h1>
-        <p style={S.subtitle}>DATA INSIGHTS 2026: Virtual Training Series</p>
-
-        {/* --- DAY SELECTOR --- */}
-        <div style={S.tabContainer}>
-          {TRAINING_DAYS.map((day) => (
-            <button
-              key={day.value}
-              type="button"
-              onClick={() => {
-                setSelectedDay(day.value);
-                setResults([]);
-                setSearched(false);
-              }}
-              style={selectedDay === day.value ? S.tabActive : S.tab}
-            >
-              {day.label}
-            </button>
-          ))}
+        <h2>Claim Your Certificate</h2>
+        
+        {/* Simple Day Selector using your existing style theme */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ color: '#fff', marginRight: '10px' }}>Select Session:</label>
+          <select 
+            value={selectedDay} 
+            onChange={(e) => setSelectedDay(e.target.value)}
+            style={S.select}
+          >
+            <option value="1">Day 1 - April 15</option>
+            <option value="2">Day 2 - April 17</option>
+            <option value="3">Day 3 - April 22</option>
+            <option value="4">Day 4 - April 24</option>
+            <option value="5">Day 5 - April 29</option>
+          </select>
         </div>
 
-        {/* --- SEARCH FORM --- */}
-        <form onSubmit={handleSearch} style={S.searchBox}>
+        <form onSubmit={handleSearch}>
           <input
             style={S.input}
-            placeholder="Type your full name..."
+            placeholder="ENTER YOUR FULL NAME"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <button type="submit" style={S.searchBtn} disabled={loading}>
+          <button type="submit" style={S.button} disabled={loading}>
             {loading ? 'Searching...' : 'Search'}
           </button>
         </form>
 
-        {/* --- RESULTS AREA --- */}
-        <div style={S.resultsArea}>
-          {results.length > 0 ? (
-            results.map((p) => (
-              <div key={p.id} style={S.resultItem}>
-                <div style={{ flex: 1 }}>
-                  <div style={S.resName}>{p.name}</div>
-                  <div style={S.resInfo}>Verified Participant - Day {p.cert_date}</div>
-                </div>
-                <button 
-                  style={S.downloadBtn}
-                  onClick={() => downloadCertificate(p.name, p.cert_date)}
-                >
-                  📥 Download
-                </button>
-              </div>
-            ))
-          ) : (
-            searched && !loading && (
-              <p style={S.noResult}>No records found for this name on the selected day.</p>
-            )
+        <div style={{ marginTop: '20px' }}>
+          {results.map((p) => (
+            <div key={p.id} style={S.resultBox}>
+              <span style={{ color: '#fff' }}>{p.name}</span>
+              <button 
+                style={S.downloadBtn} 
+                onClick={() => downloadCertificate(p.name, p.cert_date)}
+              >
+                Download PDF
+              </button>
+            </div>
+          ))}
+          {results.length === 0 && search && !loading && (
+            <p style={{ color: '#ff4d4f' }}>No record found for Day {selectedDay}.</p>
           )}
         </div>
       </div>
@@ -105,20 +83,11 @@ export default function PublicPage() {
 }
 
 const S = {
-  container: { minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0a0a1a', padding: '20px', fontFamily: 'Arial, sans-serif' },
-  card: { width: '100%', maxWidth: '600px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(12px)', padding: '40px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' },
-  title: { color: '#fff', margin: '0 0 10px 0', fontSize: '24px' },
-  subtitle: { color: '#8f9bba', margin: '0 0 30px 0', fontSize: '14px' },
-  tabContainer: { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginBottom: '25px' },
-  tab: { padding: '8px 14px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#fff', cursor: 'pointer', fontSize: '12px' },
-  tabActive: { padding: '8px 14px', borderRadius: '20px', border: 'none', background: '#4f46e5', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' },
-  searchBox: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  input: { padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: '16px', textAlign: 'center', outline: 'none' },
-  searchBtn: { padding: '14px', borderRadius: '12px', border: 'none', background: '#4f46e5', color: '#fff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' },
-  resultsArea: { marginTop: '30px' },
-  resultItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '15px 20px', borderRadius: '12px', marginBottom: '10px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' },
-  resName: { color: '#fff', fontWeight: 'bold', fontSize: '15px' },
-  resInfo: { color: '#8f9bba', fontSize: '11px', marginTop: '4px' },
-  downloadBtn: { background: '#c9a84c', color: '#1a1060', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' },
-  noResult: { color: '#ff4d4f', fontSize: '13px', marginTop: '20px' }
+  container: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0a1020' },
+  card: { background: 'rgba(255,255,255,0.1)', padding: '30px', borderRadius: '15px', textAlign: 'center', width: '400px' },
+  input: { width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: 'none' },
+  select: { padding: '8px', borderRadius: '5px', background: '#fff', marginBottom: '10px' },
+  button: { width: '100%', padding: '10px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' },
+  resultBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.1)', padding: '10px', marginTop: '10px', borderRadius: '5px' },
+  downloadBtn: { background: '#c9a84c', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }
 };
