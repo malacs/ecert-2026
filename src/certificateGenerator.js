@@ -78,10 +78,10 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   }
 
   // --- MANUAL LOGO ADJUSTMENTS ---
-  const nemsuSize = 95;  // Manual size for Left Logo
-  const citeSize = 108;  // Manual size for Right Logo (Higher to balance the circle)
-  const logoTop = 62;    // Distance from the top edge
-  const centerOffset = 240; // Horizontal distance from the center
+  const nemsuSize = 88;  // Decreased to make it look smaller/slimmer
+  const citeSize = 115;  // Increased to make the circle look bigger and taller
+  const logoTop = 60;    
+  const centerOffset = 242;
 
   // NEMSU Logo calculation
   let nW, nH;
@@ -95,7 +95,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   if (cRatio > 1) { cW = citeSize; cH = citeSize / cRatio; } 
   else { cH = citeSize; cW = citeSize * cRatio; }
 
-  // Draw Logos (Individually centered to look perfectly balanced)
+  // Draw Logos (Centered vertically relative to their specific size boxes)
   ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, logoTop + (nemsuSize - nH)/2, nW, nH);
   ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, logoTop + (citeSize - cH)/2, cW, cH);
   // --------------------------------
