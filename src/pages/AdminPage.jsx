@@ -72,17 +72,15 @@ export default function AdminPage() {
     setAdding(false);
   };
 
-  // --- Send Individual Email Function ---
+  // --- Send Individual Email Only ---
   const sendIndividualEmail = async (p) => {
     setSendingStatus(p.id);
     try {
-      // 1. Initialize with your Public Key
-      emailjs.init("O04AjOrOMCS3gTWky");
+      emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
 
-      // 2. Send the Email
       const result = await emailjs.send(
-        "service_h0nupkh",
-        "template_3g94uwv",
+        process.env.REACT_APP_EMAILJS_SERVICE_ID,
+        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
         { 
           to_name: p.name, 
           to_email: p.email, 
@@ -90,53 +88,15 @@ export default function AdminPage() {
         }
       );
 
-      // 3. Update Supabase only if EmailJS returns Success (200)
       if (result.status === 200) {
         await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
         setParticipants(prev => prev.map(item => item.id === p.id ? {...item, email_sent: true} : item));
       }
     } catch (e) {
       console.error("EmailJS Error:", e);
-      alert(`Error sending to ${p.name}: ${e.text || "Check Browser Console"}`);
+      alert(`Error sending to ${p.name}. Check if email is correct.`);
     }
     setSendingStatus(null);
-  };
-
-  // --- Batch Sending Function ---
-  const handleSendAll = async () => {
-    const targets = filtered.filter(p => !p.email_sent);
-    if (targets.length === 0) return alert("No pending emails found in current filtered list.");
-    if(!window.confirm(`Send emails to ${targets.length} participants?`)) return;
-
-    setSendingStatus('batch');
-    // Initialize once for the batch
-    emailjs.init("O04AjOrOMCS3gTWky");
-
-    for (const p of targets) {
-      try {
-        const result = await emailjs.send(
-          "service_h0nupkh",
-          "template_3g94uwv",
-          { 
-            to_name: p.name, 
-            to_email: p.email, 
-            certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` 
-          }
-        );
-
-        if (result.status === 200) {
-          await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
-          setParticipants(prev => prev.map(item => item.id === p.id ? {...item, email_sent: true} : item));
-        }
-        
-        // Wait 3 seconds before next email to avoid provider blocks
-        await new Promise(res => setTimeout(res, 3000));
-      } catch (e) { 
-        console.error("Batch Failed for:", p.name, e);
-      }
-    }
-    setSendingStatus(null);
-    alert('Batch process finished.');
   };
 
   const handleUpdate = async (id) => {
@@ -156,7 +116,6 @@ export default function AdminPage() {
     return matchesSearch && matchesDay;
   });
 
-  const pendingCount = filtered.filter(p => !p.email_sent).length;
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
@@ -178,18 +137,6 @@ export default function AdminPage() {
         <div style={S.headerInner}>
           <h1 style={S.headerTitle}>🎓 Admin Dashboard</h1>
           <div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
-             {pendingCount > 0 && (
-               <span style={{fontSize: '12px', color: '#ffd700', fontWeight: 'bold'}}>
-                 {pendingCount} Pending
-               </span>
-             )}
-             <button 
-               style={{...S.sendAllBtn, opacity: (sendingStatus === 'batch' || pendingCount === 0) ? 0.6 : 1}} 
-               onClick={handleSendAll} 
-               disabled={sendingStatus === 'batch' || pendingCount === 0}
-             >
-               {sendingStatus === 'batch' ? '⏳ Sending...' : '📧 Send All'}
-             </button>
              <button style={S.presBtn} onClick={() => setShowConfigModal(true)}>📺 Presentation</button>
              <button style={S.logoutBtn} onClick={() => {localStorage.clear(); window.location.reload();}}>Logout</button>
           </div>
@@ -320,7 +267,6 @@ const S = {
   headerInner: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' },
   headerTitle: { fontSize: '18px', margin: 0 },
   presBtn: { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer' },
-  sendAllBtn: { background: '#c9a84c', border: 'none', color: '#000', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
   logoutBtn: { background: '#ff4d4f', border: 'none', color: '#fff', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer' },
   overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
   modal: { background: 'white', padding: '30px', borderRadius: '20px', width: '350px' },
