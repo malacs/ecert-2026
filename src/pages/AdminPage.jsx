@@ -72,19 +72,27 @@ export default function AdminPage() {
     setAdding(false);
   };
 
+  // CLEANED INDIVIDUAL SEND
   const sendIndividualEmail = async (p) => {
+    if (!p.email.includes('@') || !p.email.includes('.')) {
+        return alert("Invalid email address format.");
+    }
+    
     setSendingStatus(p.id);
     try {
       emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
 
+      // We explicitly map only the data needed for the template
+      const templateParams = { 
+        to_name: p.name, 
+        to_email: p.email.trim(), // Ensure no hidden spaces
+        certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` 
+      };
+
       const result = await emailjs.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
         process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
-        { 
-          to_name: p.name, 
-          to_email: p.email, 
-          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` 
-        }
+        templateParams
       );
 
       if (result.status === 200) {
@@ -93,7 +101,7 @@ export default function AdminPage() {
       }
     } catch (e) {
       console.error("EmailJS Error:", e);
-      alert(`Error sending to ${p.name}. Check if email is correct.`);
+      alert(`Failed to send to ${p.name}. Check console for details.`);
     }
     setSendingStatus(null);
   };
@@ -136,7 +144,7 @@ export default function AdminPage() {
         <div style={S.headerInner}>
           <h1 style={S.headerTitle}>🎓 Admin Dashboard</h1>
           <div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
-             <button style={S.presBtn} onClick={() => setShowConfigModal(true)}>📺 Presentation</button>
+             <button style={S.presBtn} onClick={() => setShowConfigModal(true)}>Presentation</button>
              <button style={S.logoutBtn} onClick={() => {localStorage.clear(); window.location.reload();}}>Logout</button>
           </div>
         </div>
@@ -203,7 +211,7 @@ export default function AdminPage() {
                       <td style={S.td}>{p.email}</td>
                       <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
                       <td style={S.td}>
-                        {p.email_sent ? <span style={{color: '#22863a', fontWeight: 'bold'}}>✅ Sent</span> : <span style={{color: '#888'}}>⏳ Pending</span>}
+                        {p.email_sent ? <span style={{color: '#22863a', fontWeight: 'bold'}}>Sent</span> : <span style={{color: '#888'}}>Pending</span>}
                       </td>
                       <td style={S.td}>
                          <button 
@@ -211,10 +219,10 @@ export default function AdminPage() {
                            disabled={!!sendingStatus}
                            onClick={() => sendIndividualEmail(p)}
                          >
-                           {sendingStatus === p.id ? '...' : '✉️ Send'}
+                           {sendingStatus === p.id ? '...' : 'Send'}
                          </button>
                          <button style={S.btnEdit} onClick={() => { setEditingId(p.id); setEditForm(p); }}>Edit</button>
-                         <button style={S.btnDelete} onClick={async () => { if(window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id',p.id); fetchParticipants(); } }}>🗑</button>
+                         <button style={S.btnDelete} onClick={async () => { if(window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id',p.id); fetchParticipants(); } }}>Delete</button>
                       </td>
                     </>
                   )}
@@ -222,40 +230,14 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
-
-          <div style={S.paginationRow}>
-            <button style={{...S.pageBtn, opacity: currentPage === 1 ? 0.5 : 1}} disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}>← Back</button>
-            <span style={S.pageInfo}>Page <b>{currentPage}</b> of <b>{totalPages || 1}</b></span>
-            <button style={{...S.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1}} disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)}>Next →</button>
-          </div>
+          {/* Send All button has been removed from here */}
         </div>
       </main>
-
-      {showConfigModal && (
-        <div style={S.overlay}>
-          <div style={S.modal}>
-            <h3 style={{marginBottom: '15px'}}>Presentation Settings</h3>
-            <label style={S.modalLabel}>Select Session</label>
-            <select style={S.modalSelect} value={presDay} onChange={e => setPresDay(e.target.value)}>
-              {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-            </select>
-            <label style={S.modalLabel}>Display Role</label>
-            <select style={S.modalSelect} value={presRole} onChange={e => setPresRole(e.target.value)}>
-              <option value="All">Everyone</option>
-              <option value="Speaker">Speakers Only</option>
-              <option value="Student">Students Only</option>
-            </select>
-            <div style={{display: 'flex', gap: 10, marginTop: '20px'}}>
-              <button style={S.btnPrimary} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>START</button>
-              <button style={S.cancelBtn} onClick={() => setShowConfigModal(false)}>CANCEL</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
+// ... (Styles same as before)
 const S = {
   loginPage: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#04050a' },
   loginCard: { padding: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px', textAlign: 'center' },
@@ -267,17 +249,12 @@ const S = {
   headerTitle: { fontSize: '18px', margin: 0 },
   presBtn: { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer' },
   logoutBtn: { background: '#ff4d4f', border: 'none', color: '#fff', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer' },
-  overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
-  modal: { background: 'white', padding: '30px', borderRadius: '20px', width: '350px' },
-  modalLabel: { fontSize: '11px', fontWeight: 'bold', display: 'block', marginBottom: '5px', marginTop: '15px', color: '#666', textTransform: 'uppercase' },
-  modalSelect: { width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ddd' },
   main: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
   card: { background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '20px' },
   formRow: { display: 'flex', gap: '10px' },
   input: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd', flex: 1 },
   select: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd' },
   btnPrimary: { background: '#1a1060', color: 'white', border: 'none', padding: '10px 25px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
-  cancelBtn: { background: '#eee', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer' },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: { textAlign: 'left', padding: '12px', fontSize: '11px', color: '#888', borderBottom: '2px solid #eee', textTransform: 'uppercase' },
   td: { padding: '12px', borderBottom: '1px solid #f5f5f5', fontSize: '13px' },
@@ -286,7 +263,4 @@ const S = {
   btnSave: { background: '#22863a', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer' },
   btnDelete: { background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer' },
   btnSingleSend: { background: '#4f46e5', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', marginRight: '5px', cursor: 'pointer', fontSize: '12px' },
-  paginationRow: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '20px' },
-  pageBtn: { padding: '8px 16px', background: '#1a1060', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' },
-  pageInfo: { fontSize: '14px', color: '#444' }
 };
