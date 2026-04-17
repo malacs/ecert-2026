@@ -38,7 +38,6 @@ const fitTextToWidth = (ctx, text, maxWidth, initialSize, fontFamily) => {
   return fontSize;
 };
 
-// --- UPDATED DAY_DATES WITH CUSTOM TIMES ---
 const DAY_DATES = {
   1: { day: 15, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
   2: { day: 17, month: 'April', year: 2026, time: '8:30 AM to 12:00 PM' },
@@ -62,28 +61,24 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     loadImage('/logo-signature.png'),
   ]);
 
-  // Background Setup
   ctx.drawImage(bg, 0, 0, W, H);
   ctx.fillStyle = 'rgba(10, 20, 60, 0.25)';
   ctx.fillRect(0, 0, W, H);
 
-  // --- DYNAMIC DATE & TIME LOGIC ---
   let sDay, sMonth, sYear, sTime;
   const selected = Number(trainingDay);
   if (selected && DAY_DATES[selected]) {
     sDay = DAY_DATES[selected].day;
     sMonth = DAY_DATES[selected].month;
     sYear = DAY_DATES[selected].year;
-    sTime = DAY_DATES[selected].time; // Dynamic Time
+    sTime = DAY_DATES[selected].time;
   } else {
-    // Default fallback
     sDay = 15; sMonth = 'April'; sYear = 2026; sTime = '8:00 AM to 12:00 PM';
   }
 
-  // --- LOGO ALIGNMENT ---
   const nemsuSize = 88; 
   const citeSize = 145; 
-  const centerLineY = 115; 
+  const centerLineY = 115;
   const centerOffset = 245;
 
   let nW, nH;
@@ -99,7 +94,6 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, centerLineY - nH/2, nW, nH);
   ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, centerLineY - cH/2, cW, cH);
 
-  // Header Text
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
@@ -112,7 +106,6 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // Title & Participant Name
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 250);
   ctx.fillStyle = '#d6e6ff';
@@ -125,7 +118,6 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = `bold ${fittedSize}px Calibri, Arial`;
   ctx.fillText(nameText, W / 2, 365);
 
-  // Body Text (Updated to use sTime)
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
@@ -133,7 +125,6 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from ${sTime}, in recognition of commitment`, W / 2, 410 + lineGap);
   ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + lineGap * 2);
 
-  // Given Section
   const yGiven = 500;
   const part1 = 'Given this ';
   const part2 = ` of ${sMonth}, ${sYear} at North Eastern Mindanao State University – Lianga Campus,`;
@@ -150,7 +141,6 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // Signature Block
   const sigW = 65;
   const sigH = 38;
   const sigCanvas = document.createElement('canvas');
