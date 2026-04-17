@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import emailjs from '@emailjs/browser';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admindatamining2026!';
+const ITEMS_PER_PAGE = 20; // Set your limit here
 
 const TRAINING_DAYS = [
   { value: '1', label: 'Day 1 — April 15, 2026' },
@@ -24,7 +25,6 @@ const DAY_LABEL = {
 export default function AdminPage() {
   const navigate = useNavigate();
   
-  // FIX: Initialize state from localStorage so refresh doesn't log you out
   const [authed, setAuthed] = useState(() => {
     return localStorage.getItem('isAdminAuthenticated') === 'true';
   });
@@ -42,6 +42,9 @@ export default function AdminPage() {
   const [selectedFilter, setSelectedFilter] = useState('all'); 
   const [showDayPicker, setShowDayPicker] = useState(false);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+
   useEffect(() => { if (authed) fetchParticipants(); }, [authed]);
 
   const fetchParticipants = async () => {
@@ -54,7 +57,6 @@ export default function AdminPage() {
   const handleLogin = () => {
     if (pw === ADMIN_PASSWORD) {
       setAuthed(true);
-      // FIX: Save session to browser
       localStorage.setItem('isAdminAuthenticated', 'true');
     } else {
       alert('Incorrect Password');
@@ -62,7 +64,7 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
-    if (window.confirm("Are you sure you want to logout?")) {
+    if (window.confirm("Logout?")) {
       setAuthed(false);
       localStorage.removeItem('isAdminAuthenticated');
       navigate('/admin');
@@ -117,13 +119,22 @@ export default function AdminPage() {
     setAdding(false);
   };
 
+  // Logic: Search & Filter FIRST
   const filtered = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase());
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === String(selectedFilter);
     return matchesSearch && matchesDay;
   });
 
-  // --- LOGIN UI ---
+  // Logic: Paginate the FILTERED list
+  const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
+  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
+  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+
+  // Reset to page 1 if filter/search changes
+  useEffect(() => { setCurrentPage(1); }, [search, selectedFilter]);
+
   if (!authed) return (
     <div style={S.loginPage}>
       <style>{`
@@ -138,7 +149,7 @@ export default function AdminPage() {
         <input 
           style={S.loginInput} 
           type="password" 
-          placeholder="Enter Password" 
+          placeholder="Password" 
           value={pw} 
           onChange={e => setPw(e.target.value)} 
           onKeyDown={e => e.key === 'Enter' && handleLogin()}
@@ -148,7 +159,6 @@ export default function AdminPage() {
     </div>
   );
 
-  // --- DASHBOARD UI ---
   return (
     <div style={S.page}>
       <style>{`
@@ -157,21 +167,13 @@ export default function AdminPage() {
         .modal { background: white; padding: 30px; border-radius: 16px; width: 90%; max-width: 400px; text-align: center; }
       `}</style>
 
-      {/* DAY PICKER MODAL */}
       {showDayPicker && (
         <div className="overlay">
           <div className="modal">
             <h2 style={{color: '#1a1060', marginBottom: '10px'}}>Select Presentation Day</h2>
-            <p style={{color: '#666', fontSize: '14px', marginBottom: '20px'}}>Which day's participants do you want to show?</p>
             <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
               {TRAINING_DAYS.map(day => (
-                <button 
-                  key={day.value} 
-                  style={S.modalBtn}
-                  onClick={() => navigate(`/presentation?day=${day.value}`)}
-                >
-                  {day.label}
-                </button>
+                <button key={day.value} style={S.modalBtn} onClick={() => navigate(`/presentation?day=${day.value}`)}>{day.label}</button>
               ))}
               <button style={S.cancelBtn} onClick={() => setShowDayPicker(false)}>Cancel</button>
             </div>
@@ -183,24 +185,18 @@ export default function AdminPage() {
         <div style={S.headerInner}>
           <h1 style={S.headerTitle}>🎓 Admin Dashboard</h1>
           <div style={{display: 'flex', gap: 10}}>
-             <button style={S.presBtnInline} onClick={() => setShowDayPicker(true)}>
-               📺 Start Presentation
-             </button>
+             <button style={S.presBtnInline} onClick={() => setShowDayPicker(true)}>📺 Start Presentation</button>
              <button style={S.refreshBtn} onClick={fetchParticipants}>
                <span style={loading ? S.spinning : {}}>🔄</span> Refresh
              </button>
-             <button style={S.sendAllBtn} onClick={handleSendAll} disabled={sendingAll}>
-               {sendingAll ? '⏳ Sending...' : '📧 Send All'}
-             </button>
-             {/* LOGOUT BUTTON */}
-             <button style={S.logoutBtn} onClick={handleLogout}>
-               🚪 Logout
-             </button>
+             <button style={S.sendAllBtn} onClick={handleSendAll} disabled={sendingAll}>{sendingAll ? '⏳ Sending...' : '📧 Send All'}</button>
+             <button style={S.logoutBtn} onClick={handleLogout}>🚪 Logout</button>
           </div>
         </div>
       </header>
 
       <main style={S.main}>
+        {/* Manual Entry Section */}
         <div style={S.card}>
           <h3 style={{marginTop: 0, color: '#1a1060', fontSize: '15px'}}>Manual Entry</h3>
           <div style={S.formRow}>
@@ -214,6 +210,7 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* List Section */}
         <div style={S.card}>
           <div style={S.listHeader}>
             <div style={S.filterBar}>
@@ -230,9 +227,9 @@ export default function AdminPage() {
               <tr style={S.thRow}>{['#','Name','Email','Training Date','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
             </thead>
             <tbody>
-              {filtered.map((p, i) => (
+              {currentItems.map((p, i) => (
                 <tr key={p.id} style={i % 2 === 0 ? S.trEven : S.trOdd}>
-                  <td style={S.td}>{i + 1}</td>
+                  <td style={S.td}>{indexOfFirstItem + i + 1}</td>
                   <td style={S.td}><b>{p.name}</b></td>
                   <td style={S.td}>{p.email}</td>
                   <td style={S.td}>{DAY_LABEL[String(p.cert_date)] || p.cert_date}</td>
@@ -247,6 +244,25 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
+
+          {/* PAGINATION CONTROLS */}
+          <div style={S.paginationContainer}>
+             <button 
+                disabled={currentPage === 1} 
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                style={currentPage === 1 ? S.pageBtnDisabled : S.pageBtn}
+             >
+               Previous
+             </button>
+             <span style={S.pageInfo}>Page {currentPage} of {totalPages || 1}</span>
+             <button 
+                disabled={currentPage >= totalPages} 
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                style={currentPage >= totalPages ? S.pageBtnDisabled : S.pageBtn}
+             >
+               Next
+             </button>
+          </div>
         </div>
       </main>
     </div>
@@ -254,25 +270,20 @@ export default function AdminPage() {
 }
 
 const S = {
-  // Login Styles
   loginPage: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0a0a1a' },
   loginCard: { width: '360px', padding: '40px', borderRadius: '24px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' },
   loginInput: { width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', marginBottom: '20px', outline: 'none', textAlign: 'center' },
   loginBtn: { width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: '#4f46e5', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' },
-
-  // Modal Styles
-  modalBtn: { padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', background: '#fff', cursor: 'pointer', textAlign: 'left', fontWeight: '500', transition: '0.2s', ':hover': {background: '#f0f2f5'} },
+  modalBtn: { padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', background: '#fff', cursor: 'pointer', textAlign: 'left', fontWeight: '500' },
   cancelBtn: { padding: '10px', marginTop: '10px', background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontWeight: '600' },
-
-  // Dashboard Styles
-  page: { minHeight: '100vh', background: '#f4f7fe', fontFamily: 'Inter, system-ui, sans-serif' },
+  page: { minHeight: '100vh', background: '#f4f7fe', fontFamily: 'Inter, sans-serif' },
   header: { background: '#1a1060', padding: '15px 40px', color: 'white' },
   headerInner: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' },
   headerTitle: { fontSize: '18px', margin: 0, fontWeight: '600' },
-  presBtnInline: { background: '#ffffff25', border: '1px solid #ffffff44', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' },
+  presBtnInline: { background: '#ffffff25', border: '1px solid #ffffff44', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
   refreshBtn: { background: '#ffffff15', border: '1px solid #ffffff33', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
   sendAllBtn: { background: '#c9a84c', color: '#1a1060', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
-  logoutBtn: { background: '#ff4d4f22', border: '1px solid #ff4d4f44', color: '#ff4d4f', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' },
+  logoutBtn: { background: '#ff4d4f22', border: '1px solid #ff4d4f44', color: '#ff4d4f', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
   main: { padding: '30px', maxWidth: '1200px', margin: '0 auto' },
   card: { background: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', marginBottom: '25px' },
   formRow: { display: 'flex', gap: '10px' },
@@ -291,7 +302,13 @@ const S = {
   badgeSent: { background: '#e6ffed', color: '#22863a', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' },
   badgePending: { background: '#fff9e6', color: '#b08800', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' },
   btnSend: { background: '#1a1060', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' },
-  btnDelete: { background: 'none', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: '16px', marginLeft: '8px' },
+  btnDelete: { background: 'none', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: '16px' },
   spinning: { display: 'inline-block', animation: 'spin 1s linear infinite' },
-  listHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }
+  listHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+
+  // Pagination Styles
+  paginationContainer: { marginTop: '30px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px' },
+  pageBtn: { background: '#1a1060', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
+  pageBtnDisabled: { background: '#e0e0e0', color: '#aaa', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'not-allowed', fontSize: '13px' },
+  pageInfo: { fontSize: '14px', color: '#666', fontWeight: '500' }
 };
