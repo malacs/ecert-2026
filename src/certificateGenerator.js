@@ -38,12 +38,13 @@ const fitTextToWidth = (ctx, text, maxWidth, initialSize, fontFamily) => {
   return fontSize;
 };
 
+// --- UPDATED DAY_DATES WITH CUSTOM TIMES ---
 const DAY_DATES = {
-  1: { day: 15, month: 'April', year: 2026 },
-  2: { day: 17, month: 'April', year: 2026 },
-  3: { day: 22, month: 'April', year: 2026 },
-  4: { day: 24, month: 'April', year: 2026 },
-  5: { day: 29, month: 'April', year: 2026 },
+  1: { day: 15, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
+  2: { day: 17, month: 'April', year: 2026, time: '8:30 AM to 12:00 PM' },
+  3: { day: 22, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
+  4: { day: 24, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
+  5: { day: 29, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
 };
 
 export const generateCertificate = async (participantName, trainingDay = null) => {
@@ -66,39 +67,37 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = 'rgba(10, 20, 60, 0.25)';
   ctx.fillRect(0, 0, W, H);
 
-  // Date Logic
-  let sDay, sMonth, sYear;
+  // --- DYNAMIC DATE & TIME LOGIC ---
+  let sDay, sMonth, sYear, sTime;
   const selected = Number(trainingDay);
   if (selected && DAY_DATES[selected]) {
     sDay = DAY_DATES[selected].day;
     sMonth = DAY_DATES[selected].month;
     sYear = DAY_DATES[selected].year;
+    sTime = DAY_DATES[selected].time; // Dynamic Time
   } else {
-    sDay = 15; sMonth = 'April'; sYear = 2026;
+    // Default fallback
+    sDay = 15; sMonth = 'April'; sYear = 2026; sTime = '8:00 AM to 12:00 PM';
   }
 
-  // --- LOGO ALIGNMENT LOGIC ---
+  // --- LOGO ALIGNMENT ---
   const nemsuSize = 88; 
   const citeSize = 145; 
-  const centerLineY = 115; // This is the horizontal "anchor" for both logos
+  const centerLineY = 115; 
   const centerOffset = 245;
 
-  // NEMSU Logo calculation
   let nW, nH;
   const nRatio = logoNemsu.width / logoNemsu.height;
   if (nRatio > 1) { nW = nemsuSize; nH = nemsuSize / nRatio; } 
   else { nH = nemsuSize; nW = nemsuSize * nRatio; }
 
-  // CITE Logo calculation
   let cW, cH;
   const cRatio = logoCite.width / logoCite.height;
   if (cRatio > 1) { cW = citeSize; cH = citeSize / cRatio; } 
   else { cH = citeSize; cW = citeSize * cRatio; }
 
-  // Draw Logos (Both are now centered on centerLineY)
   ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, centerLineY - nH/2, nW, nH);
   ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, centerLineY - cH/2, cW, cH);
-  // ---------------------------
 
   // Header Text
   ctx.textAlign = 'center';
@@ -126,12 +125,12 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = `bold ${fittedSize}px Calibri, Arial`;
   ctx.fillText(nameText, W / 2, 365);
 
-  // Body Text
+  // Body Text (Updated to use sTime)
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
   ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, 410);
-  ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from 8:30 AM to 12:00 PM, in recognition of commitment`, W / 2, 410 + lineGap);
+  ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from ${sTime}, in recognition of commitment`, W / 2, 410 + lineGap);
   ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + lineGap * 2);
 
   // Given Section
