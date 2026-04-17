@@ -27,7 +27,6 @@ export default function AdminPage() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   
-  // Form States
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [trainingDay, setTrainingDay] = useState('');
@@ -35,15 +34,24 @@ export default function AdminPage() {
   const [adding, setAdding] = useState(false);
   const [sendingAll, setSendingAll] = useState(false);
 
-  // Presentation Config State
+  // Presentation Config
   const [presDay, setPresDay] = useState('1');
-  const [presRole, setPresRole] = useState('Speaker');
+  const [presRole, setPresRole] = useState('All');
 
   // Edit State
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', cert_date: '', role: '' });
 
   useEffect(() => { if (authed) fetchParticipants(); }, [authed]);
+
+  // AUTO-SET SPEAKER FOR SESSIONS 3, 4, 5
+  useEffect(() => {
+    if (['3', '4', '5'].includes(presDay)) {
+      setPresRole('Speaker');
+    } else {
+      setPresRole('All');
+    }
+  }, [presDay]);
 
   const fetchParticipants = async () => {
     setLoading(true);
@@ -81,29 +89,24 @@ export default function AdminPage() {
     fetchParticipants();
   };
 
-  const handleSendEmail = async (p) => {
-    if (p.email_sent) return;
-    try {
-      await emailjs.send(
-        process.env.REACT_APP_EMAILJS_SERVICE_ID,
-        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
-        { to_name: p.name, to_email: p.email, certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` },
-        process.env.REACT_APP_EMAILJS_PUBLIC_KEY
-      );
-      await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
-      setParticipants(prev => prev.map(item => item.id === p.id ? { ...item, email_sent: true } : item));
-    } catch (e) { console.error(e); }
-  };
-
   const handleSendAll = async () => {
     const targets = filtered.filter(p => !p.email_sent);
     if (targets.length === 0) return alert("No pending emails.");
     setSendingAll(true);
     for (const p of targets) {
-      await handleSendEmail(p);
+      try {
+        await emailjs.send(
+          process.env.REACT_APP_EMAILJS_SERVICE_ID,
+          process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+          { to_name: p.name, to_email: p.email, certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` },
+          process.env.REACT_APP_EMAILJS_PUBLIC_KEY
+        );
+        await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+      } catch (e) { console.error(e); }
       await new Promise(res => setTimeout(res, 1000)); 
     }
     setSendingAll(false);
+    fetchParticipants();
     alert('Batch Sent.');
   };
 
@@ -118,8 +121,8 @@ export default function AdminPage() {
   if (!authed) return (
     <div style={S.loginPage}>
       <div style={S.loginCard}>
-        <h2 style={{color: '#fff'}}>Admin Login</h2>
-        <input style={S.loginInput} type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+        <h2 style={{color: '#fff'}}>Admin Portal</h2>
+        <input style={S.loginInput} type="password" placeholder="Password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
         <button style={S.loginBtn} onClick={handleLogin}>ENTER</button>
       </div>
     </div>
@@ -129,35 +132,31 @@ export default function AdminPage() {
     <div style={S.page}>
       <header style={S.header}>
         <div style={S.headerInner}>
-          <h1 style={S.headerTitle}>🎓 Admin Portal</h1>
+          <h1 style={S.headerTitle}>🎓 Admin Dashboard</h1>
           <div style={{display: 'flex', gap: 10}}>
              <button style={S.presBtn} onClick={() => setShowConfigModal(true)}>📺 Presentation</button>
-             <button style={S.sendAllBtn} onClick={handleSendAll} disabled={sendingAll}>{sendingAll ? 'Sending...' : '📧 Send All'}</button>
+             <button style={S.sendAllBtn} onClick={handleSendAll} disabled={sendingAll}>{sendingAll ? '...' : '📧 Send All'}</button>
              <button style={S.logoutBtn} onClick={() => {localStorage.clear(); window.location.reload();}}>Logout</button>
           </div>
         </div>
       </header>
 
-      {/* --- NEW PRESENTATION CONFIG MODAL --- */}
       {showConfigModal && (
         <div style={S.overlay}>
           <div style={S.modal}>
-            <h3 style={{marginBottom: '20px'}}>Presentation Settings</h3>
-            
-            <label style={S.modalLabel}>Which Session?</label>
+            <h3 style={{marginBottom: '15px'}}>Presentation Settings</h3>
+            <label style={S.modalLabel}>Select Session</label>
             <select style={S.modalSelect} value={presDay} onChange={e => setPresDay(e.target.value)}>
               {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
-
             <label style={S.modalLabel}>Who to Display?</label>
             <select style={S.modalSelect} value={presRole} onChange={e => setPresRole(e.target.value)}>
-              <option value="All">Everyone (Speakers & Students)</option>
-              <option value="Speaker">Only Speakers</option>
-              <option value="Student">Only Students/Participants</option>
+              <option value="All">Everyone</option>
+              <option value="Speaker">Speakers Only</option>
+              <option value="Student">Students Only</option>
             </select>
-
             <div style={{display: 'flex', gap: 10, marginTop: '20px'}}>
-              <button style={S.btnPrimary} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>LAUNCH</button>
+              <button style={S.btnPrimary} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>START</button>
               <button style={S.cancelBtn} onClick={() => setShowConfigModal(false)}>CANCEL</button>
             </div>
           </div>
@@ -182,8 +181,12 @@ export default function AdminPage() {
         </div>
 
         <div style={S.card}>
-          <div style={S.listHeader}>
-             <input style={{...S.input, maxWidth: 300}} placeholder="Search participants..." value={search} onChange={e => setSearch(e.target.value)} />
+          <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px'}}>
+            <input style={{...S.input, maxWidth: 300}} placeholder="Search participants..." value={search} onChange={e => setSearch(e.target.value)} />
+            <select style={S.select} value={selectedFilter} onChange={e => setSelectedFilter(e.target.value)}>
+               <option value="all">All Days</option>
+               {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
+            </select>
           </div>
           <table style={S.table}>
             <thead><tr style={S.thRow}>{['#','Name','Role','Email','Date','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
@@ -233,8 +236,8 @@ export default function AdminPage() {
 const S = {
   loginPage: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#04050a' },
   loginCard: { padding: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px', textAlign: 'center' },
-  loginInput: { padding: '12px', borderRadius: '8px', border: 'none', width: '250px', display: 'block', margin: '10px auto' },
-  loginBtn: { padding: '12px 30px', borderRadius: '8px', background: '#4f46e5', color: '#fff', border: 'none', cursor: 'pointer' },
+  loginInput: { padding: '12px', borderRadius: '8px', border: 'none', width: '250px', display: 'block', margin: '10px auto', background: '#fff' },
+  loginBtn: { padding: '12px 30px', borderRadius: '8px', background: '#4f46e5', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' },
   page: { minHeight: '100vh', background: '#f4f7fe', fontFamily: 'sans-serif' },
   header: { background: '#1a1060', padding: '15px 40px', color: 'white' },
   headerInner: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' },
