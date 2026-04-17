@@ -77,11 +77,11 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026;
   }
 
-  // --- MANUAL LOGO ADJUSTMENTS ---
-  const nemsuSize = 88;  // Decreased to make it look smaller/slimmer
-  const citeSize = 135;  // Increased to make the circle look bigger and taller
-  const logoTop = 60;    
-  const centerOffset = 242;
+  // --- LOGO ALIGNMENT LOGIC ---
+  const nemsuSize = 88; 
+  const citeSize = 135; 
+  const centerLineY = 115; // This is the horizontal "anchor" for both logos
+  const centerOffset = 245;
 
   // NEMSU Logo calculation
   let nW, nH;
@@ -95,10 +95,10 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   if (cRatio > 1) { cW = citeSize; cH = citeSize / cRatio; } 
   else { cH = citeSize; cW = citeSize * cRatio; }
 
-  // Draw Logos (Centered vertically relative to their specific size boxes)
-  ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, logoTop + (nemsuSize - nH)/2, nW, nH);
-  ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, logoTop + (citeSize - cH)/2, cW, cH);
-  // --------------------------------
+  // Draw Logos (Both are now centered on centerLineY)
+  ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, centerLineY - nH/2, nW, nH);
+  ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, centerLineY - cH/2, cW, cH);
+  // ---------------------------
 
   // Header Text
   ctx.textAlign = 'center';
