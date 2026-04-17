@@ -1,189 +1,97 @@
-import jsPDF from 'jspdf';
+import React, { useState } from 'react';
+import { supabase } from '../supabaseClient';
+import { downloadCertificate } from '../certificateGenerator';
 
-const loadImage = (src) =>
-  new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
+export default function PublicPage() {
+  const [search, setSearch] = useState('');
+  const [selectedDay, setSelectedDay] = useState('1'); 
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-const getOrdinal = (n) => {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-};
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!search.trim()) return;
 
-const drawOrdinalInline = (ctx, x, y, number) => {
-  const baseFont = ctx.font;
-  const smallFont = baseFont.replace(/\d+px/, '10px'); // Slightly larger for readability
-  const n = number.toString();
-  const suffix = getOrdinal(number).replace(n, '');
-  ctx.fillText(n, x, y);
-  const width = ctx.measureText(n).width;
-  ctx.font = smallFont;
-  ctx.fillText(suffix, x + width, y - 7);
-  ctx.font = baseFont;
-  return width + ctx.measureText(suffix).width;
-};
+    setLoading(true);
+    // Filter by name and the specific training day
+    const { data, error } = await supabase
+      .from('participants')
+      .select('*')
+      .ilike('name', `%${search.trim()}%`)
+      .eq('cert_date', selectedDay);
 
-const fitTextToWidth = (ctx, text, maxWidth, initialSize, fontFamily) => {
-  let fontSize = initialSize;
-  do {
-    ctx.font = `bold ${fontSize}px ${fontFamily}`;
-    fontSize--;
-  } while (ctx.measureText(text).width > maxWidth && fontSize > 24);
-  return fontSize;
-};
+    if (error) {
+      console.error(error);
+    } else {
+      setResults(data || []);
+    }
+    setLoading(false);
+  };
 
-const DAY_DATES = {
-  1: { day: 15, month: 'April', year: 2026 },
-  2: { day: 17, month: 'April', year: 2026 },
-  3: { day: 22, month: 'April', year: 2026 },
-  4: { day: 24, month: 'April', year: 2026 },
-  5: { day: 29, month: 'April', year: 2026 },
-};
+  return (
+    <div style={S.container}>
+      <div style={S.card}>
+        <h2 style={S.header}>Claim Your Certificate</h2>
+        
+        {/* Day Selector - Keep it simple to match your UI */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ color: '#fff', fontSize: '12px', display: 'block', marginBottom: '5px' }}>Select Session:</label>
+          <select 
+            value={selectedDay} 
+            onChange={(e) => setSelectedDay(e.target.value)}
+            style={S.select}
+          >
+            <option value="1">Day 1 - April 15</option>
+            <option value="2">Day 2 - April 17</option>
+            <option value="3">Day 3 - April 22</option>
+            <option value="4">Day 4 - April 24</option>
+            <option value="5">Day 5 - April 29</option>
+          </select>
+        </div>
 
-export const generateCertificate = async (participantName, trainingDay = null) => {
-  const canvas = document.createElement('canvas');
-  const W = 1123; // A4 Landscape at 96 DPI
-  const H = 794;
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
+        <form onSubmit={handleSearch} style={S.searchBox}>
+          <input
+            style={S.input}
+            placeholder="ENTER YOUR FULL NAME"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <button type="submit" style={S.button} disabled={loading}>
+            {loading ? '...' : 'Search'}
+          </button>
+        </form>
 
-  // Load Assets
-  const [bg, logoNemsu, logoCite, logoSig] = await Promise.all([
-    loadImage('/cert-bg.png'),
-    loadImage('/logo-nemsu.png'),
-    loadImage('/logo-cite.png'),
-    loadImage('/logo-signature.png'),
-  ]);
+        <div style={{ marginTop: '20px' }}>
+          {results.map((p) => (
+            <div key={p.id} style={S.resultBox}>
+              <span style={{ color: '#fff', fontSize: '14px' }}>{p.name}</span>
+              <button 
+                style={S.downloadBtn} 
+                onClick={() => downloadCertificate(p.name, p.cert_date)}
+              >
+                Download PDF
+              </button>
+            </div>
+          ))}
+          {results.length === 0 && search && !loading && (
+            <p style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '10px' }}>
+              No record found for Day {selectedDay}.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  // Session Date Logic
-  const selected = Number(trainingDay);
-  const session = DAY_DATES[selected] || DAY_DATES[1];
-  const { day: sDay, month: sMonth, year: sYear } = session;
-
-  // Render Background
-  ctx.drawImage(bg, 0, 0, W, H);
-  ctx.fillStyle = 'rgba(10, 20, 60, 0.3)'; // Slightly deeper overlay for professional contrast
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.textAlign = 'center';
-
-  // --- LOGO SECTION ---
-  const logoHeight = 80;
-  const logoTop = 70;
-  const nemsuWidth = logoHeight * (logoNemsu.width / logoNemsu.height);
-  const citeWidth = logoHeight * (logoCite.width / logoCite.height);
-  const logoSpacing = 240;
-
-  ctx.drawImage(logoNemsu, (W / 2) - logoSpacing - nemsuWidth / 2, logoTop, nemsuWidth, logoHeight);
-  ctx.drawImage(logoCite, (W / 2) + logoSpacing - citeWidth / 2, logoTop, citeWidth, logoHeight);
-
-  // --- INSTITUTIONAL HEADER ---
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '14px Arial';
-  ctx.fillText('Republic of the Philippines', W / 2, 85);
-  ctx.font = 'bold 18px Arial';
-  ctx.fillText('North Eastern Mindanao State University', W / 2, 110);
-  ctx.font = '14px Arial';
-  ctx.fillText('Lianga Campus', W / 2, 135);
-
-  ctx.font = 'bold 14px Arial';
-  ctx.fillText('College of Information Technology Education', W / 2, 170);
-  ctx.fillText('Department of Computer Studies', W / 2, 190);
-
-  // --- MAIN TITLE ---
-  ctx.font = 'bold 48px Calibri, Arial';
-  ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 260);
-
-  ctx.fillStyle = '#d6e6ff';
-  ctx.font = 'italic 16px Arial';
-  ctx.fillText('This certificate is hereby presented to', W / 2, 285);
-
-  // --- PARTICIPANT NAME ---
-  ctx.fillStyle = '#ffffff';
-  const nameText = participantName.toUpperCase();
-  const fontSize = fitTextToWidth(ctx, nameText, W - 200, 56, 'Calibri, Arial');
-  ctx.font = `bold ${fontSize}px Calibri, Arial`;
-  ctx.fillText(nameText, W / 2, 370);
-
-  // --- BODY TEXT ---
-  ctx.fillStyle = '#d6e6ff';
-  ctx.font = '15px Arial';
-  const lineGap = 24;
-  const bodyY = 420;
-
-  ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts,', W / 2, bodyY);
-  ctx.fillText(`Techniques, and Applications held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear}`, W / 2, bodyY + lineGap);
-  ctx.fillText('from 8:00 AM to 12:00 PM, in recognition of commitment to learning and professional development.', W / 2, bodyY + lineGap * 2);
-
-  // --- FORMAL GIVEN SECTION ---
-  const yGiven = 520;
-  const part1 = 'Given this ';
-  const part2 = ` of ${sMonth}, ${sYear} at North Eastern Mindanao State University – Lianga Campus,`;
-  
-  ctx.font = '15px Arial';
-  const totalW = ctx.measureText(part1).width + 35 + ctx.measureText(part2).width;
-  let startX = (W / 2) - (totalW / 2);
-
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#d6e6ff';
-  ctx.fillText(part1, startX, yGiven);
-  startX += ctx.measureText(part1).width;
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 15px Arial';
-  startX += drawOrdinalInline(ctx, startX, yGiven, sDay);
-
-  ctx.fillStyle = '#d6e6ff';
-  ctx.font = '15px Arial';
-  ctx.fillText(part2, startX, yGiven);
-  
-  ctx.textAlign = 'center';
-  ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
-
-  // --- SIGNATURE SECTION ---
-  const sigW = 80;
-  const sigH = 45;
-  const sigCanvas = document.createElement('canvas');
-  const sigCtx = sigCanvas.getContext('2d');
-  sigCanvas.width = sigW; sigCanvas.height = sigH;
-  sigCtx.drawImage(logoSig, 0, 0, sigW, sigH);
-  
-  // Apply Professional Gold Tint
-  sigCtx.globalCompositeOperation = 'source-atop';
-  sigCtx.fillStyle = '#C9A84C'; 
-  sigCtx.fillRect(0, 0, sigW, sigH);
-
-  ctx.globalCompositeOperation = 'lighten';
-  ctx.drawImage(sigCanvas, (W / 2) - (sigW / 2), 610, sigW, sigH);
-  ctx.globalCompositeOperation = 'source-over';
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 15px Arial';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 675);
-  ctx.fillStyle = '#d6e6ff';
-  ctx.font = '13px Arial';
-  ctx.fillText('BSCS Program Coordinator', W / 2, 695);
-
-  // Export to PDF
-  const imgData = canvas.toDataURL('image/png', 1.0);
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
-  pdf.addImage(imgData, 'PNG', 0, 0, W, H);
-
-  return { pdf, imgData };
-};
-
-export const downloadCertificate = async (participantName, trainingDay = null) => {
-  const { pdf } = await generateCertificate(participantName, trainingDay);
-  pdf.save(`Certificate_${participantName.replace(/\s+/g, '_')}.pdf`);
-};
-
-export const getCertificateDataUrl = async (participantName, trainingDay = null) => {
-  const { imgData } = await generateCertificate(participantName, trainingDay);
-  return imgData;
+const S = {
+  container: { minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0a1020', padding: '20px' },
+  card: { background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)', padding: '30px', borderRadius: '12px', textAlign: 'center', width: '100%', maxWidth: '400px', border: '1px solid rgba(255,255,255,0.1)' },
+  header: { color: '#fff', marginBottom: '20px', fontSize: '20px' },
+  select: { width: '100%', padding: '10px', borderRadius: '6px', background: '#fff', border: 'none', marginBottom: '10px', fontSize: '14px' },
+  searchBox: { display: 'flex', gap: '5px' },
+  input: { flex: 1, padding: '10px', borderRadius: '6px', border: 'none', fontSize: '13px' },
+  button: { padding: '10px 20px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
+  resultBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.1)', padding: '12px', marginTop: '10px', borderRadius: '8px' },
+  downloadBtn: { background: '#c9a84c', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', color: '#000', fontSize: '12px' }
 };
