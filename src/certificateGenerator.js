@@ -30,10 +30,11 @@ const drawOrdinalInline = (ctx, x, y, number) => {
 
 const fitTextToWidth = (ctx, text, maxWidth, initialSize, fontFamily) => {
   let fontSize = initialSize;
-  do {
-    ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.font = `bold ${fontSize}px ${fontFamily}`;
+  while (ctx.measureText(text).width > maxWidth && fontSize > 20) {
     fontSize--;
-  } while (ctx.measureText(text).width > maxWidth && fontSize > 20);
+    ctx.font = `bold ${fontSize}px ${fontFamily}`;
+  }
   return fontSize;
 };
 
@@ -60,11 +61,12 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     loadImage('/logo-signature.png'),
   ]);
 
+  // Background Setup
   ctx.drawImage(bg, 0, 0, W, H);
   ctx.fillStyle = 'rgba(10, 20, 60, 0.25)';
   ctx.fillRect(0, 0, W, H);
 
-  // LOGIC: Use session date for EVERYTHING
+  // Date Logic
   let sDay, sMonth, sYear;
   const selected = Number(trainingDay);
   if (selected && DAY_DATES[selected]) {
@@ -75,18 +77,29 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026;
   }
 
-  ctx.textAlign = 'center';
-
-  // Logos & Header
-  const logoHeight = 75;
+  // --- LOGO SCALING & ALIGNMENT ---
+  const maxLogoDim = 82; // Balanced size for both logos
   const logoTop = 75;
-  const nemsuWidth = logoHeight * (logoNemsu.width / logoNemsu.height);
-  const citeWidth  = logoHeight * (logoCite.width / logoCite.height);
-  const centerOffset = 220;
+  const centerOffset = 235;
 
-  ctx.drawImage(logoNemsu, (W / 2) - centerOffset - nemsuWidth / 2, logoTop, nemsuWidth, logoHeight);
-  ctx.drawImage(logoCite, (W / 2) + centerOffset - citeWidth / 2, logoTop, citeWidth, logoHeight);
+  // NEMSU Logo dimensions
+  let nW, nH;
+  const nRatio = logoNemsu.width / logoNemsu.height;
+  if (nRatio > 1) { nW = maxLogoDim; nH = maxLogoDim / nRatio; } 
+  else { nH = maxLogoDim; nW = maxLogoDim * nRatio; }
 
+  // CITE Logo dimensions
+  let cW, cH;
+  const cRatio = logoCite.width / logoCite.height;
+  if (cRatio > 1) { cW = maxLogoDim; cH = maxLogoDim / cRatio; } 
+  else { cH = maxLogoDim; cW = maxLogoDim * cRatio; }
+
+  // Draw Logos (Centered vertically within their maxDim box)
+  ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, logoTop + (maxLogoDim - nH)/2, nW, nH);
+  ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, logoTop + (maxLogoDim - cH)/2, cW, cH);
+
+  // Header Text
+  ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 85);
@@ -98,7 +111,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // Title & Name
+  // Title & Participant Name
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 250);
   ctx.fillStyle = '#d6e6ff';
@@ -107,7 +120,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   ctx.fillStyle = '#ffffff';
   const nameText = participantName.toUpperCase();
-  const fittedSize = fitTextToWidth(ctx, nameText, W - 200, 52, 'Calibri, Arial');
+  const fittedSize = fitTextToWidth(ctx, nameText, W - 240, 52, 'Calibri, Arial');
   ctx.font = `bold ${fittedSize}px Calibri, Arial`;
   ctx.fillText(nameText, W / 2, 365);
 
@@ -119,29 +132,24 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from 8:00 AM to 12:00 PM, in recognition of commitment`, W / 2, 410 + lineGap);
   ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + lineGap * 2);
 
-  // --- FIXED GIVEN SECTION ---
-  ctx.textAlign = 'center';
+  // Given Section
   const yGiven = 500;
   const part1 = 'Given this ';
   const part2 = ` of ${sMonth}, ${sYear} at North Eastern Mindanao State University – Lianga Campus,`;
-
   const totalW = ctx.measureText(part1).width + 30 + ctx.measureText(part2).width;
   let startX = (W / 2) - (totalW / 2);
 
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#d6e6ff';
   ctx.fillText(part1, startX, yGiven);
   startX += ctx.measureText(part1).width;
-
   ctx.fillStyle = '#ffffff';
-  startX += drawOrdinalInline(ctx, startX, yGiven, sDay); // Uses sDay from session
-
+  startX += drawOrdinalInline(ctx, startX, yGiven, sDay);
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText(part2, startX, yGiven);
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // Signature (Gold Color Applied)
+  // Signature Implementation
   const sigW = 65;
   const sigH = 38;
   const sigCanvas = document.createElement('canvas');
@@ -149,7 +157,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   sigCanvas.width = sigW; sigCanvas.height = sigH;
   sigCtx.drawImage(logoSig, 0, 0, sigW, sigH);
   sigCtx.globalCompositeOperation = 'source-atop';
-  sigCtx.fillStyle = '#C9A84C';
+  sigCtx.fillStyle = '#C9A84C'; // Gold
   sigCtx.fillRect(0, 0, sigW, sigH);
 
   ctx.globalCompositeOperation = 'lighten';
