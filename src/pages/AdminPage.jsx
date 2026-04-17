@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 import emailjs from '@emailjs/browser';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admindatamining2026!';
-const ITEMS_PER_PAGE = 20; // Set your limit here
+const ITEMS_PER_PAGE = 20;
 
 const TRAINING_DAYS = [
   { value: '1', label: 'Day 1 — April 15, 2026' },
@@ -14,21 +14,11 @@ const TRAINING_DAYS = [
   { value: '5', label: 'Day 5 — April 29, 2026' },
 ];
 
-const DAY_LABEL = {
-  '1': 'April 15, 2026', 
-  '2': 'April 17, 2026', 
-  '3': 'April 22, 2026',
-  '4': 'April 24, 2026', 
-  '5': 'April 29, 2026',
-};
+const DAY_LABEL = { '1': 'April 15, 2026', '2': 'April 17, 2026', '3': 'April 22, 2026', '4': 'April 24, 2026', '5': 'April 29, 2026' };
 
 export default function AdminPage() {
   const navigate = useNavigate();
-  
-  const [authed, setAuthed] = useState(() => {
-    return localStorage.getItem('isAdminAuthenticated') === 'true';
-  });
-
+  const [authed, setAuthed] = useState(() => localStorage.getItem('isAdminAuthenticated') === 'true');
   const [pw, setPw] = useState('');
   const [participants, setParticipants] = useState([]);
   const [name, setName] = useState('');
@@ -41,8 +31,6 @@ export default function AdminPage() {
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all'); 
   const [showDayPicker, setShowDayPicker] = useState(false);
-
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => { if (authed) fetchParticipants(); }, [authed]);
@@ -51,16 +39,14 @@ export default function AdminPage() {
     setLoading(true);
     const { data } = await supabase.from('participants').select('*').order('created_at', { ascending: false });
     if (data) setParticipants(data);
-    setTimeout(() => setLoading(false), 800);
+    setLoading(false);
   };
 
   const handleLogin = () => {
     if (pw === ADMIN_PASSWORD) {
       setAuthed(true);
       localStorage.setItem('isAdminAuthenticated', 'true');
-    } else {
-      alert('Incorrect Password');
-    }
+    } else { alert('Incorrect Password'); }
   };
 
   const handleLogout = () => {
@@ -72,133 +58,84 @@ export default function AdminPage() {
   };
 
   const handleSendEmail = async (p) => {
+    if (p.email_sent) return; // Skip if already sent
     setSending(p.id);
     try {
       await emailjs.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
         process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
-        {
-          to_name: p.name, 
-          to_email: p.email,
-          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}`,
-        },
+        { to_name: p.name, to_email: p.email, certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` },
         process.env.REACT_APP_EMAILJS_PUBLIC_KEY
       );
       await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
-      fetchParticipants();
-    } catch (e) { console.error("Email Error:", e); }
+      setParticipants(prev => prev.map(item => item.id === p.id ? { ...item, email_sent: true } : item));
+    } catch (e) { console.error(e); }
     setSending(null);
   };
 
   const handleSendAll = async () => {
-    if (selectedFilter === 'all') return alert("Please select a specific Day filter first.");
     const targets = filtered.filter(p => !p.email_sent);
-    if (targets.length === 0) return alert("All emails sent for this view!");
-    if (!window.confirm(`Send ${targets.length} certificates?`)) return;
+    if (targets.length === 0) return alert("All emails in this view are already sent!");
+    if (!window.confirm(`Send ${targets.length} pending certificates?`)) return;
 
     setSendingAll(true);
     for (const p of targets) {
       await handleSendEmail(p);
-      await new Promise(res => setTimeout(res, 1200)); 
+      await new Promise(res => setTimeout(res, 1500)); 
     }
     setSendingAll(false);
     alert('Finished sending batch.');
   };
 
   const handleAdd = async () => {
-    if (!name.trim() || !email.trim() || !trainingDay) return alert("Fill all fields");
+    const cleanName = name.trim().toUpperCase();
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanName || !cleanEmail || !trainingDay) return alert("Fill all fields");
+
+    // Check for duplicates before adding
+    const isDuplicate = participants.some(p => p.name === cleanName && String(p.cert_date) === String(trainingDay));
+    if (isDuplicate) return alert(`Note: ${cleanName} is already added for this day!`);
+
     setAdding(true);
-    await supabase.from('participants').insert([{
-      name: name.trim().toUpperCase(), 
-      email: email.trim().toLowerCase(), 
-      cert_date: trainingDay,
-      email_sent: false
-    }]);
+    await supabase.from('participants').insert([{ name: cleanName, email: cleanEmail, cert_date: trainingDay, email_sent: false }]);
     setName(''); setEmail(''); setTrainingDay('');
     fetchParticipants();
     setAdding(false);
   };
 
-  // Logic: Search & Filter FIRST
   const filtered = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase());
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === String(selectedFilter);
     return matchesSearch && matchesDay;
   });
 
-  // Logic: Paginate the FILTERED list
-  const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
-  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
-  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-
-  // Reset to page 1 if filter/search changes
-  useEffect(() => { setCurrentPage(1); }, [search, selectedFilter]);
 
   if (!authed) return (
     <div style={S.loginPage}>
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-        .glass-card { animation: fadeIn 0.6s ease-out; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
-      `}</style>
-      <div className="glass-card" style={S.loginCard}>
-        <div style={{ marginBottom: 30 }}>
-          <h1 style={{ color: '#fff', fontSize: '24px', margin: '0 0 8px 0' }}>Admin Portal</h1>
-          <p style={{ color: '#8f9bba', fontSize: '14px', margin: 0 }}>DATA INSIGHTS 2026</p>
-        </div>
-        <input 
-          style={S.loginInput} 
-          type="password" 
-          placeholder="Password" 
-          value={pw} 
-          onChange={e => setPw(e.target.value)} 
-          onKeyDown={e => e.key === 'Enter' && handleLogin()}
-        />
-        <button style={S.loginBtn} onClick={handleLogin}>Unlock Dashboard</button>
+      <div style={S.loginCard}>
+        <h1 style={{ color: '#fff', fontSize: '20px' }}>Admin Portal</h1>
+        <input style={S.loginInput} type="password" placeholder="Password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+        <button style={S.loginBtn} onClick={handleLogin}>Login</button>
       </div>
     </div>
   );
 
   return (
     <div style={S.page}>
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .modal { background: white; padding: 30px; border-radius: 16px; width: 90%; max-width: 400px; text-align: center; }
-      `}</style>
-
-      {showDayPicker && (
-        <div className="overlay">
-          <div className="modal">
-            <h2 style={{color: '#1a1060', marginBottom: '10px'}}>Select Presentation Day</h2>
-            <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-              {TRAINING_DAYS.map(day => (
-                <button key={day.value} style={S.modalBtn} onClick={() => navigate(`/presentation?day=${day.value}`)}>{day.label}</button>
-              ))}
-              <button style={S.cancelBtn} onClick={() => setShowDayPicker(false)}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <header style={S.header}>
         <div style={S.headerInner}>
-          <h1 style={S.headerTitle}>🎓 Admin Dashboard</h1>
+          <h1 style={S.headerTitle}>Dashboard</h1>
           <div style={{display: 'flex', gap: 10}}>
-             <button style={S.presBtnInline} onClick={() => setShowDayPicker(true)}>📺 Start Presentation</button>
-             <button style={S.refreshBtn} onClick={fetchParticipants}>
-               <span style={loading ? S.spinning : {}}>🔄</span> Refresh
-             </button>
-             <button style={S.sendAllBtn} onClick={handleSendAll} disabled={sendingAll}>{sendingAll ? '⏳ Sending...' : '📧 Send All'}</button>
-             <button style={S.logoutBtn} onClick={handleLogout}>🚪 Logout</button>
+             <button style={S.refreshBtn} onClick={fetchParticipants}>Refresh</button>
+             <button style={S.sendAllBtn} onClick={handleSendAll} disabled={sendingAll}>{sendingAll ? 'Sending...' : 'Send All Pending'}</button>
+             <button style={S.logoutBtn} onClick={handleLogout}>Logout</button>
           </div>
         </div>
       </header>
-
       <main style={S.main}>
-        {/* Manual Entry Section */}
         <div style={S.card}>
-          <h3 style={{marginTop: 0, color: '#1a1060', fontSize: '15px'}}>Manual Entry</h3>
           <div style={S.formRow}>
             <input style={S.input} placeholder="NAME" value={name} onChange={e => setName(e.target.value)} />
             <input style={S.input} placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
@@ -209,60 +146,29 @@ export default function AdminPage() {
             <button style={S.btnPrimary} onClick={handleAdd}>{adding ? '...' : 'Add'}</button>
           </div>
         </div>
-
-        {/* List Section */}
         <div style={S.card}>
           <div style={S.listHeader}>
             <div style={S.filterBar}>
               <button style={selectedFilter === 'all' ? S.filterBtnActive : S.filterBtn} onClick={() => setSelectedFilter('all')}>All</button>
-              {TRAINING_DAYS.map(day => (
-                <button key={day.value} style={selectedFilter === day.value ? S.filterBtnActive : S.filterBtn} onClick={() => setSelectedFilter(day.value)}>Day {day.value}</button>
-              ))}
+              {TRAINING_DAYS.map(day => (<button key={day.value} style={selectedFilter === day.value ? S.filterBtnActive : S.filterBtn} onClick={() => setSelectedFilter(day.value)}>Day {day.value}</button>))}
             </div>
-            <input style={{...S.input, maxWidth: 220}} placeholder="🔍 Search..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input style={{...S.input, maxWidth: 200}} placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-
           <table style={S.table}>
-            <thead>
-              <tr style={S.thRow}>{['#','Name','Email','Training Date','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
-            </thead>
+            <thead><tr style={S.thRow}>{['#','Name','Email','Date','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
             <tbody>
               {currentItems.map((p, i) => (
-                <tr key={p.id} style={i % 2 === 0 ? S.trEven : S.trOdd}>
-                  <td style={S.td}>{indexOfFirstItem + i + 1}</td>
+                <tr key={p.id} style={S.tr}>
+                  <td style={S.td}>{((currentPage-1)*ITEMS_PER_PAGE)+i+1}</td>
                   <td style={S.td}><b>{p.name}</b></td>
                   <td style={S.td}>{p.email}</td>
                   <td style={S.td}>{DAY_LABEL[String(p.cert_date)] || p.cert_date}</td>
-                  <td style={S.td}>
-                    <span style={p.email_sent ? S.badgeSent : S.badgePending}>{p.email_sent ? 'Sent' : 'Pending'}</span>
-                  </td>
-                  <td style={S.td}>
-                    <button style={S.btnSend} onClick={() => handleSendEmail(p)} disabled={sending === p.id}>{sending === p.id ? '...' : 'Email'}</button>
-                    <button style={S.btnDelete} onClick={async () => {if(window.confirm('Delete?')){await supabase.from('participants').delete().eq('id', p.id); fetchParticipants();}}}>🗑</button>
-                  </td>
+                  <td style={S.td}><span style={p.email_sent ? S.badgeSent : S.badgePending}>{p.email_sent ? 'Sent' : 'Pending'}</span></td>
+                  <td style={S.td}><button style={S.btnSend} onClick={() => handleSendEmail(p)} disabled={sending === p.id || p.email_sent}>{p.email_sent ? 'Sent' : 'Email'}</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
-
-          {/* PAGINATION CONTROLS */}
-          <div style={S.paginationContainer}>
-             <button 
-                disabled={currentPage === 1} 
-                onClick={() => setCurrentPage(prev => prev - 1)}
-                style={currentPage === 1 ? S.pageBtnDisabled : S.pageBtn}
-             >
-               Previous
-             </button>
-             <span style={S.pageInfo}>Page {currentPage} of {totalPages || 1}</span>
-             <button 
-                disabled={currentPage >= totalPages} 
-                onClick={() => setCurrentPage(prev => prev + 1)}
-                style={currentPage >= totalPages ? S.pageBtnDisabled : S.pageBtn}
-             >
-               Next
-             </button>
-          </div>
         </div>
       </main>
     </div>
@@ -271,44 +177,30 @@ export default function AdminPage() {
 
 const S = {
   loginPage: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0a0a1a' },
-  loginCard: { width: '360px', padding: '40px', borderRadius: '24px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' },
-  loginInput: { width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', marginBottom: '20px', outline: 'none', textAlign: 'center' },
-  loginBtn: { width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: '#4f46e5', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' },
-  modalBtn: { padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', background: '#fff', cursor: 'pointer', textAlign: 'left', fontWeight: '500' },
-  cancelBtn: { padding: '10px', marginTop: '10px', background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontWeight: '600' },
-  page: { minHeight: '100vh', background: '#f4f7fe', fontFamily: 'Inter, sans-serif' },
+  loginCard: { width: '320px', padding: '30px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' },
+  loginInput: { width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #333', background: '#000', color: '#fff', marginBottom: '15px' },
+  loginBtn: { width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: '#4f46e5', color: '#fff', fontWeight: 'bold', cursor: 'pointer' },
+  page: { minHeight: '100vh', background: '#f4f7fe' },
   header: { background: '#1a1060', padding: '15px 40px', color: 'white' },
   headerInner: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' },
-  headerTitle: { fontSize: '18px', margin: 0, fontWeight: '600' },
-  presBtnInline: { background: '#ffffff25', border: '1px solid #ffffff44', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
-  refreshBtn: { background: '#ffffff15', border: '1px solid #ffffff33', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
-  sendAllBtn: { background: '#c9a84c', color: '#1a1060', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
-  logoutBtn: { background: '#ff4d4f22', border: '1px solid #ff4d4f44', color: '#ff4d4f', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
-  main: { padding: '30px', maxWidth: '1200px', margin: '0 auto' },
-  card: { background: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', marginBottom: '25px' },
+  headerTitle: { fontSize: '18px', margin: 0 },
+  refreshBtn: { background: 'transparent', border: '1px solid #fff', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' },
+  sendAllBtn: { background: '#c9a84c', border: 'none', color: '#000', padding: '6px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+  logoutBtn: { background: '#ff4d4f', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' },
+  main: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
+  card: { background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '20px' },
   formRow: { display: 'flex', gap: '10px' },
-  input: { padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', flex: 1, fontSize: '14px' },
-  select: { padding: '12px', borderRadius: '8px', border: '1px solid #e0e0e0', background: '#fff', fontSize: '14px' },
-  btnPrimary: { background: '#1a1060', color: 'white', border: 'none', padding: '0 25px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' },
-  filterBar: { display: 'flex', gap: '6px' },
-  filterBtn: { background: '#f0f2f5', border: 'none', padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontSize: '13px' },
-  filterBtnActive: { background: '#1a1060', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontSize: '13px' },
+  input: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd', flex: 1 },
+  select: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd' },
+  btnPrimary: { background: '#1a1060', color: 'white', border: 'none', padding: '0 20px', borderRadius: '8px', cursor: 'pointer' },
+  listHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
+  filterBar: { display: 'flex', gap: '5px' },
+  filterBtn: { background: '#eee', border: 'none', padding: '6px 12px', borderRadius: '15px', cursor: 'pointer' },
+  filterBtnActive: { background: '#1a1060', color: 'white', padding: '6px 12px', borderRadius: '15px' },
   table: { width: '100%', borderCollapse: 'collapse' },
-  thRow: { borderBottom: '2px solid #f0f0f0' },
-  th: { textAlign: 'left', padding: '15px 12px', color: '#666', fontSize: '12px' },
-  td: { padding: '15px 12px', borderBottom: '1px solid #f8f8f8', fontSize: '14px' },
-  trEven: { background: '#ffffff' },
-  trOdd: { background: '#fafafa' },
-  badgeSent: { background: '#e6ffed', color: '#22863a', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' },
-  badgePending: { background: '#fff9e6', color: '#b08800', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' },
-  btnSend: { background: '#1a1060', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' },
-  btnDelete: { background: 'none', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: '16px' },
-  spinning: { display: 'inline-block', animation: 'spin 1s linear infinite' },
-  listHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-
-  // Pagination Styles
-  paginationContainer: { marginTop: '30px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px' },
-  pageBtn: { background: '#1a1060', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
-  pageBtnDisabled: { background: '#e0e0e0', color: '#aaa', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'not-allowed', fontSize: '13px' },
-  pageInfo: { fontSize: '14px', color: '#666', fontWeight: '500' }
+  th: { textAlign: 'left', padding: '10px', borderBottom: '2px solid #eee', fontSize: '12px', color: '#666' },
+  td: { padding: '10px', borderBottom: '1px solid #f5f5f5', fontSize: '13px' },
+  badgeSent: { background: '#e6ffed', color: '#22863a', padding: '3px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' },
+  badgePending: { background: '#fff9e6', color: '#b08800', padding: '3px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' },
+  btnSend: { background: '#1a1060', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }
 };
