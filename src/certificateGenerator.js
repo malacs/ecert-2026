@@ -77,26 +77,28 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026;
   }
 
-  // --- UPDATED LOGO SCALING & ALIGNMENT ---
-  const maxLogoDim = 92; // Large size for visual impact
-  const logoTop = 68;    // Moved up to fit larger logos comfortably
-  const centerOffset = 238;
+  // --- MANUAL LOGO ADJUSTMENTS ---
+  const nemsuSize = 95;  // Manual size for Left Logo
+  const citeSize = 108;  // Manual size for Right Logo (Higher to balance the circle)
+  const logoTop = 62;    // Distance from the top edge
+  const centerOffset = 240; // Horizontal distance from the center
 
-  // NEMSU Logo dimensions
+  // NEMSU Logo calculation
   let nW, nH;
   const nRatio = logoNemsu.width / logoNemsu.height;
-  if (nRatio > 1) { nW = maxLogoDim; nH = maxLogoDim / nRatio; } 
-  else { nH = maxLogoDim; nW = maxLogoDim * nRatio; }
+  if (nRatio > 1) { nW = nemsuSize; nH = nemsuSize / nRatio; } 
+  else { nH = nemsuSize; nW = nemsuSize * nRatio; }
 
-  // CITE Logo dimensions
+  // CITE Logo calculation
   let cW, cH;
   const cRatio = logoCite.width / logoCite.height;
-  if (cRatio > 1) { cW = maxLogoDim; cH = maxLogoDim / cRatio; } 
-  else { cH = maxLogoDim; cW = maxLogoDim * cRatio; }
+  if (cRatio > 1) { cW = citeSize; cH = citeSize / cRatio; } 
+  else { cH = citeSize; cW = citeSize * cRatio; }
 
-  // Draw Logos (Perfectly center-aligned vertically)
-  ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, logoTop + (maxLogoDim - nH)/2, nW, nH);
-  ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, logoTop + (maxLogoDim - cH)/2, cW, cH);
+  // Draw Logos (Individually centered to look perfectly balanced)
+  ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, logoTop + (nemsuSize - nH)/2, nW, nH);
+  ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, logoTop + (citeSize - cH)/2, cW, cH);
+  // --------------------------------
 
   // Header Text
   ctx.textAlign = 'center';
