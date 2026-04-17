@@ -25,7 +25,6 @@ export default function PublicPage() {
 
   return (
     <div style={S.container}>
-      {/* Background Glows for a Tech Look */}
       <div style={S.glow1}></div>
       <div style={S.glow2}></div>
 
@@ -40,11 +39,11 @@ export default function PublicPage() {
             onChange={(e) => setSelectedDay(e.target.value)}
             style={S.select}
           >
-            <option value="1">Session 1 - April 15</option>
-            <option value="2">Session 2 - April 17</option>
-            <option value="3">Session 3 - April 22</option>
-            <option value="4">Session 4 - April 24</option>
-            <option value="5">Session 5 - April 29</option>
+            <option style={S.option} value="1">Session 1 - April 15</option>
+            <option style={S.option} value="2">Session 2 - April 17</option>
+            <option style={S.option} value="3">Session 3 - April 22</option>
+            <option style={S.option} value="4">Session 4 - April 24</option>
+            <option style={S.option} value="5">Session 5 - April 29</option>
           </select>
         </div>
 
@@ -85,53 +84,24 @@ export default function PublicPage() {
 }
 
 const S = {
-  container: { 
-    height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', 
-    background: '#04050a', overflow: 'hidden', position: 'relative', fontFamily: 'Inter, sans-serif' 
-  },
-  // High-tech glow effects
+  container: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#04050a', overflow: 'hidden', position: 'relative', fontFamily: 'sans-serif' },
   glow1: { position: 'absolute', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(79,70,229,0.15) 0%, transparent 70%)', top: '-10%', left: '-5%' },
   glow2: { position: 'absolute', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(199,168,76,0.1) 0%, transparent 70%)', bottom: '-10%', right: '-5%' },
-  
-  card: { 
-    background: 'rgba(255, 255, 255, 0.03)', backdropFilter: 'blur(20px)', padding: '40px', 
-    borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center', 
-    width: '90%', maxWidth: '450px', zIndex: 1, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' 
-  },
-  header: { color: '#fff', fontSize: '26px', fontWeight: '800', margin: '0 0 8px 0', letterSpacing: '1px' },
-  subtitle: { color: '#8f9bba', fontSize: '12px', marginBottom: '30px', fontWeight: '500' },
-  
+  card: { background: 'rgba(255, 255, 255, 0.03)', backdropFilter: 'blur(20px)', padding: '40px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center', width: '90%', maxWidth: '450px', zIndex: 1 },
+  header: { color: '#fff', fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px 0' },
+  subtitle: { color: '#8f9bba', fontSize: '12px', marginBottom: '30px' },
   formGroup: { textAlign: 'left', marginBottom: '20px' },
-  label: { color: '#8f9bba', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', display: 'block', paddingLeft: '5px' },
-  
-  select: { 
-    width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', 
-    border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', outline: 'none', cursor: 'pointer' 
-  },
-  
+  label: { color: '#8f9bba', fontSize: '11px', textTransform: 'uppercase', marginBottom: '8px', display: 'block' },
+  select: { width: '100%', padding: '12px', borderRadius: '12px', background: '#1a1d29', border: '1px solid #333', color: '#fff', fontSize: '14px', outline: 'none' },
+  option: { background: '#1a1d29', color: '#fff' },
   searchContainer: { display: 'flex', gap: '10px' },
-  input: { 
-    flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', 
-    background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '14px', outline: 'none', transition: 'all 0.3s' 
-  },
-  button: { 
-    padding: '0 25px', background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)', 
-    color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' 
-  },
-  
+  input: { flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid #333', background: '#000', color: '#fff', fontSize: '14px', outline: 'none' },
+  button: { padding: '0 25px', background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' },
   resultsWrapper: { marginTop: '25px' },
-  resultBox: { 
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-    background: 'linear-gradient(90deg, rgba(255,255,255,0.05) 0%, transparent 100%)', 
-    padding: '15px 20px', borderRadius: '16px', borderLeft: '4px solid #c9a84c', marginBottom: '12px' 
-  },
+  resultBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #c9a84c', marginBottom: '12px' },
   resInfo: { textAlign: 'left' },
-  resName: { color: '#fff', fontWeight: '700', fontSize: '15px' },
-  resDate: { color: '#c9a84c', fontSize: '10px', textTransform: 'uppercase', marginTop: '2px' },
-  
-  downloadBtn: { 
-    background: '#c9a84c', border: 'none', padding: '8px 15px', borderRadius: '8px', 
-    cursor: 'pointer', fontWeight: '800', color: '#000', fontSize: '11px', transition: 'transform 0.2s' 
-  },
+  resName: { color: '#fff', fontWeight: 'bold', fontSize: '14px' },
+  resDate: { color: '#c9a84c', fontSize: '10px', textTransform: 'uppercase' },
+  downloadBtn: { background: '#c9a84c', border: 'none', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#000', fontSize: '11px' },
   errorText: { color: '#ff5f5f', fontSize: '13px', marginTop: '15px' }
 };
