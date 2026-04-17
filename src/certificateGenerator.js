@@ -76,26 +76,26 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026; sTime = '8:00 AM to 12:00 PM';
   }
 
-  // Positioning logic matches your manual corrections
+  // Branding Positioning
   const nemsuSize = 88; 
-  const citeSize = 145; 
+  const citeSize = 100; // Adjusted for circular fit
   const centerLineY = 115;
-  const centerOffset = 245;
+  const centerOffset = 255;
 
-  let nW, nH;
-  const nRatio = logoNemsu.width / logoNemsu.height;
-  if (nRatio > 1) { nW = nemsuSize; nH = nemsuSize / nRatio; } 
-  else { nH = nemsuSize; nW = nemsuSize * nRatio; }
+  // NEMSU Logo (Left)
+  ctx.drawImage(logoNemsu, (W/2) - centerOffset - nemsuSize/2, centerLineY - nemsuSize/2, nemsuSize, nemsuSize);
 
-  let cW, cH;
-  const cRatio = logoCite.width / logoCite.height;
-  if (cRatio > 1) { cW = citeSize; cH = citeSize / cRatio; } 
-  else { cH = citeSize; cW = citeSize * cRatio; }
+  // CITE Logo (Right + Circle Clip)
+  ctx.save();
+  ctx.beginPath();
+  const cX = (W/2) + centerOffset;
+  const cY = centerLineY;
+  ctx.arc(cX, cY, citeSize/2, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(logoCite, cX - citeSize/2, cY - citeSize/2, citeSize, citeSize);
+  ctx.restore();
 
-  // NEMSU Left, CITE Right
-  ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, centerLineY - nH/2, nW, nH);
-  ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, centerLineY - cH/2, cW, cH);
-
+  // Text Headers
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
@@ -114,12 +114,14 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
+  // Name
   ctx.fillStyle = '#ffffff';
   const nameText = participantName.toUpperCase();
   const fittedSize = fitTextToWidth(ctx, nameText, W - 240, 52, 'Calibri, Arial');
   ctx.font = `bold ${fittedSize}px Calibri, Arial`;
   ctx.fillText(nameText, W / 2, 365);
 
+  // Body
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
@@ -143,7 +145,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // Signature Block
+  // Coordinator Signature
   const sigW = 65;
   const sigH = 38;
   const sigCanvas = document.createElement('canvas');
