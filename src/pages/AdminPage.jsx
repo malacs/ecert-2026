@@ -23,7 +23,12 @@ const DAY_LABEL = {
 
 export default function AdminPage() {
   const navigate = useNavigate();
-  const [authed, setAuthed] = useState(false);
+  
+  // FIX: Initialize state from localStorage so refresh doesn't log you out
+  const [authed, setAuthed] = useState(() => {
+    return localStorage.getItem('isAdminAuthenticated') === 'true';
+  });
+
   const [pw, setPw] = useState('');
   const [participants, setParticipants] = useState([]);
   const [name, setName] = useState('');
@@ -35,7 +40,7 @@ export default function AdminPage() {
   const [sendingAll, setSendingAll] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all'); 
-  const [showDayPicker, setShowDayPicker] = useState(false); // New State
+  const [showDayPicker, setShowDayPicker] = useState(false);
 
   useEffect(() => { if (authed) fetchParticipants(); }, [authed]);
 
@@ -49,8 +54,18 @@ export default function AdminPage() {
   const handleLogin = () => {
     if (pw === ADMIN_PASSWORD) {
       setAuthed(true);
+      // FIX: Save session to browser
+      localStorage.setItem('isAdminAuthenticated', 'true');
     } else {
       alert('Incorrect Password');
+    }
+  };
+
+  const handleLogout = () => {
+    if (window.confirm("Are you sure you want to logout?")) {
+      setAuthed(false);
+      localStorage.removeItem('isAdminAuthenticated');
+      navigate('/admin');
     }
   };
 
@@ -177,6 +192,10 @@ export default function AdminPage() {
              <button style={S.sendAllBtn} onClick={handleSendAll} disabled={sendingAll}>
                {sendingAll ? '⏳ Sending...' : '📧 Send All'}
              </button>
+             {/* LOGOUT BUTTON */}
+             <button style={S.logoutBtn} onClick={handleLogout}>
+               🚪 Logout
+             </button>
           </div>
         </div>
       </header>
@@ -253,6 +272,7 @@ const S = {
   presBtnInline: { background: '#ffffff25', border: '1px solid #ffffff44', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' },
   refreshBtn: { background: '#ffffff15', border: '1px solid #ffffff33', color: 'white', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
   sendAllBtn: { background: '#c9a84c', color: '#1a1060', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
+  logoutBtn: { background: '#ff4d4f22', border: '1px solid #ff4d4f44', color: '#ff4d4f', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' },
   main: { padding: '30px', maxWidth: '1200px', margin: '0 auto' },
   card: { background: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', marginBottom: '25px' },
   formRow: { display: 'flex', gap: '10px' },
