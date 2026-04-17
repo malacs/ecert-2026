@@ -131,7 +131,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '14px Arial';
   const lineGap = 22;
   ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, 410);
-  ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from 8:00 AM to 12:00 PM, in recognition of commitment`, W / 2, 410 + lineGap);
+  ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from 8:30 AM to 12:00 PM, in recognition of commitment`, W / 2, 410 + lineGap);
   ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + lineGap * 2);
 
   // Given Section
