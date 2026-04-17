@@ -169,7 +169,7 @@ export default function AdminPage() {
       {showDayPicker && (
         <div style={S.overlay}>
           <div style={S.modal}>
-            <h3>Select Presentation Day</h3>
+            <h3 style={{marginBottom: '15px'}}>Select Presentation Day</h3>
             <div style={{display:'flex', flexDirection:'column', gap:10}}>
               {TRAINING_DAYS.map(day => (
                 <button key={day.value} style={S.modalBtn} onClick={() => navigate(`/presentation?day=${day.value}`)}>{day.label}</button>
@@ -196,51 +196,78 @@ export default function AdminPage() {
         <div style={S.card}>
           <div style={S.listHeader}>
             <div style={S.filterBar}>
-              <button style={selectedFilter === 'all' ? S.filterBtnActive : S.filterBtn} onClick={() => setSelectedFilter('all')}>All</button>
-              {TRAINING_DAYS.map(day => (<button key={day.value} style={selectedFilter === day.value ? S.filterBtnActive : S.filterBtn} onClick={() => setSelectedFilter(day.value)}>Day {day.value}</button>))}
+              <button style={selectedFilter === 'all' ? S.filterBtnActive : S.filterBtn} onClick={() => {setSelectedFilter('all'); setCurrentPage(1);}}>All</button>
+              {TRAINING_DAYS.map(day => (<button key={day.value} style={selectedFilter === day.value ? S.filterBtnActive : S.filterBtn} onClick={() => {setSelectedFilter(day.value); setCurrentPage(1);}}>Day {day.value}</button>))}
             </div>
-            <input style={{...S.input, maxWidth: 200}} placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input style={{...S.input, maxWidth: 200}} placeholder="Search name/email..." value={search} onChange={e => {setSearch(e.target.value); setCurrentPage(1);}} />
           </div>
           
-          <table style={S.table}>
-            <thead><tr style={S.thRow}>{['#','Name','Email','Date','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
-            <tbody>
-              {currentItems.map((p, i) => (
-                <tr key={p.id} style={S.tr}>
-                  <td style={S.td}>{((currentPage-1)*ITEMS_PER_PAGE)+i+1}</td>
-                  {editingId === p.id ? (
-                    <>
-                      <td style={S.td}><input style={S.editInput} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} /></td>
-                      <td style={S.td}><input style={S.editInput} value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} /></td>
-                      <td style={S.td}>
-                        <select style={S.editInput} value={editForm.cert_date} onChange={e => setEditForm({...editForm, cert_date: e.target.value})}>
-                          {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
-                        </select>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td style={S.td}><b>{p.name}</b></td>
-                      <td style={S.td}>{p.email}</td>
-                      <td style={S.td}>{DAY_LABEL[String(p.cert_date)] || p.cert_date}</td>
-                    </>
-                  )}
-                  <td style={S.td}><span style={p.email_sent ? S.badgeSent : S.badgePending}>{p.email_sent ? 'Sent' : 'Pending'}</span></td>
-                  <td style={S.td}>
+          <div style={S.tableContainer}>
+            <table style={S.table}>
+              <thead><tr style={S.thRow}>{['#','Name','Email','Date','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
+              <tbody>
+                {currentItems.length > 0 ? currentItems.map((p, i) => (
+                  <tr key={p.id} style={S.tr}>
+                    <td style={S.td}>{((currentPage-1)*ITEMS_PER_PAGE)+i+1}</td>
                     {editingId === p.id ? (
-                      <button style={S.btnSave} onClick={() => handleUpdate(p.id)}>Save</button>
+                      <>
+                        <td style={S.td}><input style={S.editInput} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} /></td>
+                        <td style={S.td}><input style={S.editInput} value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} /></td>
+                        <td style={S.td}>
+                          <select style={S.editInput} value={editForm.cert_date} onChange={e => setEditForm({...editForm, cert_date: e.target.value})}>
+                            {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
+                          </select>
+                        </td>
+                      </>
                     ) : (
                       <>
-                        <button style={S.btnSend} onClick={() => handleSendEmail(p)} disabled={sending === p.id || p.email_sent}>{p.email_sent ? 'Sent' : 'Email'}</button>
-                        <button style={S.btnEdit} onClick={() => handleEditClick(p)}>Edit</button>
-                        <button style={S.btnDelete} onClick={() => handleDelete(p.id)}>🗑</button>
+                        <td style={S.td}><b>{p.name}</b></td>
+                        <td style={S.td}>{p.email}</td>
+                        <td style={S.td}>{DAY_LABEL[String(p.cert_date)] || p.cert_date}</td>
                       </>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td style={S.td}><span style={p.email_sent ? S.badgeSent : S.badgePending}>{p.email_sent ? 'Sent' : 'Pending'}</span></td>
+                    <td style={S.td}>
+                      {editingId === p.id ? (
+                        <button style={S.btnSave} onClick={() => handleUpdate(p.id)}>Save</button>
+                      ) : (
+                        <div style={{display:'flex', alignItems:'center'}}>
+                          <button style={S.btnSend} onClick={() => handleSendEmail(p)} disabled={sending === p.id || p.email_sent}>{p.email_sent ? 'Sent' : 'Email'}</button>
+                          <button style={S.btnEdit} onClick={() => handleEditClick(p)}>Edit</button>
+                          <button style={S.btnDelete} onClick={() => handleDelete(p.id)}>🗑</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="6" style={S.emptyState}>No participants found for this view.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={S.pagination}>
+              <button 
+                style={currentPage === 1 ? S.pageBtnDisabled : S.pageBtn} 
+                disabled={currentPage === 1} 
+                onClick={() => setCurrentPage(prev => prev - 1)}
+              >
+                ← Back
+              </button>
+              <span style={S.pageInfo}>Page {currentPage} of {totalPages}</span>
+              <button 
+                style={currentPage === totalPages ? S.pageBtnDisabled : S.pageBtn} 
+                disabled={currentPage === totalPages} 
+                onClick={() => setCurrentPage(prev => prev + 1)}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       </main>
     </div>
@@ -248,7 +275,6 @@ export default function AdminPage() {
 }
 
 const S = {
-  // Keeping original layout styles
   loginPage: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0a0a1a' },
   loginCard: { width: '320px', padding: '30px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' },
   loginInput: { width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #333', background: '#000', color: '#fff', marginBottom: '15px' },
@@ -257,32 +283,38 @@ const S = {
   header: { background: '#1a1060', padding: '15px 40px', color: 'white' },
   headerInner: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' },
   headerTitle: { fontSize: '18px', margin: 0 },
-  presBtn: { background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer' },
-  refreshBtn: { background: 'transparent', border: '1px solid #fff', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' },
-  sendAllBtn: { background: '#c9a84c', border: 'none', color: '#000', padding: '6px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
-  logoutBtn: { background: '#ff4d4f', border: 'none', color: '#fff', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer' },
+  presBtn: { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
+  refreshBtn: { background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' },
+  sendAllBtn: { background: '#c9a84c', border: 'none', color: '#000', padding: '6px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' },
+  logoutBtn: { background: '#ff4d4f', border: 'none', color: '#fff', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
   overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
-  modal: { background: 'white', padding: '30px', borderRadius: '15px', width: '300px', textAlign: 'center' },
-  modalBtn: { padding: '10px', border: '1px solid #ddd', background: '#fff', borderRadius: '8px', cursor: 'pointer' },
-  cancelBtn: { border: 'none', background: 'transparent', color: '#ff4d4f', marginTop: '10px', cursor: 'pointer' },
+  modal: { background: 'white', padding: '25px', borderRadius: '15px', width: '320px', textAlign: 'center' },
+  modalBtn: { padding: '12px', border: '1px solid #eee', background: '#f8f9fa', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', transition: 'background 0.2s' },
+  cancelBtn: { border: 'none', background: 'transparent', color: '#ff4d4f', marginTop: '15px', cursor: 'pointer', fontSize: '14px' },
   main: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
   card: { background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '20px' },
   formRow: { display: 'flex', gap: '10px' },
-  input: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd', flex: 1 },
-  select: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd' },
-  btnPrimary: { background: '#1a1060', color: 'white', border: 'none', padding: '0 20px', borderRadius: '8px', cursor: 'pointer' },
-  listHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
+  input: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd', flex: 1, fontSize: '14px' },
+  select: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', background: '#fff' },
+  btnPrimary: { background: '#1a1060', color: 'white', border: 'none', padding: '0 25px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
+  listHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px', alignItems: 'center' },
   filterBar: { display: 'flex', gap: '5px' },
-  filterBtn: { background: '#eee', border: 'none', padding: '6px 12px', borderRadius: '15px', cursor: 'pointer' },
-  filterBtnActive: { background: '#1a1060', color: 'white', padding: '6px 12px', borderRadius: '15px' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: { textAlign: 'left', padding: '10px', borderBottom: '2px solid #eee', fontSize: '12px', color: '#666' },
-  td: { padding: '10px', borderBottom: '1px solid #f5f5f5', fontSize: '13px' },
-  editInput: { padding: '5px', borderRadius: '4px', border: '1px solid #ccc', width: '90%' },
-  badgeSent: { background: '#e6ffed', color: '#22863a', padding: '3px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' },
-  badgePending: { background: '#fff9e6', color: '#b08800', padding: '3px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' },
-  btnSend: { background: '#1a1060', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', marginRight: '5px' },
-  btnEdit: { background: '#f0f2f5', border: 'none', padding: '5px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', marginRight: '5px' },
-  btnSave: { background: '#22863a', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' },
-  btnDelete: { background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: '14px' }
+  filterBtn: { background: '#f0f2f5', border: 'none', padding: '7px 14px', borderRadius: '20px', cursor: 'pointer', fontSize: '13px', color: '#555' },
+  filterBtnActive: { background: '#1a1060', color: 'white', padding: '7px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold' },
+  tableContainer: { overflowX: 'auto' },
+  table: { width: '100%', borderCollapse: 'collapse', minWidth: '800px' },
+  th: { textAlign: 'left', padding: '12px', borderBottom: '2px solid #f0f2f5', fontSize: '12px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  td: { padding: '12px', borderBottom: '1px solid #f5f5f5', fontSize: '14px', color: '#333' },
+  emptyState: { textAlign: 'center', padding: '40px', color: '#999', fontSize: '15px', fontStyle: 'italic' },
+  editInput: { padding: '6px', borderRadius: '5px', border: '1px solid #4f46e5', width: '90%', fontSize: '13px' },
+  badgeSent: { background: '#e6ffed', color: '#22863a', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' },
+  badgePending: { background: '#fff9e6', color: '#b08800', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' },
+  btnSend: { background: '#1a1060', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', marginRight: '8px' },
+  btnEdit: { background: '#f0f2f5', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', marginRight: '8px', color: '#555' },
+  btnSave: { background: '#22863a', color: '#fff', border: 'none', padding: '6px 15px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' },
+  btnDelete: { background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: '16px', padding: '5px' },
+  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '20px', padding: '10px' },
+  pageBtn: { background: '#fff', border: '1px solid #ddd', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', color: '#1a1060', fontWeight: '500' },
+  pageBtnDisabled: { background: '#f5f5f5', border: '1px solid #eee', padding: '8px 16px', borderRadius: '8px', cursor: 'not-allowed', fontSize: '13px', color: '#ccc' },
+  pageInfo: { fontSize: '13px', color: '#666', fontWeight: '500' }
 };
