@@ -72,7 +72,6 @@ export default function AdminPage() {
     setAdding(false);
   };
 
-  // --- Send Individual Email Only ---
   const sendIndividualEmail = async (p) => {
     setSendingStatus(p.id);
     try {
