@@ -79,7 +79,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   // --- MANUAL LOGO ADJUSTMENTS ---
   const nemsuSize = 88;  // Decreased to make it look smaller/slimmer
-  const citeSize = 88;  // Increased to make the circle look bigger and taller
+  const citeSize = 125;  // Increased to make the circle look bigger and taller
   const logoTop = 60;    
   const centerOffset = 242;
 
