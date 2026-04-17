@@ -76,6 +76,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026; sTime = '8:00 AM to 12:00 PM';
   }
 
+  // Positioning logic matches your manual corrections
   const nemsuSize = 88; 
   const citeSize = 145; 
   const centerLineY = 115;
@@ -91,6 +92,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   if (cRatio > 1) { cW = citeSize; cH = citeSize / cRatio; } 
   else { cH = citeSize; cW = citeSize * cRatio; }
 
+  // NEMSU Left, CITE Right
   ctx.drawImage(logoNemsu, (W/2) - centerOffset - nW/2, centerLineY - nH/2, nW, nH);
   ctx.drawImage(logoCite, (W/2) + centerOffset - cW/2, centerLineY - cH/2, cW, cH);
 
@@ -141,6 +143,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
+  // Signature Block
   const sigW = 65;
   const sigH = 38;
   const sigCanvas = document.createElement('canvas');
