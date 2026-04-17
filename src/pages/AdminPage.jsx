@@ -37,8 +37,6 @@ export default function AdminPage() {
   const [trainingDay, setTrainingDay] = useState('');
   const [role, setRole] = useState('Student'); 
   const [adding, setAdding] = useState(false);
-  
-  // Tracking if an individual ID is sending or the whole 'batch'
   const [sendingStatus, setSendingStatus] = useState(null); 
 
   const [presDay, setPresDay] = useState('1');
@@ -78,48 +76,58 @@ export default function AdminPage() {
   const sendIndividualEmail = async (p) => {
     setSendingStatus(p.id);
     try {
-      await emailjs.send(
-        process.env.REACT_APP_EMAILJS_SERVICE_ID,
-        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+      // 1. Initialize with your Public Key
+      emailjs.init("O04AjOrOMCS3gTWky");
+
+      // 2. Send the Email
+      const result = await emailjs.send(
+        "service_h0nupkh",
+        "template_3g94uwv",
         { 
           to_name: p.name, 
           to_email: p.email, 
           certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` 
-        },
-        process.env.REACT_APP_EMAILJS_PUBLIC_KEY
+        }
       );
-      await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
-      setParticipants(prev => prev.map(item => item.id === p.id ? {...item, email_sent: true} : item));
+
+      // 3. Update Supabase only if EmailJS returns Success (200)
+      if (result.status === 200) {
+        await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+        setParticipants(prev => prev.map(item => item.id === p.id ? {...item, email_sent: true} : item));
+      }
     } catch (e) {
       console.error("EmailJS Error:", e);
-      alert(`Error sending to ${p.name}. Check Console.`);
+      alert(`Error sending to ${p.name}: ${e.text || "Check Browser Console"}`);
     }
     setSendingStatus(null);
   };
 
-  // --- Improved Batch Sending with 3s Delay ---
+  // --- Batch Sending Function ---
   const handleSendAll = async () => {
     const targets = filtered.filter(p => !p.email_sent);
     if (targets.length === 0) return alert("No pending emails found in current filtered list.");
     if(!window.confirm(`Send emails to ${targets.length} participants?`)) return;
 
     setSendingStatus('batch');
+    // Initialize once for the batch
+    emailjs.init("O04AjOrOMCS3gTWky");
+
     for (const p of targets) {
       try {
-        await emailjs.send(
-          process.env.REACT_APP_EMAILJS_SERVICE_ID,
-          process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+        const result = await emailjs.send(
+          "service_h0nupkh",
+          "template_3g94uwv",
           { 
             to_name: p.name, 
             to_email: p.email, 
             certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` 
-          },
-          process.env.REACT_APP_EMAILJS_PUBLIC_KEY
+          }
         );
-        // Update DB
-        await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
-        // Update Local UI
-        setParticipants(prev => prev.map(item => item.id === p.id ? {...item, email_sent: true} : item));
+
+        if (result.status === 200) {
+          await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+          setParticipants(prev => prev.map(item => item.id === p.id ? {...item, email_sent: true} : item));
+        }
         
         // Wait 3 seconds before next email to avoid provider blocks
         await new Promise(res => setTimeout(res, 3000));
@@ -189,7 +197,6 @@ export default function AdminPage() {
       </header>
 
       <main style={S.main}>
-        {/* ADD PARTICIPANT FORM */}
         <div style={S.card}>
           <div style={S.formRow}>
             <input style={S.input} placeholder="FULL NAME" value={name} onChange={e => setName(e.target.value)} />
@@ -206,7 +213,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* SEARCH & FILTER */}
         <div style={S.card}>
           <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
             <input style={{...S.input, maxWidth: 350}} placeholder="Search by name..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -254,7 +260,6 @@ export default function AdminPage() {
                         {p.email_sent ? <span style={{color: '#22863a', fontWeight: 'bold'}}>✅ Sent</span> : <span style={{color: '#888'}}>⏳ Pending</span>}
                       </td>
                       <td style={S.td}>
-                         {/* INDIVIDUAL SEND BUTTON */}
                          <button 
                            style={{...S.btnSingleSend, opacity: (sendingStatus) ? 0.6 : 1}} 
                            disabled={!!sendingStatus}
@@ -272,7 +277,6 @@ export default function AdminPage() {
             </tbody>
           </table>
 
-          {/* PAGINATION */}
           <div style={S.paginationRow}>
             <button style={{...S.pageBtn, opacity: currentPage === 1 ? 0.5 : 1}} disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}>← Back</button>
             <span style={S.pageInfo}>Page <b>{currentPage}</b> of <b>{totalPages || 1}</b></span>
@@ -281,7 +285,6 @@ export default function AdminPage() {
         </div>
       </main>
 
-      {/* Presentation Modal */}
       {showConfigModal && (
         <div style={S.overlay}>
           <div style={S.modal}>
