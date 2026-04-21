@@ -2,6 +2,28 @@ import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { downloadCertificate } from '../certificateGenerator';
 
+const S = {
+  container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: '#f8fafc', fontFamily: 'system-ui, sans-serif', padding: '20px' },
+  card: { background: '#ffffff', padding: '40px', borderRadius: '20px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', textAlign: 'center', width: '100%', maxWidth: '500px', border: '1px solid #e2e8f0' },
+  brandBadge: { background: '#eff6ff', color: '#1d4ed8', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-block', marginBottom: '15px', textTransform: 'uppercase' },
+  header: { color: '#0f172a', fontSize: '28px', margin: '0 0 10px 0', fontWeight: '800' },
+  subtitle: { color: '#64748b', fontSize: '14px', lineHeight: '1.5', marginBottom: '30px' },
+  formGroup: { textAlign: 'left', marginBottom: '20px' },
+  label: { color: '#475569', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', display: 'block' },
+  select: { width: '100%', padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.95rem', color: '#1e293b', outline: 'none' },
+  searchWrapper: { display: 'flex', gap: '8px' },
+  input: { flex: 1, padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.95rem', outline: 'none' },
+  button: { padding: '0 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' },
+  resultsWrapper: { marginTop: '20px' },
+  resultBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '16px', borderRadius: '12px', marginBottom: '10px', borderLeft: '4px solid #3b82f6' },
+  resInfo: { textAlign: 'left' },
+  resName: { color: '#0f172a', fontWeight: 'bold', fontSize: '15px' },
+  resRole: { fontSize: '0.75rem', marginTop: '2px', fontWeight: '500' },
+  downloadBtn: { background: '#1e293b', color: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', border: 'none' },
+  noRecord: { color: '#ef4444', fontSize: '0.85rem', marginTop: '20px', padding: '12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fee2e2' },
+  footer: { marginTop: '30px', color: '#94a3b8', fontSize: '0.75rem', textAlign: 'center' }
+};
+
 const TRAINING_DAYS = [
   { value: '1', label: 'Day 1 - April 15' },
   { value: '2', label: 'Day 2 - April 17' },
@@ -85,7 +107,8 @@ export default function PublicPage() {
               </div>
               <button 
                 style={S.downloadBtn} 
-                onClick={() => downloadCertificate(p.name, p.cert_date)}
+                {/* UPDATED THIS LINE TO PASS p.role */}
+                onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
               >
                 Download PDF
               </button>
@@ -105,25 +128,3 @@ export default function PublicPage() {
     </div>
   );
 }
-
-const S = {
-  container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: '#f8fafc', fontFamily: 'system-ui, sans-serif', padding: '20px' },
-  card: { background: '#ffffff', padding: '40px', borderRadius: '20px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', textAlign: 'center', width: '100%', maxWidth: '500px', border: '1px solid #e2e8f0' },
-  brandBadge: { background: '#eff6ff', color: '#1d4ed8', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-block', marginBottom: '15px', textTransform: 'uppercase' },
-  header: { color: '#0f172a', fontSize: '28px', margin: '0 0 10px 0', fontWeight: '800' },
-  subtitle: { color: '#64748b', fontSize: '14px', lineHeight: '1.5', marginBottom: '30px' },
-  formGroup: { textAlign: 'left', marginBottom: '20px' },
-  label: { color: '#475569', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', display: 'block' },
-  select: { width: '100%', padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.95rem', color: '#1e293b', outline: 'none' },
-  searchWrapper: { display: 'flex', gap: '8px' },
-  input: { flex: 1, padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.95rem', outline: 'none' },
-  button: { padding: '0 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' },
-  resultsWrapper: { marginTop: '20px' },
-  resultBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '16px', borderRadius: '12px', marginBottom: '10px', borderLeft: '4px solid #3b82f6' },
-  resInfo: { textAlign: 'left' },
-  resName: { color: '#0f172a', fontWeight: 'bold', fontSize: '15px' },
-  resRole: { fontSize: '0.75rem', marginTop: '2px', fontWeight: '500' },
-  downloadBtn: { background: '#1e293b', color: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', border: 'none' },
-  noRecord: { color: '#ef4444', fontSize: '0.85rem', marginTop: '20px', padding: '12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fee2e2' },
-  footer: { marginTop: '30px', color: '#94a3b8', fontSize: '0.75rem', textAlign: 'center' }
-};
