@@ -22,7 +22,6 @@ export default function CertificatePage() {
       }
 
       try {
-        // 1. Fetch the actual role from Supabase to correctly identify Speakers
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role')
@@ -30,11 +29,9 @@ export default function CertificatePage() {
           .eq('cert_date', day)
           .single();
 
-        // 2. Fallback to 'Student' if database check fails
         const role = data?.role || 'Student';
         setParticipantRole(role);
 
-        // 3. Generate the specific layout based on the role found
         const imgData = await getCertificateDataUrl(participantName, day || null, role);
         setImgSrc(imgData);
       } catch (err) {
