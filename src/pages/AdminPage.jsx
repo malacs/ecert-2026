@@ -54,29 +54,19 @@ export default function AdminPage() {
   const [presDay, setPresDay] = useState('1');
   const [presRole, setPresRole] = useState('All');
 
-  // Improved session check
   useEffect(() => {
     const initAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-      } catch (err) {
-        console.error("Session fetch error:", err);
-      } finally {
-        setAuthLoading(false);
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
     };
-
     initAuth();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      setAuthLoading(false);
     });
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -85,16 +75,8 @@ export default function AdminPage() {
 
   const fetchParticipants = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('participants')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error("RLS might be blocking this:", error.message);
-    } else if (data) {
-      setParticipants(data);
-    }
+    const { data } = await supabase.from('participants').select('*').order('created_at', { ascending: false });
+    if (data) setParticipants(data);
     setLoading(false);
   };
 
@@ -113,23 +95,19 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setUser(null);
     navigate('/');
   };
 
   const handleAdd = async () => {
     if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
-    const { error } = await supabase.from('participants').insert([{
+    await supabase.from('participants').insert([{
       name: name.toUpperCase(),
       email: email.toLowerCase(),
       cert_date: trainingDay,
       role,
       email_sent: false
     }]);
-    
-    if (error) alert("Add failed: " + error.message);
-    
     setName(''); setEmail(''); setTrainingDay(''); setRole('Student');
     fetchParticipants();
     setAdding(false);
@@ -156,6 +134,7 @@ export default function AdminPage() {
     setSendingStatus(null);
   };
 
+  // Filtering Logic
   const filtered = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === selectedFilter;
@@ -164,14 +143,16 @@ export default function AdminPage() {
   });
 
   const availableToSend = filtered.filter(p => !p.email_sent);
+  
+  // Pagination Calculations
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const sendAllEmails = async () => {
     if (availableToSend.length === 0) return alert("No pending emails to send.");
     if (!window.confirm(`Send emails to ${availableToSend.length} participants?`)) return;
-    
     setSendingAll(true);
     emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
-    
     for (const p of availableToSend) {
       try {
         await emailjs.send(
@@ -184,16 +165,12 @@ export default function AdminPage() {
           }
         );
         await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
-      } catch (err) {
-        console.error("Failed for:", p.email);
-      }
+      } catch (err) { console.error("Failed for:", p.email); }
     }
     fetchParticipants();
     setSendingAll(false);
     alert("Bulk process completed.");
   };
-
-  const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   if (authLoading) return <div style={L.container}><p style={{color:'#fff'}}>Verifying Session...</p></div>;
 
@@ -202,13 +179,13 @@ export default function AdminPage() {
       <div style={L.card}>
         <div style={L.iconBox}>DI</div>
         <h2 style={L.title}>Admin Access</h2>
-        <p style={L.subtitle}>Secure login for certificate management</p>
+        <p style={L.subtitle}>Secure login for NEMSU Data Insights</p>
         <div style={{ textAlign: 'left', width: '100%' }}>
           <label style={L.label}>Admin Email</label>
           <input 
             style={L.input} 
             type="email" 
-            placeholder=""
+            placeholder="" 
             value={emailLogin} 
             onChange={e => setEmailLogin(e.target.value)} 
           />
@@ -262,12 +239,12 @@ export default function AdminPage() {
         <div style={S.card}>
           <div style={S.filterBar}>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <input style={{ ...S.input, width: '200px' }} placeholder="Search name..." value={search} onChange={e => setSearch(e.target.value)} />
-                <select style={S.input} value={selectedFilter} onChange={e=>setSelectedFilter(e.target.value)}>
+                <input style={{ ...S.input, width: '200px' }} placeholder="Search name..." value={search} onChange={e => {setSearch(e.target.value); setCurrentPage(1);}} />
+                <select style={S.input} value={selectedFilter} onChange={e=>{setSelectedFilter(e.target.value); setCurrentPage(1);}}>
                     <option value="all">All Days</option>
                     {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
                 </select>
-                <select style={S.input} value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>
+                <select style={S.input} value={roleFilter} onChange={e=>{setRoleFilter(e.target.value); setCurrentPage(1);}}>
                     <option value="all">All Roles</option>
                     <option value="Student">Students Only</option>
                     <option value="Speaker">Speakers Only</option>
@@ -284,43 +261,58 @@ export default function AdminPage() {
             <div style={{ ...S.statBadge, background: '#fdf2f8', color: '#9d174d' }}>Speakers: {filtered.filter(p => p.role === 'Speaker').length}</div>
           </div>
 
-          {loading ? (
-            <p style={{ textAlign: 'center', color: '#64748b' }}>Loading data...</p>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={S.table}>
-                <thead>
-                  <tr>
-                    <th style={S.th}>#</th>
-                    <th style={S.th}>Full Name</th>
-                    <th style={S.th}>Role</th>
-                    <th style={S.th}>Email</th>
-                    <th style={S.th}>Date</th>
-                    <th style={S.th}>Status</th>
-                    <th style={S.th}>Actions</th>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <th style={S.th}>#</th>
+                  <th style={S.th}>Full Name</th>
+                  <th style={S.th}>Role</th>
+                  <th style={S.th}>Email</th>
+                  <th style={S.th}>Date</th>
+                  <th style={S.th}>Status</th>
+                  <th style={S.th}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentItems.map((p, i) => (
+                  <tr key={p.id}>
+                    <td style={S.td}>{((currentPage - 1) * ITEMS_PER_PAGE) + i + 1}</td>
+                    <td style={{ ...S.td, fontWeight: '600', color: '#1e293b' }}>{p.name}</td>
+                    <td style={S.td}><span style={{fontSize:'0.75rem', fontWeight:'bold', color: p.role==='Speaker'?'#b45309':'#64748b'}}>{p.role}</span></td>
+                    <td style={S.td}>{p.email}</td>
+                    <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
+                    <td style={S.td}><span style={{fontSize:'0.7rem', fontWeight:'bold', color: p.email_sent?'#059669':'#d97706'}}>{p.email_sent?'SENT':'PENDING'}</span></td>
+                    <td style={S.td}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>{sendingStatus === p.id ? '...' : 'Send'}</button>
+                        <button style={{ ...S.btnAction, color: '#ef4444' }} onClick={async () => { if (window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id', p.id); fetchParticipants(); } }}>Delete</button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {currentItems.map((p, i) => (
-                    <tr key={p.id}>
-                      <td style={S.td}>{((currentPage - 1) * ITEMS_PER_PAGE) + i + 1}</td>
-                      <td style={{ ...S.td, fontWeight: '600', color: '#1e293b' }}>{p.name}</td>
-                      <td style={S.td}><span style={{fontSize:'0.75rem', fontWeight:'bold', color: p.role==='Speaker'?'#b45309':'#64748b'}}>{p.role}</span></td>
-                      <td style={S.td}>{p.email}</td>
-                      <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
-                      <td style={S.td}><span style={{fontSize:'0.7rem', fontWeight:'bold', color: p.email_sent?'#059669':'#d97706'}}>{p.email_sent?'SENT':'PENDING'}</span></td>
-                      <td style={S.td}>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>{sendingStatus === p.id ? '...' : 'Send'}</button>
-                          <button style={{ ...S.btnAction, color: '#ef4444' }} onClick={async () => { if (window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id', p.id); fetchParticipants(); } }}>Delete</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div style={S.pagination}>
+            <button 
+              style={{ ...S.btnOutline, visibility: currentPage === 1 ? 'hidden' : 'visible' }} 
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            >
+              Previous
+            </button>
+            <span style={{ fontSize: '0.9rem', color: '#64748b' }}>
+              Page <strong>{currentPage}</strong> of {totalPages || 1}
+            </span>
+            <button 
+              style={{ ...S.btnOutline, visibility: currentPage === totalPages || totalPages === 0 ? 'hidden' : 'visible' }} 
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </main>
 
@@ -365,6 +357,7 @@ const S = {
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' },
   th: { padding: '12px', textAlign: 'left', borderBottom: '2px solid #f1f5f9', color: '#64748b' },
   td: { padding: '12px', borderBottom: '1px solid #f1f5f9', color: '#475569' },
+  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '20px', padding: '10px' },
   overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
   modal: { background: '#fff', padding: '2rem', borderRadius: '20px', width: '340px' }
 };
