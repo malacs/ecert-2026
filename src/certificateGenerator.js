@@ -76,12 +76,11 @@ export const generateCertificate = async (participantName, trainingDay = null, r
     sDay = 15; sMonth = 'April'; sYear = 2026; sTime = '8:00 AM to 12:00 PM';
   }
 
-  // Logos
+  // Header and Logos logic...
   const logoSize = 90;
   const logoY = 115;
   const logoSpacing = 255;
   ctx.drawImage(logoNemsu, (W / 2) - logoSpacing - logoSize / 2, logoY - logoSize / 2, logoSize, logoSize);
-  
   const citeX = (W / 2) + logoSpacing;
   const aspect = logoCite.width / logoCite.height;
   const citeScale = 1.8; 
@@ -89,7 +88,6 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   let drawH = (aspect > 1) ? (logoSize * citeScale) / aspect : (logoSize * citeScale);
   ctx.drawImage(logoCite, citeX - drawW / 2, logoY - drawH / 2, drawW, drawH);
 
-  // Header Text
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
@@ -102,7 +100,7 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // Title Logic
+  // Title Switching
   const titleText = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText(titleText, W / 2, 250);
@@ -118,20 +116,18 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = `bold ${nameFontSize}px Calibri, Arial`;
   ctx.fillText(nameDisplay, W / 2, 365);
 
-  // Body Text Logic - IMPROVED WRAPPING
+  // Body Text with specific line breaks for Speaker
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
-  let startY = 410;
+  let startY = 415;
 
   if (role === 'Speaker') {
-    // Split into 3 lines for clean look
     ctx.fillText('for sharing their invaluable expertise as the Resource Speaker during the', W / 2, startY);
     ctx.fillText('DATA INSIGHTS 2026: Virtual Training Series on Data Mining', W / 2, startY + lineGap);
-    ctx.fillText('Concepts, Techniques, and Applications', W / 2, startY + lineGap * 2);
-    startY += (lineGap * 2);
+    ctx.fillText('Concepts, Techniques, and Applications', W / 2, startY + (lineGap * 2));
+    startY += (lineGap * 2); 
   } else {
-    // Participant version
     ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining', W / 2, startY);
     ctx.fillText('Concepts, Techniques, and Applications', W / 2, startY + lineGap);
     startY += lineGap;
@@ -145,18 +141,17 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.fillText(
     'to learning and professional development through active engagement in the training sessions.',
     W / 2,
-    startY + lineGap * 2
+    startY + (lineGap * 2)
   );
 
-  // Date and Place
-  const yGiven = role === 'Speaker' ? 535 : 510;
+  // Given Date section shifted down for Speaker
+  const yGiven = role === 'Speaker' ? 540 : 515;
   const part1 = 'Given this ';
   const part2 = ` of ${sMonth}, ${sYear} at North Eastern Mindanao State University – Lianga Campus,`;
   
   ctx.textAlign = 'left';
   const fullWidth = ctx.measureText(part1).width + 30 + ctx.measureText(part2).width;
   let dateX = (W / 2) - (fullWidth / 2);
-
   ctx.fillText(part1, dateX, yGiven);
   dateX += ctx.measureText(part1).width;
   ctx.fillStyle = '#ffffff';
@@ -167,7 +162,7 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // Signature
+  // Signature section...
   const sigW = 65;
   const sigH = 38;
   const sigCanvas = document.createElement('canvas');
@@ -177,7 +172,6 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   sigCtx.globalCompositeOperation = 'source-atop';
   sigCtx.fillStyle = '#C9A84C';
   sigCtx.fillRect(0, 0, sigW, sigH);
-
   ctx.globalCompositeOperation = 'lighten';
   ctx.drawImage(sigCanvas, W / 2 - sigW / 2, 618, sigW, sigH);
   ctx.globalCompositeOperation = 'source-over';
