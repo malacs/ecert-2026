@@ -46,7 +46,7 @@ const DAY_DATES = {
   5: { day: 29, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
 };
 
-export const generateCertificate = async (participantName, trainingDay = null) => {
+export const generateCertificate = async (participantName, trainingDay = null, role = 'Student') => {
   const canvas = document.createElement('canvas');
   const W = 1123;
   const H = 794;
@@ -54,6 +54,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
+  // Load Assets
   const [bg, logoNemsu, logoCite, logoSig] = await Promise.all([
     loadImage('/cert-bg.png'),
     loadImage('/logo-nemsu.png'),
@@ -61,12 +62,12 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     loadImage('/logo-signature.png'),
   ]);
 
-  // Background
+  // Render Background
   ctx.drawImage(bg, 0, 0, W, H);
   ctx.fillStyle = 'rgba(10, 20, 60, 0.25)';
   ctx.fillRect(0, 0, W, H);
 
-  // Date
+  // Date Logic
   let sDay, sMonth, sYear, sTime;
   const selected = Number(trainingDay);
   if (selected && DAY_DATES[selected]) {
@@ -78,179 +79,123 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026; sTime = '8:00 AM to 12:00 PM';
   }
 
-  // =========================
-  // LOGOS
-  // =========================
-  const nemsuSize = 90;
-  const citeSize = 90;
-  const centerLineY = 115;
-  const centerOffset = 255;
+  // LOGO PLACEMENT (NEMSU & CITE)
+  const logoSize = 90;
+  const logoY = 115;
+  const logoSpacing = 255;
 
-  // LEFT (NEMSU)
-  ctx.drawImage(
-    logoNemsu,
-    (W / 2) - centerOffset - nemsuSize / 2,
-    centerLineY - nemsuSize / 2,
-    nemsuSize,
-    nemsuSize
-  );
+  // Left Logo
+  ctx.drawImage(logoNemsu, (W / 2) - logoSpacing - logoSize / 2, logoY - logoSize / 2, logoSize, logoSize);
 
-  // RIGHT (CITE) — AUTO ZOOM FIX
-  const citeX = (W / 2) + centerOffset;
-  const citeY = centerLineY;
-
+  // Right Logo (Aspect Ratio Fix)
+  const citeX = (W / 2) + logoSpacing;
   const aspect = logoCite.width / logoCite.height;
+  const citeScale = 1.8; 
+  let drawW = (aspect > 1) ? (logoSize * citeScale) : (logoSize * citeScale) * aspect;
+  let drawH = (aspect > 1) ? (logoSize * citeScale) / aspect : (logoSize * citeScale);
+  ctx.drawImage(logoCite, citeX - drawW / 2, logoY - drawH / 2, drawW, drawH);
 
-  const scale = 1.8; // 🔥 MAGIC FIX FOR SMALL LOGO
-
-  let drawW, drawH;
-
-  if (aspect > 1) {
-    drawW = citeSize * scale;
-    drawH = (citeSize * scale) / aspect;
-  } else {
-    drawH = citeSize * scale;
-    drawW = (citeSize * scale) * aspect;
-  }
-
-  ctx.drawImage(
-    logoCite,
-    citeX - drawW / 2,
-    citeY - drawH / 2,
-    drawW,
-    drawH
-  );
-
-  // =========================
-  // TEXT
-  // =========================
+  // HEADER TEXT
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
-
   ctx.font = '13px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 85);
-
   ctx.font = 'bold 16px Arial';
   ctx.fillText('North Eastern Mindanao State University', W / 2, 110);
-
   ctx.font = '13px Arial';
   ctx.fillText('Lianga Campus', W / 2, 135);
-
   ctx.font = 'bold 13px Arial';
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
+  // TITLE
+  const titleText = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
   ctx.font = 'bold 46px Calibri, Arial';
-  ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 250);
+  ctx.fillText(titleText, W / 2, 250);
 
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  // NAME
+  // PARTICIPANT NAME
   ctx.fillStyle = '#ffffff';
-  const nameText = participantName.toUpperCase();
-  const fittedSize = fitTextToWidth(ctx, nameText, W - 240, 52, 'Calibri, Arial');
-  ctx.font = `bold ${fittedSize}px Calibri, Arial`;
-  ctx.fillText(nameText, W / 2, 365);
+  const nameDisplay = participantName.toUpperCase();
+  const nameFontSize = fitTextToWidth(ctx, nameDisplay, W - 240, 52, 'Calibri, Arial');
+  ctx.font = `bold ${nameFontSize}px Calibri, Arial`;
+  ctx.fillText(nameDisplay, W / 2, 365);
 
-  // BODY
+  // MAIN BODY TEXT
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
+  const lineH = 22;
+  const actionText = role === 'Speaker' 
+    ? 'for sharing their invaluable expertise as the Resource Speaker during the' 
+    : 'for actively participating in the';
 
-  const lineGap = 22;
+  ctx.fillText(`${actionText} DATA INSIGHTS 2026:`, W / 2, 410);
+  ctx.fillText('Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, 410 + lineH);
+  ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from ${sTime}.`, W / 2, 410 + (lineH * 2));
 
-  ctx.fillText(
-    'for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications',
-    W / 2,
-    410
-  );
-
-  ctx.fillText(
-    `held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from ${sTime}, in recognition of commitment`,
-    W / 2,
-    410 + lineGap
-  );
-
-  ctx.fillText(
-    'to learning and professional development through active engagement in the training sessions.',
-    W / 2,
-    410 + lineGap * 2
-  );
-
-  // DATE LINE
-  const yGiven = 500;
-  const part1 = 'Given this ';
-  const part2 = ` of ${sMonth}, ${sYear} at North Eastern Mindanao State University – Lianga Campus,`;
-
-  const totalW =
-    ctx.measureText(part1).width +
-    30 +
-    ctx.measureText(part2).width;
-
-  let startX = (W / 2) - (totalW / 2);
+  // LOCATION & DATE LINE
+  const yLine = 500;
+  const lineA = 'Given this ';
+  const lineB = ` of ${sMonth}, ${sYear} at NEMSU – Lianga Campus, Surigao del Sur.`;
+  const lineAW = ctx.measureText(lineA).width;
+  const lineBW = ctx.measureText(lineB).width;
+  const totalLineW = lineAW + 35 + lineBW;
+  let startX = (W / 2) - (totalLineW / 2);
 
   ctx.textAlign = 'left';
-  ctx.fillText(part1, startX, yGiven);
-
-  startX += ctx.measureText(part1).width;
-
+  ctx.fillText(lineA, startX, yLine);
+  startX += lineAW;
   ctx.fillStyle = '#ffffff';
-  startX += drawOrdinalInline(ctx, startX, yGiven, sDay);
-
+  startX += drawOrdinalInline(ctx, startX, yLine, sDay);
   ctx.fillStyle = '#d6e6ff';
-  ctx.fillText(part2, startX, yGiven);
+  ctx.fillText(lineB, startX, yLine);
 
-  ctx.textAlign = 'center';
-  ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
-
-  // SIGNATURE
+  // SIGNATURE AREA
   const sigW = 65;
   const sigH = 38;
-
   const sigCanvas = document.createElement('canvas');
   const sigCtx = sigCanvas.getContext('2d');
-
   sigCanvas.width = sigW;
   sigCanvas.height = sigH;
-
   sigCtx.drawImage(logoSig, 0, 0, sigW, sigH);
   sigCtx.globalCompositeOperation = 'source-atop';
-  sigCtx.fillStyle = '#C9A84C';
+  sigCtx.fillStyle = '#C9A84C'; // Gold finish signature
   sigCtx.fillRect(0, 0, sigW, sigH);
 
   ctx.globalCompositeOperation = 'lighten';
   ctx.drawImage(sigCanvas, W / 2 - sigW / 2, 618, sigW, sigH);
   ctx.globalCompositeOperation = 'source-over';
 
+  ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 13px Arial';
   ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 660);
-
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '13px Arial';
   ctx.fillText('BSCS Program Coordinator', W / 2, 680);
 
-  // EXPORT
+  // PDF Generation
   const imgData = canvas.toDataURL('image/png', 1.0);
-
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'px',
     format: [W, H],
   });
-
   pdf.addImage(imgData, 'PNG', 0, 0, W, H);
 
   return { pdf, imgData };
 };
 
-export const downloadCertificate = async (participantName, trainingDay = null) => {
-  const { pdf } = await generateCertificate(participantName, trainingDay);
-  pdf.save(`Certificate_${participantName.replace(/\s+/g, '_')}.pdf`);
+export const downloadCertificate = async (participantName, trainingDay = null, role = 'Student') => {
+  const { pdf } = await generateCertificate(participantName, trainingDay, role);
+  const safeName = participantName.replace(/\s+/g, '_');
+  pdf.save(`Certificate_${safeName}.pdf`);
 };
 
-export const getCertificateDataUrl = async (participantName, trainingDay = null) => {
-  const { imgData } = await generateCertificate(participantName, trainingDay);
+export const getCertificateDataUrl = async (participantName, trainingDay = null, role = 'Student') => {
+  const { imgData } = await generateCertificate(participantName, trainingDay, role);
   return imgData;
 };
