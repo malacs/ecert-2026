@@ -100,7 +100,7 @@ export default function PublicPage() {
         </div>
       </div>
       <footer style={S.footer}>
-        NEMSU Lianga Campus - College of Information Technology Education
+        NEMSU Lianga Campus - Bachelor of Science in Computer Science
       </footer>
     </div>
   );
