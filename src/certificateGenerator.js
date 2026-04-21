@@ -102,7 +102,7 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // Title
+  // Title Logic
   const titleText = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText(titleText, W / 2, 250);
@@ -114,24 +114,27 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   // Name
   ctx.fillStyle = '#ffffff';
   const nameDisplay = participantName.toUpperCase();
-  const nameFontSize = fitTextToWidth(ctx, nameDisplay, W - 240, 52, 'Calibri, Arial');
+  const nameFontSize = fitTextToWidth(ctx, nameDisplay, W - 300, 52, 'Calibri, Arial');
   ctx.font = `bold ${nameFontSize}px Calibri, Arial`;
   ctx.fillText(nameDisplay, W / 2, 365);
 
-  // Body Text Logic
+  // Body Text Logic - IMPROVED WRAPPING
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
   let startY = 410;
 
   if (role === 'Speaker') {
-    // Break long Speaker text into two lines
-    ctx.fillText('for sharing their invaluable expertise as the Resource Speaker during the DATA INSIGHTS 2026: Virtual Training Series on Data Mining', W / 2, startY);
-    ctx.fillText('Concepts, Techniques, and Applications', W / 2, startY + lineGap);
-    startY += lineGap; // Push following lines down
+    // Split into 3 lines for clean look
+    ctx.fillText('for sharing their invaluable expertise as the Resource Speaker during the', W / 2, startY);
+    ctx.fillText('DATA INSIGHTS 2026: Virtual Training Series on Data Mining', W / 2, startY + lineGap);
+    ctx.fillText('Concepts, Techniques, and Applications', W / 2, startY + lineGap * 2);
+    startY += (lineGap * 2);
   } else {
-    // Standard Participant text
-    ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, startY);
+    // Participant version
+    ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining', W / 2, startY);
+    ctx.fillText('Concepts, Techniques, and Applications', W / 2, startY + lineGap);
+    startY += lineGap;
   }
 
   ctx.fillText(
@@ -145,8 +148,8 @@ export const generateCertificate = async (participantName, trainingDay = null, r
     startY + lineGap * 2
   );
 
-  // Date and Place - Shifted dynamically based on lines used
-  const yGiven = role === 'Speaker' ? 525 : 500;
+  // Date and Place
+  const yGiven = role === 'Speaker' ? 535 : 510;
   const part1 = 'Given this ';
   const part2 = ` of ${sMonth}, ${sYear} at North Eastern Mindanao State University – Lianga Campus,`;
   
@@ -164,7 +167,7 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // Signature Section
+  // Signature
   const sigW = 65;
   const sigH = 38;
   const sigCanvas = document.createElement('canvas');
