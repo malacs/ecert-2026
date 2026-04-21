@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient'; // Import supabase
+import { supabase } from '../supabaseClient';
 import { getCertificateDataUrl, downloadCertificate } from '../certificateGenerator';
 
 export default function CertificatePage() {
@@ -22,7 +22,7 @@ export default function CertificatePage() {
       }
 
       try {
-        // 1. Fetch the actual role from Supabase
+        // 1. IMPORTANT: Check database for actual role
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role')
@@ -30,10 +30,11 @@ export default function CertificatePage() {
           .eq('cert_date', day)
           .single();
 
+        // 2. Default to 'Student' if not found or no role set
         const role = data?.role || 'Student';
         setParticipantRole(role);
 
-        // 2. Generate with the correct role
+        // 3. Generate image using the role from database
         const imgData = await getCertificateDataUrl(participantName, day || null, role);
         setImgSrc(imgData);
       } catch (err) {
@@ -77,7 +78,9 @@ export default function CertificatePage() {
             <div style={styles.infoCard}>
               <p style={styles.issuedTo}>This certificate is officially issued to:</p>
               <h2 style={styles.nameHeader}>{participantName}</h2>
-              <span style={styles.roleTag}>{participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}</span>
+              <span style={styles.roleTag}>
+                {participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}
+              </span>
             </div>
 
             <div style={styles.imgShadowBox}>
@@ -97,6 +100,7 @@ export default function CertificatePage() {
   );
 }
 
+// ... styles remain the same ...
 const styles = {
   page: { minHeight: '100vh', background: '#0f172a', fontFamily: 'Inter, sans-serif', color: '#fff' },
   heroSection: { background: 'radial-gradient(circle at top, #1e293b 0%, #0f172a 100%)', padding: '60px 20px', textAlign: 'center', borderBottom: '1px solid rgba(201, 168, 76, 0.2)' },
@@ -114,5 +118,6 @@ const styles = {
   btnDownload: { background: '#c9a84c', color: '#000', padding: '14px 28px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' },
   btnSecondary: { background: 'transparent', color: '#fff', padding: '14px 28px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', textDecoration: 'none', fontWeight: '600' },
   centerBox: { textAlign: 'center', padding: '100px 0' },
-  spinner: { width: 40, height: 40, border: '4px solid #334155', borderTop: '4px solid #c9a84c', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 1s linear infinite' }
+  spinner: { width: 40, height: 40, border: '4px solid #334155', borderTop: '4px solid #c9a84c', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 1s linear infinite' },
+  btnBack: { color: '#c9a84c', textDecoration: 'none', marginTop: '10px', display: 'block' }
 };
