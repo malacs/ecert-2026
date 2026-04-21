@@ -72,7 +72,6 @@ export default function PresentationPage() {
   useEffect(() => {
     const pIndex = currentIndex - 1;
     if (participants[pIndex]) {
-      // Passes the role correctly now
       getCertificateDataUrl(participants[pIndex].name, participants[pIndex].cert_date, participants[pIndex].role)
         .then(setCurrentCertUrl);
     }
@@ -100,7 +99,7 @@ export default function PresentationPage() {
         {isEnding && (
           <div style={S.textSlide}>
             <h1 style={S.mainTitle}>Congratulations!</h1>
-            <p style={S.desc}>To all the participants of {trainingDayLabel}</p>
+            <p style={S.desc}>To all the participants of <br/><strong>{trainingDayLabel}</strong></p>
           </div>
         )}
       </div>
@@ -112,15 +111,94 @@ export default function PresentationPage() {
 }
 
 const S = {
-  container: { backgroundColor: '#000', height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', fontFamily: 'serif' },
-  slideWrapper: { display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.4s ease-out', width: '100%', height: '100%' },
-  certWrapper: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  certImg: { maxHeight: '94vh', maxWidth: '94vw', objectFit: 'contain', boxShadow: '0 0 50px rgba(201, 168, 76, 0.3)' },
-  textSlide: { textAlign: 'center', color: '#fff', padding: '0 10%' },
-  mainTitle: { fontSize: '64px', margin: '20px 0', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 'bold' },
-  subTitle: { fontSize: '18px', color: '#fff', fontWeight: '300', letterSpacing: '1px', lineHeight: '1.6', maxWidth: '800px', margin: '0 auto' },
-  desc: { fontSize: '24px', color: '#bbb', marginTop: '20px', fontStyle: 'italic' },
-  divider: { width: '100px', height: '2px', background: '#c9a84c', margin: '40px auto' },
-  counter: { position: 'absolute', bottom: '20px', right: '30px', color: 'rgba(255, 255, 255, 0.2)', fontSize: '11px', fontFamily: 'sans-serif', letterSpacing: '1px' },
-  load: { height: '100vh', background: '#000', color: '#c9a84c', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '20px' }
+  container: { 
+    backgroundColor: '#000', 
+    height: '100vh', 
+    width: '100vw', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    overflow: 'hidden', 
+    position: 'relative', 
+    fontFamily: 'serif' 
+  },
+  slideWrapper: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    transition: 'all 0.4s ease-out', 
+    width: '100%', 
+    height: '100%' 
+  },
+  certWrapper: { 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  certImg: { 
+    maxHeight: '94vh', 
+    maxWidth: '94vw', 
+    objectFit: 'contain', 
+    boxShadow: '0 0 50px rgba(201, 168, 76, 0.3)' 
+  },
+  textSlide: { 
+    textAlign: 'center', 
+    color: '#fff', 
+    padding: '0 15%', // Increased side padding to clear the "overflowing" gold decorations
+    maxWidth: '1200px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+  mainTitle: { 
+    fontSize: '64px', 
+    margin: '20px 0', 
+    color: '#c9a84c', 
+    textTransform: 'uppercase', 
+    letterSpacing: '2px', 
+    fontWeight: 'bold',
+    lineHeight: '1.1' 
+  },
+  subTitle: { 
+    fontSize: '18px', 
+    color: '#fff', 
+    fontWeight: '300', 
+    letterSpacing: '1px', 
+    lineHeight: '1.6', 
+    maxWidth: '850px', // Restricts width so text wraps before hitting edges
+    margin: '0 auto',
+    wordWrap: 'break-word'
+  },
+  desc: { 
+    fontSize: '24px', 
+    color: '#bbb', 
+    marginTop: '20px', 
+    fontStyle: 'italic',
+    lineHeight: '1.4'
+  },
+  divider: { 
+    width: '100px', 
+    height: '2px', 
+    background: '#c9a84c', 
+    margin: '40px auto' 
+  },
+  counter: { 
+    position: 'absolute', 
+    bottom: '20px', 
+    right: '30px', 
+    color: 'rgba(255, 255, 255, 0.2)', 
+    fontSize: '11px', 
+    fontFamily: 'sans-serif', 
+    letterSpacing: '1px' 
+  },
+  load: { 
+    height: '100vh', 
+    background: '#000', 
+    color: '#c9a84c', 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    fontSize: '20px' 
+  }
 };
