@@ -208,7 +208,7 @@ export default function AdminPage() {
           <input 
             style={L.input} 
             type="email" 
-            placeholder="admin@example.com"
+            placeholder=""
             value={emailLogin} 
             onChange={e => setEmailLogin(e.target.value)} 
           />
