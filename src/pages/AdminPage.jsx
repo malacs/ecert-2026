@@ -103,11 +103,24 @@ export default function AdminPage() {
     setSendingStatus(null);
   };
 
+  const filtered = participants.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchesDay = selectedFilter === 'all' || String(p.cert_date) === selectedFilter;
+    const matchesRole = roleFilter === 'all' || p.role === roleFilter;
+    return matchesSearch && matchesDay && matchesRole;
+  });
+
+  // Fetch only participants who haven't received the email yet for bulk sending
+  const availableToSend = filtered.filter(p => !p.email_sent);
+
   const sendAllEmails = async () => {
-    if (!window.confirm(`Send emails to all ${filtered.length} filtered participants?`)) return;
+    if (availableToSend.length === 0) return alert("No pending emails to send in this view.");
+    if (!window.confirm(`Send emails to ${availableToSend.length} pending participants?`)) return;
+    
     setSendingAll(true);
     emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
-    for (const p of filtered) {
+    
+    for (const p of availableToSend) {
       try {
         await emailjs.send(
           process.env.REACT_APP_EMAILJS_SERVICE_ID,
@@ -127,13 +140,6 @@ export default function AdminPage() {
     setSendingAll(false);
     alert("Bulk sending process completed.");
   };
-
-  const filtered = participants.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesDay = selectedFilter === 'all' || String(p.cert_date) === selectedFilter;
-    const matchesRole = roleFilter === 'all' || p.role === roleFilter;
-    return matchesSearch && matchesDay && matchesRole;
-  });
 
   const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
@@ -206,7 +212,7 @@ export default function AdminPage() {
                 </select>
             </div>
             <button style={{ ...S.btnPrimary, backgroundColor: '#10b981' }} onClick={sendAllEmails} disabled={sendingAll}>
-              {sendingAll ? 'Processing Bulk...' : 'Send Bulk Emails'}
+              {sendingAll ? 'Processing Bulk...' : `Send to ${availableToSend.length} Available`}
             </button>
           </div>
 
@@ -248,7 +254,9 @@ export default function AdminPage() {
                     </td>
                     <td style={S.td}>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>{sendingStatus === p.id ? '...' : 'Resend'}</button>
+                        <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>
+                          {sendingStatus === p.id ? '...' : (p.email_sent ? 'Resend' : 'Send')}
+                        </button>
                         <button style={{ ...S.btnAction, color: '#ef4444' }} onClick={async () => { if (window.confirm("Remove participant?")) { await supabase.from('participants').delete().eq('id', p.id); fetchParticipants(); } }}>Delete</button>
                       </div>
                     </td>
