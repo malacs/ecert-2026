@@ -126,8 +126,8 @@ export const generateCertificate = async (participantName, trainingDay = null, r
 
   if (role === 'Speaker') {
     // Break long Speaker text into two lines
-    ctx.fillText('for sharing their invaluable expertise as the Resource Speaker during the', W / 2, startY);
-    ctx.fillText('DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, startY + lineGap);
+    ctx.fillText('for sharing their invaluable expertise as the Resource Speaker during the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts,', W / 2, startY);
+    ctx.fillText('Techniques, and Applications', W / 2, startY + lineGap);
     startY += lineGap; // Push following lines down
   } else {
     // Standard Participant text
