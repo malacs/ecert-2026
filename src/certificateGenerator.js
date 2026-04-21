@@ -89,7 +89,7 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   let drawH = (aspect > 1) ? (logoSize * citeScale) / aspect : (logoSize * citeScale);
   ctx.drawImage(logoCite, citeX - drawW / 2, logoY - drawH / 2, drawW, drawH);
 
-  // Header Text
+  // Header
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
@@ -102,7 +102,7 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // Title Logic
+  // Title
   const titleText = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText(titleText, W / 2, 250);
@@ -122,31 +122,24 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
-  let startY = 410;
+  const startY = 415;
 
   if (role === 'Speaker') {
-    // SPEAKER ROLE: 3-LINE LAYOUT
-    ctx.fillText('for sharing their invaluable expertise as the Resource Speaker during the', W / 2, startY);
-    ctx.fillText('DATA INSIGHTS 2026: Virtual Training Series on Data Mining', W / 2, startY + lineGap);
-    ctx.fillText('Concepts, Techniques, and Applications', W / 2, startY + lineGap * 2);
-    startY += lineGap; // Offset for speaker text
+    // SPEAKER: Combining the requested text into one line
+    ctx.fillText('for sharing their invaluable expertise as the Resource Speaker during the DATA INSIGHTS 2026: Virtual Training Series on Data Mining', W / 2, startY);
+    ctx.fillText('Concepts, Techniques, and Applications', W / 2, startY + lineGap);
+    
+    const bottomY = startY + (lineGap * 2);
+    ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from ${sTime}, in recognition of commitment`, W / 2, bottomY);
+    ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, bottomY + lineGap);
   } else {
-    // STUDENT/PARTICIPANT ROLE: ORIGINAL LAYOUT
+    // STUDENT: Original layout
     ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, startY);
+    ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from ${sTime}, in recognition of commitment`, W / 2, startY + lineGap);
+    ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, startY + (lineGap * 2));
   }
 
-  ctx.fillText(
-    `held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from ${sTime}, in recognition of commitment`,
-    W / 2,
-    startY + lineGap
-  );
-  ctx.fillText(
-    'to learning and professional development through active engagement in the training sessions.',
-    W / 2,
-    startY + lineGap * 2
-  );
-
-  // Date and Place
+  // Date/Place
   const yGiven = role === 'Speaker' ? 525 : 500;
   const part1 = 'Given this ';
   const part2 = ` of ${sMonth}, ${sYear} at North Eastern Mindanao State University – Lianga Campus,`;
@@ -154,7 +147,6 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.textAlign = 'left';
   const fullWidth = ctx.measureText(part1).width + 30 + ctx.measureText(part2).width;
   let dateX = (W / 2) - (fullWidth / 2);
-
   ctx.fillText(part1, dateX, yGiven);
   dateX += ctx.measureText(part1).width;
   ctx.fillStyle = '#ffffff';
@@ -175,7 +167,6 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   sigCtx.globalCompositeOperation = 'source-atop';
   sigCtx.fillStyle = '#C9A84C';
   sigCtx.fillRect(0, 0, sigW, sigH);
-
   ctx.globalCompositeOperation = 'lighten';
   ctx.drawImage(sigCanvas, W / 2 - sigW / 2, 618, sigW, sigH);
   ctx.globalCompositeOperation = 'source-over';
