@@ -110,7 +110,6 @@ export default function AdminPage() {
     return matchesSearch && matchesDay && matchesRole;
   });
 
-  // Fetch only participants who haven't received the email yet for bulk sending
   const availableToSend = filtered.filter(p => !p.email_sent);
 
   const sendAllEmails = async () => {
@@ -193,7 +192,8 @@ export default function AdminPage() {
               <option>Student</option>
               <option>Speaker</option>
             </select>
-            <button style={S.btnPrimary} onClick={handleAdd}>{adding ? 'Processing...' : 'Register User'}</button>
+            {/* UPDATED BUTTON TEXT BELOW */}
+            <button style={S.btnPrimary} onClick={handleAdd}>{adding ? 'Processing...' : 'Add Participant'}</button>
           </div>
         </div>
 
@@ -216,10 +216,19 @@ export default function AdminPage() {
             </button>
           </div>
 
+          {/* UPDATED DYNAMIC STATS ROW BELOW */}
           <div style={S.statsRow}>
             <div style={S.statBadge}>Total: {filtered.length}</div>
-            <div style={{ ...S.statBadge, background: '#f0fdf4', color: '#166534' }}>Students: {filtered.filter(p => p.role === 'Student').length}</div>
-            <div style={{ ...S.statBadge, background: '#fdf2f8', color: '#9d174d' }}>Speakers: {filtered.filter(p => p.role === 'Speaker').length}</div>
+            {(roleFilter === 'all' || roleFilter === 'Student') && (
+                <div style={{ ...S.statBadge, background: '#f0fdf4', color: '#166534' }}>
+                    Students: {filtered.filter(p => p.role === 'Student').length}
+                </div>
+            )}
+            {(roleFilter === 'all' || roleFilter === 'Speaker') && (
+                <div style={{ ...S.statBadge, background: '#fdf2f8', color: '#9d174d' }}>
+                    Speakers: {filtered.filter(p => p.role === 'Speaker').length}
+                </div>
+            )}
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -293,6 +302,7 @@ export default function AdminPage() {
   );
 }
 
+// ... styles remain the same
 const S = {
   page: { minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' },
   header: { padding: '0.8rem 2rem', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 },
