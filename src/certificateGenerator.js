@@ -78,22 +78,40 @@ export const generateCertificate = async (participantName, trainingDay = null) =
 
   // Branding Positioning
   const nemsuSize = 88; 
-  const citeSize = 100; // Adjusted for circular fit
+  const citeSize = 100; // The diameter of the circle
   const centerLineY = 115;
   const centerOffset = 255;
 
   // NEMSU Logo (Left)
   ctx.drawImage(logoNemsu, (W/2) - centerOffset - nemsuSize/2, centerLineY - nemsuSize/2, nemsuSize, nemsuSize);
 
-  // CITE Logo (Right + Circle Clip)
+  // --- FIXED: CITE Logo (Right + Circle Clip with Aspect Ratio Fix) ---
   ctx.save();
   ctx.beginPath();
   const cX = (W/2) + centerOffset;
   const cY = centerLineY;
   ctx.arc(cX, cY, citeSize/2, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.drawImage(logoCite, cX - citeSize/2, cY - citeSize/2, citeSize, citeSize);
-  ctx.restore();
+  ctx.clip(); // Clip everything outside this circle
+
+  // Calculate scaling to maintain aspect ratio
+  const imgAspectRatio = logoCite.width / logoCite.height;
+  
+  let drawW, drawH;
+  if (imgAspectRatio > 1) {
+    // Image is wider than it is tall
+    drawH = citeSize;
+    drawW = citeSize * imgAspectRatio;
+  } else {
+    // Image is taller than it is wide (or square)
+    drawW = citeSize;
+    drawH = citeSize / imgAspectRatio;
+  }
+
+  // Draw the image centered within the circular clip area
+  ctx.drawImage(logoCite, cX - drawW/2, cY - drawH/2, drawW, drawH);
+  
+  ctx.restore(); // Restore to normal drawing state
+  // -------------------------------------------------------------------
 
   // Text Headers
   ctx.textAlign = 'center';
