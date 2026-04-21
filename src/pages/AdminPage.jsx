@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import emailjs from '@emailjs/browser';
 
-const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'DataMining2026!Cs!';
+// FIXED: Removed the hardcoded fallback to ensure it only uses the Vercel Environment Variable
+const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD;
 const ITEMS_PER_PAGE = 20;
 
 const TRAINING_DAYS = [
@@ -30,8 +31,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all'); 
-  
-  // --- NEW ROLE FILTER STATE ---
   const [roleFilter, setRoleFilter] = useState('all'); 
 
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -59,10 +58,17 @@ export default function AdminPage() {
   };
 
   const handleLogin = () => {
+    // If ADMIN_PASSWORD is not loaded yet, we show a warning
+    if (!ADMIN_PASSWORD) {
+        console.error("Environment Variable not detected. Check Vercel settings.");
+    }
+    
     if (pw === ADMIN_PASSWORD) {
       setAuthed(true);
       localStorage.setItem('isAdminAuthenticated', 'true');
-    } else { alert('Incorrect Password'); }
+    } else { 
+      alert('Incorrect Password'); 
+    }
   };
 
   const handleAdd = async () => {
@@ -115,7 +121,6 @@ export default function AdminPage() {
     fetchParticipants();
   };
 
-  // --- UPDATED FILTERING LOGIC ---
   const filtered = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === String(selectedFilter);
@@ -123,7 +128,6 @@ export default function AdminPage() {
     return matchesSearch && matchesDay && matchesRole;
   });
 
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   useEffect(() => { setCurrentPage(1); }, [search, selectedFilter, roleFilter]);
@@ -153,13 +157,14 @@ export default function AdminPage() {
       <main style={S.main}>
         <div style={S.card}>
           <div style={S.formRow}>
-            <input style={S.input} placeholder="FULL NAME" value={name} onChange={e => setName(target.value)} />
-            <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(target.value)} />
-            <select style={S.select} value={trainingDay} onChange={e => setTrainingDay(target.value)}>
+            {/* FIXED: Changed target.value to e.target.value */}
+            <input style={S.input} placeholder="FULL NAME" value={name} onChange={e => setName(e.target.value)} />
+            <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
+            <select style={S.select} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
               <option value="">Select Day</option>
               {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
-            <select style={S.select} value={role} onChange={e => setRole(target.value)}>
+            <select style={S.select} value={role} onChange={e => setRole(e.target.value)}>
               <option value="Student">Student</option>
               <option value="Speaker">Speaker</option>
             </select>
@@ -172,7 +177,6 @@ export default function AdminPage() {
             <input style={{...S.input, maxWidth: 350}} placeholder="Search by name..." value={search} onChange={e => setSearch(e.target.value)} />
             
             <div style={{display: 'flex', gap: '10px'}}>
-              {/* --- ADDED ROLE FILTER SELECT --- */}
               <select style={S.select} value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
                  <option value="all">All Roles</option>
                  <option value="Student">Students</option>
@@ -243,7 +247,6 @@ export default function AdminPage() {
         </div>
       </main>
 
-      {/* Presentation Modal Logic */}
       {showConfigModal && (
         <div style={S.overlay}>
           <div style={S.modal}>
