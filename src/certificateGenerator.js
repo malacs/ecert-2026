@@ -61,10 +61,12 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     loadImage('/logo-signature.png'),
   ]);
 
+  // Background
   ctx.drawImage(bg, 0, 0, W, H);
   ctx.fillStyle = 'rgba(10, 20, 60, 0.25)';
   ctx.fillRect(0, 0, W, H);
 
+  // Date logic
   let sDay, sMonth, sYear, sTime;
   const selected = Number(trainingDay);
   if (selected && DAY_DATES[selected]) {
@@ -76,102 +78,152 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     sDay = 15; sMonth = 'April'; sYear = 2026; sTime = '8:00 AM to 12:00 PM';
   }
 
-  // Branding Positioning
-  const nemsuSize = 88; 
-  const citeSize = 100; // The diameter of the circle
+  // =========================
+  // LOGOS
+  // =========================
+  const nemsuSize = 90;
+  const citeSize = 90;
   const centerLineY = 115;
   const centerOffset = 255;
 
-  // NEMSU Logo (Left)
-  ctx.drawImage(logoNemsu, (W/2) - centerOffset - nemsuSize/2, centerLineY - nemsuSize/2, nemsuSize, nemsuSize);
+  // NEMSU (LEFT)
+  ctx.drawImage(
+    logoNemsu,
+    (W / 2) - centerOffset - nemsuSize / 2,
+    centerLineY - nemsuSize / 2,
+    nemsuSize,
+    nemsuSize
+  );
 
-  // --- FIXED: CITE Logo (Right + Circle Clip with Aspect Ratio Fix) ---
-  ctx.save();
-  ctx.beginPath();
-  const cX = (W/2) + centerOffset;
-  const cY = centerLineY;
-  ctx.arc(cX, cY, citeSize/2, 0, Math.PI * 2);
-  ctx.clip(); // Clip everything outside this circle
+  // CITE (RIGHT) — FIXED (NO CIRCLE, KEEP ASPECT RATIO)
+  const citeX = (W / 2) + centerOffset;
+  const citeY = centerLineY;
 
-  // Calculate scaling to maintain aspect ratio
-  const imgAspectRatio = logoCite.width / logoCite.height;
-  
+  const aspect = logoCite.width / logoCite.height;
+
   let drawW, drawH;
-  if (imgAspectRatio > 1) {
-    // Image is wider than it is tall
-    drawH = citeSize;
-    drawW = citeSize * imgAspectRatio;
-  } else {
-    // Image is taller than it is wide (or square)
+
+  if (aspect > 1) {
     drawW = citeSize;
-    drawH = citeSize / imgAspectRatio;
+    drawH = citeSize / aspect;
+  } else {
+    drawH = citeSize;
+    drawW = citeSize * aspect;
   }
 
-  // Draw the image centered within the circular clip area
-  ctx.drawImage(logoCite, cX - drawW/2, cY - drawH/2, drawW, drawH);
-  
-  ctx.restore(); // Restore to normal drawing state
-  // -------------------------------------------------------------------
+  ctx.drawImage(
+    logoCite,
+    citeX - drawW / 2,
+    citeY - drawH / 2,
+    drawW,
+    drawH
+  );
 
-  // Text Headers
+  // =========================
+  // HEADERS
+  // =========================
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
+
   ctx.font = '13px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 85);
+
   ctx.font = 'bold 16px Arial';
   ctx.fillText('North Eastern Mindanao State University', W / 2, 110);
+
   ctx.font = '13px Arial';
   ctx.fillText('Lianga Campus', W / 2, 135);
+
   ctx.font = 'bold 13px Arial';
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText('CERTIFICATE OF PARTICIPATION', W / 2, 250);
+
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  // Name
+  // =========================
+  // NAME
+  // =========================
   ctx.fillStyle = '#ffffff';
   const nameText = participantName.toUpperCase();
   const fittedSize = fitTextToWidth(ctx, nameText, W - 240, 52, 'Calibri, Arial');
   ctx.font = `bold ${fittedSize}px Calibri, Arial`;
   ctx.fillText(nameText, W / 2, 365);
 
-  // Body
+  // =========================
+  // BODY TEXT
+  // =========================
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
-  const lineGap = 22;
-  ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, 410);
-  ctx.fillText(`held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from ${sTime}, in recognition of commitment`, W / 2, 410 + lineGap);
-  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, 410 + lineGap * 2);
 
+  const lineGap = 22;
+
+  ctx.fillText(
+    'for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications',
+    W / 2,
+    410
+  );
+
+  ctx.fillText(
+    `held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from ${sTime}, in recognition of commitment`,
+    W / 2,
+    410 + lineGap
+  );
+
+  ctx.fillText(
+    'to learning and professional development through active engagement in the training sessions.',
+    W / 2,
+    410 + lineGap * 2
+  );
+
+  // =========================
+  // DATE LINE
+  // =========================
   const yGiven = 500;
   const part1 = 'Given this ';
   const part2 = ` of ${sMonth}, ${sYear} at North Eastern Mindanao State University – Lianga Campus,`;
-  const totalW = ctx.measureText(part1).width + 30 + ctx.measureText(part2).width;
+
+  const totalW =
+    ctx.measureText(part1).width +
+    30 +
+    ctx.measureText(part2).width;
+
   let startX = (W / 2) - (totalW / 2);
 
   ctx.textAlign = 'left';
   ctx.fillText(part1, startX, yGiven);
+
   startX += ctx.measureText(part1).width;
+
   ctx.fillStyle = '#ffffff';
   startX += drawOrdinalInline(ctx, startX, yGiven, sDay);
+
   ctx.fillStyle = '#d6e6ff';
   ctx.fillText(part2, startX, yGiven);
+
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // Coordinator Signature
+  // =========================
+  // SIGNATURE
+  // =========================
   const sigW = 65;
   const sigH = 38;
+
   const sigCanvas = document.createElement('canvas');
   const sigCtx = sigCanvas.getContext('2d');
-  sigCanvas.width = sigW; sigCanvas.height = sigH;
+
+  sigCanvas.width = sigW;
+  sigCanvas.height = sigH;
+
   sigCtx.drawImage(logoSig, 0, 0, sigW, sigH);
+
   sigCtx.globalCompositeOperation = 'source-atop';
-  sigCtx.fillStyle = '#C9A84C'; 
+  sigCtx.fillStyle = '#C9A84C';
   sigCtx.fillRect(0, 0, sigW, sigH);
 
   ctx.globalCompositeOperation = 'lighten';
@@ -181,13 +233,24 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 13px Arial';
   ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 660);
+
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '13px Arial';
   ctx.fillText('BSCS Program Coordinator', W / 2, 680);
 
+  // =========================
+  // EXPORT
+  // =========================
   const imgData = canvas.toDataURL('image/png', 1.0);
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
+
+  const pdf = new jsPDF({
+    orientation: 'landscape',
+    unit: 'px',
+    format: [W, H],
+  });
+
   pdf.addImage(imgData, 'PNG', 0, 0, W, H);
+
   return { pdf, imgData };
 };
 
