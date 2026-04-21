@@ -54,17 +54,24 @@ export default function AdminPage() {
   const [presDay, setPresDay] = useState('1');
   const [presRole, setPresRole] = useState('All');
 
-  // Check session on mount
+  // Improved session check
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+      } catch (err) {
+        console.error("Session fetch error:", err);
+      } finally {
+        setAuthLoading(false);
+      }
     };
-    getSession();
+
+    initAuth();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setAuthLoading(false);
     });
 
     return () => {
@@ -72,15 +79,22 @@ export default function AdminPage() {
     };
   }, []);
 
-  // Fetch data if authenticated
   useEffect(() => {
     if (user) fetchParticipants();
   }, [user]);
 
   const fetchParticipants = async () => {
     setLoading(true);
-    const { data } = await supabase.from('participants').select('*').order('created_at', { ascending: false });
-    if (data) setParticipants(data);
+    const { data, error } = await supabase
+      .from('participants')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("RLS might be blocking this:", error.message);
+    } else if (data) {
+      setParticipants(data);
+    }
     setLoading(false);
   };
 
@@ -99,19 +113,23 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setUser(null);
     navigate('/');
   };
 
   const handleAdd = async () => {
     if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
-    await supabase.from('participants').insert([{
+    const { error } = await supabase.from('participants').insert([{
       name: name.toUpperCase(),
       email: email.toLowerCase(),
       cert_date: trainingDay,
       role,
       email_sent: false
     }]);
+    
+    if (error) alert("Add failed: " + error.message);
+    
     setName(''); setEmail(''); setTrainingDay(''); setRole('Student');
     fetchParticipants();
     setAdding(false);
@@ -266,39 +284,43 @@ export default function AdminPage() {
             <div style={{ ...S.statBadge, background: '#fdf2f8', color: '#9d174d' }}>Speakers: {filtered.filter(p => p.role === 'Speaker').length}</div>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={S.table}>
-              <thead>
-                <tr>
-                  <th style={S.th}>#</th>
-                  <th style={S.th}>Full Name</th>
-                  <th style={S.th}>Role</th>
-                  <th style={S.th}>Email</th>
-                  <th style={S.th}>Date</th>
-                  <th style={S.th}>Status</th>
-                  <th style={S.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentItems.map((p, i) => (
-                  <tr key={p.id}>
-                    <td style={S.td}>{((currentPage - 1) * ITEMS_PER_PAGE) + i + 1}</td>
-                    <td style={{ ...S.td, fontWeight: '600', color: '#1e293b' }}>{p.name}</td>
-                    <td style={S.td}><span style={{fontSize:'0.75rem', fontWeight:'bold', color: p.role==='Speaker'?'#b45309':'#64748b'}}>{p.role}</span></td>
-                    <td style={S.td}>{p.email}</td>
-                    <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
-                    <td style={S.td}><span style={{fontSize:'0.7rem', fontWeight:'bold', color: p.email_sent?'#059669':'#d97706'}}>{p.email_sent?'SENT':'PENDING'}</span></td>
-                    <td style={S.td}>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>{sendingStatus === p.id ? '...' : 'Send'}</button>
-                        <button style={{ ...S.btnAction, color: '#ef4444' }} onClick={async () => { if (window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id', p.id); fetchParticipants(); } }}>Delete</button>
-                      </div>
-                    </td>
+          {loading ? (
+            <p style={{ textAlign: 'center', color: '#64748b' }}>Loading data...</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={S.table}>
+                <thead>
+                  <tr>
+                    <th style={S.th}>#</th>
+                    <th style={S.th}>Full Name</th>
+                    <th style={S.th}>Role</th>
+                    <th style={S.th}>Email</th>
+                    <th style={S.th}>Date</th>
+                    <th style={S.th}>Status</th>
+                    <th style={S.th}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {currentItems.map((p, i) => (
+                    <tr key={p.id}>
+                      <td style={S.td}>{((currentPage - 1) * ITEMS_PER_PAGE) + i + 1}</td>
+                      <td style={{ ...S.td, fontWeight: '600', color: '#1e293b' }}>{p.name}</td>
+                      <td style={S.td}><span style={{fontSize:'0.75rem', fontWeight:'bold', color: p.role==='Speaker'?'#b45309':'#64748b'}}>{p.role}</span></td>
+                      <td style={S.td}>{p.email}</td>
+                      <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
+                      <td style={S.td}><span style={{fontSize:'0.7rem', fontWeight:'bold', color: p.email_sent?'#059669':'#d97706'}}>{p.email_sent?'SENT':'PENDING'}</span></td>
+                      <td style={S.td}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>{sendingStatus === p.id ? '...' : 'Send'}</button>
+                          <button style={{ ...S.btnAction, color: '#ef4444' }} onClick={async () => { if (window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id', p.id); fetchParticipants(); } }}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 
