@@ -66,7 +66,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.fillStyle = 'rgba(10, 20, 60, 0.25)';
   ctx.fillRect(0, 0, W, H);
 
-  // Date logic
+  // Date
   let sDay, sMonth, sYear, sTime;
   const selected = Number(trainingDay);
   if (selected && DAY_DATES[selected]) {
@@ -86,7 +86,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   const centerLineY = 115;
   const centerOffset = 255;
 
-  // NEMSU (LEFT)
+  // LEFT (NEMSU)
   ctx.drawImage(
     logoNemsu,
     (W / 2) - centerOffset - nemsuSize / 2,
@@ -95,20 +95,22 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     nemsuSize
   );
 
-  // CITE (RIGHT) — FIXED (NO CIRCLE, KEEP ASPECT RATIO)
+  // RIGHT (CITE) — AUTO ZOOM FIX
   const citeX = (W / 2) + centerOffset;
   const citeY = centerLineY;
 
   const aspect = logoCite.width / logoCite.height;
 
+  const scale = 1.8; // 🔥 MAGIC FIX FOR SMALL LOGO
+
   let drawW, drawH;
 
   if (aspect > 1) {
-    drawW = citeSize;
-    drawH = citeSize / aspect;
+    drawW = citeSize * scale;
+    drawH = (citeSize * scale) / aspect;
   } else {
-    drawH = citeSize;
-    drawW = citeSize * aspect;
+    drawH = citeSize * scale;
+    drawW = (citeSize * scale) * aspect;
   }
 
   ctx.drawImage(
@@ -120,7 +122,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   );
 
   // =========================
-  // HEADERS
+  // TEXT
   // =========================
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
@@ -145,18 +147,14 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '14px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 270);
 
-  // =========================
   // NAME
-  // =========================
   ctx.fillStyle = '#ffffff';
   const nameText = participantName.toUpperCase();
   const fittedSize = fitTextToWidth(ctx, nameText, W - 240, 52, 'Calibri, Arial');
   ctx.font = `bold ${fittedSize}px Calibri, Arial`;
   ctx.fillText(nameText, W / 2, 365);
 
-  // =========================
-  // BODY TEXT
-  // =========================
+  // BODY
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
 
@@ -180,9 +178,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
     410 + lineGap * 2
   );
 
-  // =========================
   // DATE LINE
-  // =========================
   const yGiven = 500;
   const part1 = 'Given this ';
   const part2 = ` of ${sMonth}, ${sYear} at North Eastern Mindanao State University – Lianga Campus,`;
@@ -208,9 +204,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // =========================
   // SIGNATURE
-  // =========================
   const sigW = 65;
   const sigH = 38;
 
@@ -221,7 +215,6 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   sigCanvas.height = sigH;
 
   sigCtx.drawImage(logoSig, 0, 0, sigW, sigH);
-
   sigCtx.globalCompositeOperation = 'source-atop';
   sigCtx.fillStyle = '#C9A84C';
   sigCtx.fillRect(0, 0, sigW, sigH);
@@ -238,9 +231,7 @@ export const generateCertificate = async (participantName, trainingDay = null) =
   ctx.font = '13px Arial';
   ctx.fillText('BSCS Program Coordinator', W / 2, 680);
 
-  // =========================
   // EXPORT
-  // =========================
   const imgData = canvas.toDataURL('image/png', 1.0);
 
   const pdf = new jsPDF({
