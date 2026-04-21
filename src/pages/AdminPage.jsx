@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import emailjs from '@emailjs/browser';
 
-// FIXED: Removed the hardcoded fallback to ensure it only uses the Vercel Environment Variable
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD;
 const ITEMS_PER_PAGE = 20;
 
@@ -15,38 +14,43 @@ const TRAINING_DAYS = [
   { value: '5', label: 'Day 5 — April 29, 2026' },
 ];
 
-const DAY_LABEL = { 
-  '1': 'April 15, 2026', 
-  '2': 'April 17, 2026', 
-  '3': 'April 22, 2026', 
-  '4': 'April 24, 2026', 
-  '5': 'April 29, 2026' 
+const DAY_LABEL = {
+  '1': 'April 15, 2026',
+  '2': 'April 17, 2026',
+  '3': 'April 22, 2026',
+  '4': 'April 24, 2026',
+  '5': 'April 29, 2026'
 };
 
 export default function AdminPage() {
   const navigate = useNavigate();
+
   const [authed, setAuthed] = useState(() => localStorage.getItem('isAdminAuthenticated') === 'true');
   const [pw, setPw] = useState('');
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('all'); 
-  const [roleFilter, setRoleFilter] = useState('all'); 
 
-  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [search, setSearch] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+
   const [currentPage, setCurrentPage] = useState(1);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [trainingDay, setTrainingDay] = useState('');
-  const [role, setRole] = useState('Student'); 
-  const [adding, setAdding] = useState(false);
-  const [sendingStatus, setSendingStatus] = useState(null); 
+  const [role, setRole] = useState('Student');
 
+  const [adding, setAdding] = useState(false);
+  const [sendingStatus, setSendingStatus] = useState(null);
+  const [sendingAll, setSendingAll] = useState(false);
+
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [presDay, setPresDay] = useState('1');
   const [presRole, setPresRole] = useState('All');
 
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', email: '', cert_date: '', role: '' });
+  const [editForm, setEditForm] = useState({});
 
   useEffect(() => { if (authed) fetchParticipants(); }, [authed]);
 
@@ -58,56 +62,95 @@ export default function AdminPage() {
   };
 
   const handleLogin = () => {
-    // If ADMIN_PASSWORD is not loaded yet, we show a warning
-    if (!ADMIN_PASSWORD) {
-        console.error("Environment Variable not detected. Check Vercel settings.");
-    }
-    
     if (pw === ADMIN_PASSWORD) {
       setAuthed(true);
       localStorage.setItem('isAdminAuthenticated', 'true');
-    } else { 
-      alert('Incorrect Password'); 
+    } else {
+      alert('Incorrect Password');
     }
   };
 
   const handleAdd = async () => {
-    const cleanName = name.trim().toUpperCase();
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanName || !cleanEmail || !trainingDay) return alert("Fill all fields");
+    if (!name || !email || !trainingDay) return alert("Fill all fields");
+
     setAdding(true);
-    await supabase.from('participants').insert([{ name: cleanName, email: cleanEmail, cert_date: trainingDay, role, email_sent: false }]);
-    setName(''); setEmail(''); setRole('Student');
+
+    await supabase.from('participants').insert([{
+      name: name.toUpperCase(),
+      email: email.toLowerCase(),
+      cert_date: trainingDay,
+      role,
+      email_sent: false
+    }]);
+
+    setName('');
+    setEmail('');
+    setTrainingDay('');
+    setRole('Student');
+
     fetchParticipants();
     setAdding(false);
   };
 
   const sendIndividualEmail = async (p) => {
-    if (!p.email.includes('@') || !p.email.includes('.')) {
-        return alert("Invalid email address format.");
-    }
     setSendingStatus(p.id);
+
     try {
       emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
-      const templateParams = { 
-        to_name: p.name, 
-        to_email: p.email.trim(), 
-        certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` 
-      };
-      const result = await emailjs.send(
+
+      await emailjs.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
         process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
-        templateParams
+        {
+          to_name: p.name,
+          to_email: p.email,
+          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}`
+        }
       );
-      if (result.status === 200) {
-        await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
-        setParticipants(prev => prev.map(item => item.id === p.id ? {...item, email_sent: true} : item));
-      }
-    } catch (e) {
-      console.error("EmailJS Error:", e);
-      alert(`Failed to send to ${p.name}. Check console for details.`);
+
+      await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+
+      setParticipants(prev =>
+        prev.map(item => item.id === p.id ? { ...item, email_sent: true } : item)
+      );
+
+    } catch {
+      alert("Failed to send email");
     }
+
     setSendingStatus(null);
+  };
+
+  const sendAllEmails = async () => {
+    if (!window.confirm("Send emails to ALL filtered participants?")) return;
+
+    setSendingAll(true);
+    emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
+
+    for (const p of filtered) {
+      try {
+        await emailjs.send(
+          process.env.REACT_APP_EMAILJS_SERVICE_ID,
+          process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+          {
+            to_name: p.name,
+            to_email: p.email,
+            certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}`
+          }
+        );
+
+        await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+
+        await new Promise(res => setTimeout(res, 400)); // prevent rate limit
+
+      } catch (err) {
+        console.error("Failed:", p.email);
+      }
+    }
+
+    fetchParticipants();
+    setSendingAll(false);
+    alert("All emails sent!");
   };
 
   const handleUpdate = async (id) => {
@@ -117,26 +160,33 @@ export default function AdminPage() {
       cert_date: editForm.cert_date,
       role: editForm.role
     }).eq('id', id);
+
     setEditingId(null);
     fetchParticipants();
   };
 
   const filtered = participants.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesDay = selectedFilter === 'all' || String(p.cert_date) === String(selectedFilter);
-    const matchesRole = roleFilter === 'all' || p.role === roleFilter;
-    return matchesSearch && matchesDay && matchesRole;
+    return (
+      p.name.toLowerCase().includes(search.toLowerCase()) &&
+      (selectedFilter === 'all' || String(p.cert_date) === selectedFilter) &&
+      (roleFilter === 'all' || p.role === roleFilter)
+    );
   });
 
-  const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const currentItems = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
-  useEffect(() => { setCurrentPage(1); }, [search, selectedFilter, roleFilter]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedFilter, roleFilter]);
 
   if (!authed) return (
     <div style={S.loginPage}>
       <div style={S.loginCard}>
-        <h2 style={{color: '#fff'}}>Admin Portal</h2>
-        <input style={S.loginInput} type="password" placeholder="Password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+        <h2 style={{color:'#fff'}}>Admin Portal</h2>
+        <input style={S.loginInput} type="password" value={pw} onChange={e=>setPw(e.target.value)} />
         <button style={S.loginBtn} onClick={handleLogin}>ENTER</button>
       </div>
     </div>
@@ -145,126 +195,128 @@ export default function AdminPage() {
   return (
     <div style={S.page}>
       <header style={S.header}>
-        <div style={S.headerInner}>
-          <h1 style={S.headerTitle}>🎓 Admin Dashboard</h1>
-          <div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
-             <button style={S.presBtn} onClick={() => setShowConfigModal(true)}>Presentation</button>
-             <button style={S.logoutBtn} onClick={() => {localStorage.clear(); window.location.reload();}}>Logout</button>
-          </div>
+        <h1>Admin Dashboard</h1>
+        <div>
+          <button onClick={() => setShowConfigModal(true)}>Presentation</button>
+          <button onClick={() => {localStorage.clear(); window.location.reload();}}>Logout</button>
         </div>
       </header>
 
-      <main style={S.main}>
-        <div style={S.card}>
-          <div style={S.formRow}>
-            {/* FIXED: Changed target.value to e.target.value */}
-            <input style={S.input} placeholder="FULL NAME" value={name} onChange={e => setName(e.target.value)} />
-            <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
-            <select style={S.select} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
-              <option value="">Select Day</option>
-              {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-            </select>
-            <select style={S.select} value={role} onChange={e => setRole(e.target.value)}>
-              <option value="Student">Student</option>
-              <option value="Speaker">Speaker</option>
-            </select>
-            <button style={S.btnPrimary} onClick={handleAdd} disabled={adding}>{adding ? '...' : 'ADD'}</button>
-          </div>
+      <div style={S.card}>
+        <input style={S.input} placeholder="Name" value={name} onChange={e=>setName(e.target.value)} />
+        <input style={S.input} placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+
+        <select value={trainingDay} onChange={e=>setTrainingDay(e.target.value)}>
+          <option value="">Select Day</option>
+          {TRAINING_DAYS.map(d=> <option key={d.value} value={d.value}>{d.label}</option>)}
+        </select>
+
+        <select value={role} onChange={e=>setRole(e.target.value)}>
+          <option>Student</option>
+          <option>Speaker</option>
+        </select>
+
+        <button onClick={handleAdd}>{adding ? '...' : 'Add'}</button>
+      </div>
+
+      <div style={S.card}>
+        {/* STATS */}
+        <div style={S.stats}>
+          <span>Total: {filtered.length}</span>
+          <span>Speakers: {filtered.filter(p=>p.role==='Speaker').length}</span>
+          <span>Students: {filtered.filter(p=>p.role==='Student').length}</span>
+
+          <button onClick={sendAllEmails} disabled={sendingAll}>
+            {sendingAll ? 'Sending...' : 'Send All Emails'}
+          </button>
         </div>
 
-        <div style={S.card}>
-          <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px', gap: '10px'}}>
-            <input style={{...S.input, maxWidth: 350}} placeholder="Search by name..." value={search} onChange={e => setSearch(e.target.value)} />
-            
-            <div style={{display: 'flex', gap: '10px'}}>
-              <select style={S.select} value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
-                 <option value="all">All Roles</option>
-                 <option value="Student">Students</option>
-                 <option value="Speaker">Speakers</option>
-              </select>
+        <table style={S.table}>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Email</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
 
-              <select style={S.select} value={selectedFilter} onChange={e => setSelectedFilter(e.target.value)}>
-                 <option value="all">All Training Days</option>
-                 {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
-              </select>
-            </div>
-          </div>
+          <tbody>
+            {currentItems.map((p,i)=>(
+              <tr key={p.id}>
+                <td>{((currentPage-1)*ITEMS_PER_PAGE)+i+1}</td>
 
-          <table style={S.table}>
-            <thead>
-              <tr style={S.thRow}>
-                {['#','Name','Role','Email','Date','Status','Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}
+                {editingId===p.id ? (
+                  <>
+                    <td><input value={editForm.name} onChange={e=>setEditForm({...editForm,name:e.target.value})} /></td>
+                    <td>
+                      <select value={editForm.role} onChange={e=>setEditForm({...editForm,role:e.target.value})}>
+                        <option>Student</option>
+                        <option>Speaker</option>
+                      </select>
+                    </td>
+                    <td><input value={editForm.email} onChange={e=>setEditForm({...editForm,email:e.target.value})} /></td>
+                    <td>
+                      <select value={editForm.cert_date} onChange={e=>setEditForm({...editForm,cert_date:e.target.value})}>
+                        {TRAINING_DAYS.map(d=><option key={d.value} value={d.value}>{d.label}</option>)}
+                      </select>
+                    </td>
+                    <td>—</td>
+                    <td><button onClick={()=>handleUpdate(p.id)}>Save</button></td>
+                  </>
+                ):(
+                  <>
+                    <td>{p.name}</td>
+                    <td>{p.role}</td>
+                    <td>{p.email}</td>
+                    <td>{DAY_LABEL[p.cert_date]}</td>
+                    <td>{p.email_sent?'Sent':'Pending'}</td>
+                    <td>
+                      <button onClick={()=>sendIndividualEmail(p)}>
+                        {sendingStatus===p.id?'...':'Send'}
+                      </button>
+                      <button onClick={()=>{setEditingId(p.id);setEditForm(p);}}>Edit</button>
+                      <button onClick={async()=>{if(window.confirm("Delete?")){await supabase.from('participants').delete().eq('id',p.id);fetchParticipants();}}}>Delete</button>
+                    </td>
+                  </>
+                )}
               </tr>
-            </thead>
-            <tbody>
-              {currentItems.map((p, i) => (
-                <tr key={p.id} style={S.tr}>
-                  <td style={S.td}>{((currentPage - 1) * ITEMS_PER_PAGE) + i + 1}</td>
-                  {editingId === p.id ? (
-                    <>
-                      <td style={S.td}><input style={S.editInput} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} /></td>
-                      <td style={S.td}>
-                        <select value={editForm.role} onChange={e => setEditForm({...editForm, role: e.target.value})}>
-                          <option value="Student">Student</option>
-                          <option value="Speaker">Speaker</option>
-                        </select>
-                      </td>
-                      <td style={S.td}><input style={S.editInput} value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} /></td>
-                      <td style={S.td}>
-                        <select value={editForm.cert_date} onChange={e => setEditForm({...editForm, cert_date: e.target.value})}>
-                          {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
-                        </select>
-                      </td>
-                      <td style={S.td}>—</td>
-                      <td style={S.td}><button style={S.btnSave} onClick={() => handleUpdate(p.id)}>Save</button></td>
-                    </>
-                  ) : (
-                    <>
-                      <td style={S.td}><b>{p.name}</b></td>
-                      <td style={S.td}>{p.role}</td>
-                      <td style={S.td}>{p.email}</td>
-                      <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
-                      <td style={S.td}>
-                        {p.email_sent ? <span style={{color: '#22863a', fontWeight: 'bold'}}>Sent</span> : <span style={{color: '#888'}}>Pending</span>}
-                      </td>
-                      <td style={S.td}>
-                         <button 
-                           style={{...S.btnSingleSend, opacity: (sendingStatus) ? 0.6 : 1}} 
-                           disabled={!!sendingStatus}
-                           onClick={() => sendIndividualEmail(p)}
-                         >
-                           {sendingStatus === p.id ? '...' : 'Send'}
-                         </button>
-                         <button style={S.btnEdit} onClick={() => { setEditingId(p.id); setEditForm(p); }}>Edit</button>
-                         <button style={S.btnDelete} onClick={async () => { if(window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id',p.id); fetchParticipants(); } }}>Delete</button>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </main>
+            ))}
+          </tbody>
+        </table>
 
+        {/* PAGINATION */}
+        <div style={S.pagination}>
+          <button disabled={currentPage===1} onClick={()=>setCurrentPage(p=>p-1)}>Prev</button>
+          <span>Page {currentPage}</span>
+          <button disabled={currentPage>=Math.ceil(filtered.length/ITEMS_PER_PAGE)} onClick={()=>setCurrentPage(p=>p+1)}>Next</button>
+        </div>
+      </div>
+
+      {/* PRESENTATION MODAL */}
       {showConfigModal && (
         <div style={S.overlay}>
           <div style={S.modal}>
-            <h3 style={{marginBottom: '15px', color: '#333'}}>Presentation Settings</h3>
-            <label style={S.modalLabel}>Select Training Day</label>
-            <select style={S.modalSelect} value={presDay} onChange={e => setPresDay(e.target.value)}>
-              {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            <h3>Presentation Settings</h3>
+
+            <select value={presDay} onChange={e=>setPresDay(e.target.value)}>
+              {TRAINING_DAYS.map(d=><option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
-            <label style={S.modalLabel}>Who to display?</label>
-            <select style={S.modalSelect} value={presRole} onChange={e => setPresRole(e.target.value)}>
+
+            <select value={presRole} onChange={e=>setPresRole(e.target.value)}>
               <option value="All">Everyone</option>
-              <option value="Speaker">Speakers Only</option>
-              <option value="Student">Students Only</option>
+              <option value="Speaker">Speakers</option>
+              <option value="Student">Students</option>
             </select>
-            <div style={{display: 'flex', gap: 10, marginTop: '20px'}}>
-              <button style={S.btnPrimary} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>START SESSION</button>
-              <button style={S.btnCancel} onClick={() => setShowConfigModal(false)}>CANCEL</button>
-            </div>
+
+            <button onClick={()=>navigate(`/presentation?day=${presDay}&role=${presRole}`)}>
+              START
+            </button>
+
+            <button onClick={()=>setShowConfigModal(false)}>Cancel</button>
           </div>
         </div>
       )}
@@ -273,33 +325,13 @@ export default function AdminPage() {
 }
 
 const S = {
-  loginPage: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#04050a' },
-  loginCard: { padding: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px', textAlign: 'center' },
-  loginInput: { padding: '12px', borderRadius: '8px', border: 'none', width: '250px', display: 'block', margin: '10px auto' },
-  loginBtn: { padding: '12px 30px', borderRadius: '8px', background: '#4f46e5', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' },
-  page: { minHeight: '100vh', background: '#f4f7fe', fontFamily: 'sans-serif' },
-  header: { background: '#1a1060', padding: '15px 40px', color: 'white', position: 'sticky', top: 0, zIndex: 10 },
-  headerInner: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' },
-  headerTitle: { fontSize: '18px', margin: 0 },
-  presBtn: { background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer' },
-  logoutBtn: { background: '#ff4d4f', border: 'none', color: '#fff', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer' },
-  main: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
-  card: { background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '20px' },
-  formRow: { display: 'flex', gap: '10px' },
-  input: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd', flex: 1 },
-  select: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd' },
-  btnPrimary: { background: '#1a1060', color: 'white', border: 'none', padding: '10px 25px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
-  btnCancel: { background: '#ddd', color: '#333', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: { textAlign: 'left', padding: '12px', fontSize: '11px', color: '#888', borderBottom: '2px solid #eee', textTransform: 'uppercase' },
-  td: { padding: '12px', borderBottom: '1px solid #f5f5f5', fontSize: '13px' },
-  editInput: { padding: '5px', width: '90%' },
-  btnEdit: { background: '#f0f2f5', border: 'none', padding: '5px 10px', borderRadius: '5px', marginRight: '5px', cursor: 'pointer' },
-  btnSave: { background: '#22863a', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer' },
-  btnDelete: { background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer' },
-  btnSingleSend: { background: '#4f46e5', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', marginRight: '5px', cursor: 'pointer', fontSize: '12px' },
-  overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-  modal: { background: '#fff', padding: '30px', borderRadius: '15px', width: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' },
-  modalLabel: { display: 'block', marginTop: '15px', marginBottom: '5px', fontSize: '12px', color: '#666', fontWeight: 'bold' },
-  modalSelect: { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }
+  page:{padding:20},
+  header:{display:'flex',justifyContent:'space-between'},
+  card:{background:'#fff',padding:20,marginTop:20},
+  input:{margin:5,padding:8},
+  table:{width:'100%',marginTop:20},
+  stats:{display:'flex',gap:15,alignItems:'center'},
+  pagination:{marginTop:20,display:'flex',gap:10,justifyContent:'center'},
+  overlay:{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',justifyContent:'center',alignItems:'center'},
+  modal:{background:'#fff',padding:20}
 };
