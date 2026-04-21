@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { supabase } from '../supabaseClient'; // Import supabase
 import { getCertificateDataUrl, downloadCertificate } from '../certificateGenerator';
 
 export default function CertificatePage() {
@@ -10,134 +11,108 @@ export default function CertificatePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const [participantRole, setParticipantRole] = useState('Student');
 
   useEffect(() => {
-    if (!participantName) {
-      setError('No participant name provided.');
-      setLoading(false);
-      return;
-    }
+    const loadCertificate = async () => {
+      if (!participantName) {
+        setError('No participant name provided.');
+        setLoading(false);
+        return;
+      }
 
-    // Pass the 'day' param to the generator
-    getCertificateDataUrl(participantName, day || null)
-      .then((data) => {
-        setImgSrc(data);
+      try {
+        // 1. Fetch the actual role from Supabase
+        const { data, error: dbError } = await supabase
+          .from('participants')
+          .select('role')
+          .ilike('name', participantName)
+          .eq('cert_date', day)
+          .single();
+
+        const role = data?.role || 'Student';
+        setParticipantRole(role);
+
+        // 2. Generate with the correct role
+        const imgData = await getCertificateDataUrl(participantName, day || null, role);
+        setImgSrc(imgData);
+      } catch (err) {
+        console.error('Error:', err);
+        setError('Failed to load certificate details.');
+      } finally {
         setLoading(false);
-      })
-      .catch((err) => {
-        console.error('Certificate generation error:', err);
-        setError('Failed to generate certificate. Please try again.');
-        setLoading(false);
-      });
+      }
+    };
+
+    loadCertificate();
   }, [participantName, day]);
 
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      await downloadCertificate(participantName, day || null);
+      await downloadCertificate(participantName, day || null, participantRole);
     } catch (err) {
-      alert("Download failed. Please try again.");
+      alert("Download failed.");
     }
     setDownloading(false);
   };
 
-  const animations = `
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .btn-hover:hover { opacity: 0.9; transform: translateY(-1px); }
-  `;
-
   return (
     <div style={styles.page}>
-      <style>{animations}</style>
-
-      <div style={styles.header}>
+      <div style={styles.heroSection}>
         <div style={styles.headerInner}>
-          <h1 style={styles.headerTitle}>🎓 DATA INSIGHTS 2026</h1>
-          <p style={styles.headerSub}>E-Certificate of Participation</p>
+          <div style={styles.badge}>DATA INSIGHTS 2026</div>
+          <h1 style={styles.headerTitle}>Verification Portal</h1>
+          <p style={styles.headerSub}>Official Digital Credentials</p>
         </div>
       </div>
 
       <div style={styles.content}>
-        {loading && (
-          <div style={styles.centerBox}>
-            <div style={styles.spinner} />
-            <p style={styles.loadingText}>Generating your certificate...</p>
-          </div>
-        )}
-
-        {error && (
-          <div style={styles.centerBox}>
-            <p style={styles.errorIcon}>⚠️</p>
-            <p style={styles.errorText}>{error}</p>
-            <Link to="/" style={styles.backLink}>← Go to Public Page</Link>
-          </div>
-        )}
-
-        {!loading && !error && imgSrc && (
+        {loading ? (
+          <div style={styles.centerBox}><div style={styles.spinner} /><p>Verifying Credential...</p></div>
+        ) : error ? (
+          <div style={styles.centerBox}><p>{error}</p><Link to="/" style={styles.btnBack}>Return Home</Link></div>
+        ) : (
           <div style={styles.certWrap}>
-            <p style={styles.nameLabel}>
-              Official Certificate for: <strong>{participantName}</strong>
-            </p>
+            <div style={styles.infoCard}>
+              <p style={styles.issuedTo}>This certificate is officially issued to:</p>
+              <h2 style={styles.nameHeader}>{participantName}</h2>
+              <span style={styles.roleTag}>{participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}</span>
+            </div>
 
             <div style={styles.imgShadowBox}>
-              <img
-                src={imgSrc}
-                alt={`Certificate for ${participantName}`}
-                style={styles.certImg}
-              />
+              <img src={imgSrc} alt="Certificate" style={styles.certImg} />
             </div>
 
             <div style={styles.actions}>
-              <button
-                className="btn-hover"
-                style={{
-                  ...styles.btnDownload,
-                  cursor: downloading ? 'not-allowed' : 'pointer',
-                  opacity: downloading ? 0.7 : 1
-                }}
-                onClick={handleDownload}
-                disabled={downloading}
-              >
-                {downloading ? 'Processing PDF...' : '⬇ Download PDF'}
+              <button onClick={handleDownload} disabled={downloading} style={styles.btnDownload}>
+                {downloading ? 'Preparing PDF...' : 'Download Official PDF'}
               </button>
-
-              <Link to="/" className="btn-hover" style={styles.btnBack}>
-                ← Back to Home
-              </Link>
+              <Link to="/" style={styles.btnSecondary}>Back to Portal</Link>
             </div>
           </div>
         )}
       </div>
-
-      <footer style={styles.footer}>
-        <p>DATA INSIGHTS 2026 &nbsp;•&nbsp; NEMSU Lianga Campus</p>
-      </footer>
     </div>
   );
 }
 
 const styles = {
-  page: { minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter, sans-serif', display: 'flex', flexDirection: 'column' },
-  header: { background: 'linear-gradient(135deg, #1a1060 0%, #2d1b8e 100%)', padding: '30px 24px' },
-  headerInner: { maxWidth: 900, margin: '0 auto', textAlign: 'center' },
-  headerTitle: { color: '#fff', fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' },
-  headerSub: { color: '#c9a84c', fontSize: 14, margin: '8px 0 0', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '1px' },
-  content: { flex: 1, maxWidth: 950, margin: '40px auto', padding: '0 24px', width: '100%' },
+  page: { minHeight: '100vh', background: '#0f172a', fontFamily: 'Inter, sans-serif', color: '#fff' },
+  heroSection: { background: 'radial-gradient(circle at top, #1e293b 0%, #0f172a 100%)', padding: '60px 20px', textAlign: 'center', borderBottom: '1px solid rgba(201, 168, 76, 0.2)' },
+  badge: { color: '#c9a84c', fontSize: '12px', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '10px' },
+  headerTitle: { fontSize: '32px', fontWeight: '800', margin: '0' },
+  headerSub: { color: '#94a3b8', fontSize: '16px', marginTop: '5px' },
+  content: { maxWidth: '1000px', margin: '-40px auto 40px', padding: '0 20px' },
+  infoCard: { background: '#1e293b', padding: '30px', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)', textAlign: 'center', marginBottom: '30px', border: '1px solid rgba(255,255,255,0.1)' },
+  issuedTo: { color: '#94a3b8', fontSize: '14px', marginBottom: '5px' },
+  nameHeader: { fontSize: '28px', color: '#fff', margin: '0 0 10px 0' },
+  roleTag: { background: 'rgba(201, 168, 76, 0.15)', color: '#c9a84c', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #c9a84c' },
+  imgShadowBox: { borderRadius: '8px', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.5)', border: '4px solid #1e293b' },
+  certImg: { width: '100%', display: 'block' },
+  actions: { marginTop: '40px', display: 'flex', gap: '15px', justifyContent: 'center' },
+  btnDownload: { background: '#c9a84c', color: '#000', padding: '14px 28px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' },
+  btnSecondary: { background: 'transparent', color: '#fff', padding: '14px 28px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', textDecoration: 'none', fontWeight: '600' },
   centerBox: { textAlign: 'center', padding: '100px 0' },
-  spinner: { width: 40, height: 40, border: '4px solid #f3f4f6', borderTop: '4px solid #1a1060', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 0.8s linear infinite' },
-  loadingText: { color: '#64748b', fontSize: 15 },
-  errorIcon: { fontSize: 48, margin: '0 0 12px' },
-  errorText: { color: '#ef4444', fontSize: 16, marginBottom: 16 },
-  backLink: { color: '#1a1060', fontWeight: 600, textDecoration: 'none' },
-  certWrap: { textAlign: 'center' },
-  nameLabel: { fontSize: 14, color: '#64748b', marginBottom: 20 },
-  imgShadowBox: { background: '#ddd', borderRadius: 12, padding: '2px', boxShadow: '0 20px 50px rgba(0,0,0,0.15)', maxWidth: 860, margin: '0 auto' },
-  certImg: { width: '100%', borderRadius: 10, display: 'block' },
-  actions: { marginTop: 32, display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' },
-  btnDownload: { background: '#1a1060', color: '#fff', border: 'none', borderRadius: '10px', padding: '14px 32px', fontSize: 15, fontWeight: 700, transition: 'all 0.2s ease' },
-  btnBack: { background: '#fff', color: '#1a1060', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 32px', fontSize: 15, fontWeight: 600, textDecoration: 'none', transition: 'all 0.2s ease' },
-  footer: { textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: 12, borderTop: '1px solid #e2e8f0' },
+  spinner: { width: 40, height: 40, border: '4px solid #334155', borderTop: '4px solid #c9a84c', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 1s linear infinite' }
 };
