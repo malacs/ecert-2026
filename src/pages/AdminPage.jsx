@@ -32,7 +32,7 @@ export default function AdminPage() {
 
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
-  const [roleFilter, setRoleFilter] = useState('all'); // Added Role Filter state
+  const [roleFilter, setRoleFilter] = useState('all');
 
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -68,7 +68,7 @@ export default function AdminPage() {
   };
 
   const handleAdd = async () => {
-    if (!name || !email || !trainingDay) return alert("Fill all fields");
+    if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
     await supabase.from('participants').insert([{
       name: name.toUpperCase(),
@@ -98,13 +98,13 @@ export default function AdminPage() {
       await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
       setParticipants(prev => prev.map(item => item.id === p.id ? { ...item, email_sent: true } : item));
     } catch {
-      alert("Failed to send email");
+      alert("Email failed to send.");
     }
     setSendingStatus(null);
   };
 
   const sendAllEmails = async () => {
-    if (!window.confirm("Send emails to ALL filtered participants?")) return;
+    if (!window.confirm(`Send emails to all ${filtered.length} filtered participants?`)) return;
     setSendingAll(true);
     emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
     for (const p of filtered) {
@@ -120,15 +120,14 @@ export default function AdminPage() {
         );
         await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
       } catch (err) {
-        console.error("Failed:", p.email);
+        console.error("Failed for:", p.email);
       }
     }
     fetchParticipants();
     setSendingAll(false);
-    alert("Process complete!");
+    alert("Bulk sending process completed.");
   };
 
-  // UPDATED FILTER LOGIC
   const filtered = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === selectedFilter;
@@ -139,11 +138,24 @@ export default function AdminPage() {
   const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   if (!authed) return (
-    <div style={S.loginPage}>
-      <div style={S.loginCard}>
-        <h2 style={{ color: '#fff', marginBottom: '1.5rem' }}>Admin Portal</h2>
-        <input style={{ ...S.input, width: '100%', marginBottom: '1rem', textAlign: 'center' }} type="password" placeholder="Enter Password" value={pw} onChange={e => setPw(e.target.value)} />
-        <button style={{ ...S.btnPrimary, width: '100%' }} onClick={handleLogin}>Log In</button>
+    <div style={L.container}>
+      <div style={L.card}>
+        <div style={L.iconBox}>DI</div>
+        <h2 style={L.title}>Admin Access</h2>
+        <p style={L.subtitle}>Secure login for certificate management</p>
+        <div style={{ textAlign: 'left', width: '100%' }}>
+          <label style={L.label}>System Password</label>
+          <input 
+            style={L.input} 
+            type="password" 
+            placeholder="••••••••"
+            value={pw} 
+            onChange={e => setPw(e.target.value)} 
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+          />
+          <button style={L.button} onClick={handleLogin}>Authenticate</button>
+        </div>
+        <div style={L.footerText}>Authorized Personnel Only</div>
       </div>
     </div>
   );
@@ -152,7 +164,8 @@ export default function AdminPage() {
     <div style={S.page}>
       <header style={S.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ fontSize: '1.2rem', margin: 0, fontWeight: 700, color: '#0f172a' }}>Data Insights 2026</h1>
+          <div style={S.miniLogo}>DI</div>
+          <h1 style={{ fontSize: '1.1rem', margin: 0, fontWeight: 700, color: '#0f172a' }}>Data Insights 2026</h1>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button style={S.btnOutline} onClick={() => setShowConfigModal(true)}>Presentation Mode</button>
@@ -161,35 +174,33 @@ export default function AdminPage() {
       </header>
 
       <main style={S.mainContent}>
+        {/* ADD SECTION */}
         <div style={S.card}>
-          <h3 style={{ marginTop: 0, marginBottom: '1.2rem', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase' }}>Add Participant</h3>
-          <div style={S.inputGroup}>
+          <h3 style={S.cardTitle}>Add New Participant</h3>
+          <div style={S.inputGrid}>
             <input style={S.input} placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} />
-            <input style={S.input} placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+            <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
             <select style={S.input} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
-              <option value="">Select Training Day</option>
+              <option value="">Select Day</option>
               {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
             <select style={S.input} value={role} onChange={e => setRole(e.target.value)}>
               <option>Student</option>
               <option>Speaker</option>
             </select>
-            <button style={S.btnPrimary} onClick={handleAdd}>{adding ? 'Loading...' : 'Add Now'}</button>
+            <button style={S.btnPrimary} onClick={handleAdd}>{adding ? 'Processing...' : 'Register User'}</button>
           </div>
         </div>
 
+        {/* LIST SECTION */}
         <div style={S.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={S.filterBar}>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <input style={{ ...S.input, width: '220px' }} placeholder="Search name..." value={search} onChange={e => setSearch(e.target.value)} />
-                
-                {/* DAY FILTER */}
+                <input style={{ ...S.input, width: '200px' }} placeholder="Search name..." value={search} onChange={e => setSearch(e.target.value)} />
                 <select style={S.input} value={selectedFilter} onChange={e=>setSelectedFilter(e.target.value)}>
                     <option value="all">All Days</option>
                     {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
                 </select>
-
-                {/* NEW ROLE FILTER */}
                 <select style={S.input} value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>
                     <option value="all">All Roles</option>
                     <option value="Student">Students Only</option>
@@ -197,65 +208,78 @@ export default function AdminPage() {
                 </select>
             </div>
             <button style={{ ...S.btnPrimary, backgroundColor: '#10b981' }} onClick={sendAllEmails} disabled={sendingAll}>
-              {sendingAll ? 'Sending...' : 'Send All Filtered'}
+              {sendingAll ? 'Processing Bulk...' : 'Send Bulk Emails'}
             </button>
           </div>
 
           <div style={S.statsRow}>
             <div style={S.statBadge}>Total: {filtered.length}</div>
-            <div style={{ ...S.statBadge, backgroundColor: '#f0fdf4', color: '#15803d' }}>Students: {filtered.filter(p => p.role === 'Student').length}</div>
-            <div style={{ ...S.statBadge, backgroundColor: '#fdf2f8', color: '#be185d' }}>Speakers: {filtered.filter(p => p.role === 'Speaker').length}</div>
+            <div style={{ ...S.statBadge, background: '#f0fdf4', color: '#166534' }}>Students: {filtered.filter(p => p.role === 'Student').length}</div>
+            <div style={{ ...S.statBadge, background: '#fdf2f8', color: '#9d174d' }}>Speakers: {filtered.filter(p => p.role === 'Speaker').length}</div>
           </div>
 
-          <table style={S.table}>
-            <thead>
-              <tr>
-                <th style={S.th}>#</th>
-                <th style={S.th}>Name</th>
-                <th style={S.th}>Role</th>
-                <th style={S.th}>Email</th>
-                <th style={S.th}>Date</th>
-                <th style={S.th}>Status</th>
-                <th style={S.th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentItems.map((p, i) => (
-                <tr key={p.id}>
-                  <td style={S.td}>{((currentPage - 1) * ITEMS_PER_PAGE) + i + 1}</td>
-                  <td style={{ ...S.td, fontWeight: '600' }}>{p.name}</td>
-                  <td style={S.td}>{p.role}</td>
-                  <td style={S.td}>{p.email}</td>
-                  <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
-                  <td style={S.td}>{p.email_sent ? 'Sent' : 'Pending'}</td>
-                  <td style={S.td}>
-                    <div style={{ display: 'flex', gap: '5px' }}>
-                      <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>{sendingStatus === p.id ? '...' : 'Send'}</button>
-                      <button style={S.btnAction} onClick={async () => { if (window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id', p.id); fetchParticipants(); } }}>Delete</button>
-                    </div>
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <th style={S.th}>#</th>
+                  <th style={S.th}>Full Name</th>
+                  <th style={S.th}>Role</th>
+                  <th style={S.th}>Email Address</th>
+                  <th style={S.th}>Training Date</th>
+                  <th style={S.th}>Email Status</th>
+                  <th style={S.th}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {currentItems.map((p, i) => (
+                  <tr key={p.id}>
+                    <td style={S.td}>{((currentPage - 1) * ITEMS_PER_PAGE) + i + 1}</td>
+                    <td style={{ ...S.td, fontWeight: '600', color: '#1e293b' }}>{p.name}</td>
+                    <td style={S.td}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: p.role === 'Speaker' ? '#b45309' : '#64748b' }}>
+                        {p.role}
+                      </span>
+                    </td>
+                    <td style={S.td}>{p.email}</td>
+                    <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
+                    <td style={S.td}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: p.email_sent ? '#059669' : '#d97706' }}>
+                        {p.email_sent ? 'SENT' : 'PENDING'}
+                      </span>
+                    </td>
+                    <td style={S.td}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>{sendingStatus === p.id ? '...' : 'Resend'}</button>
+                        <button style={{ ...S.btnAction, color: '#ef4444' }} onClick={async () => { if (window.confirm("Remove participant?")) { await supabase.from('participants').delete().eq('id', p.id); fetchParticipants(); } }}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
 
+      {/* PRESENTATION MODAL */}
       {showConfigModal && (
         <div style={S.overlay}>
           <div style={S.modal}>
-            <h3>Presentation Settings</h3>
-            <select style={{ ...S.input, width: '100%', marginBottom: '10px' }} value={presDay} onChange={e => setPresDay(e.target.value)}>
+            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Presentation View</h3>
+            <label style={S.modalLabel}>Select Day</label>
+            <select style={{ ...S.input, width: '100%', marginBottom: '15px' }} value={presDay} onChange={e => setPresDay(e.target.value)}>
               {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
-            <select style={{ ...S.input, width: '100%', marginBottom: '20px' }} value={presRole} onChange={e => setPresRole(e.target.value)}>
+            <label style={S.modalLabel}>Role filter</label>
+            <select style={{ ...S.input, width: '100%', marginBottom: '25px' }} value={presRole} onChange={e => setPresRole(e.target.value)}>
               <option value="All">All Roles</option>
               <option value="Speaker">Speakers Only</option>
               <option value="Student">Students Only</option>
             </select>
             <div style={{ display: 'flex', gap: '10px' }}>
-                <button style={{ ...S.btnPrimary, flex: 1 }} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>Start</button>
-                <button style={{ ...S.btnOutline, flex: 1 }} onClick={() => setShowConfigModal(false)}>Cancel</button>
+                <button style={{ ...S.btnPrimary, flex: 1 }} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>Launch</button>
+                <button style={{ ...S.btnOutline, flex: 1 }} onClick={() => setShowConfigModal(false)}>Close</button>
             </div>
           </div>
         </div>
@@ -264,23 +288,17 @@ export default function AdminPage() {
   );
 }
 
+// STYLES FOR MAIN ADMIN
 const S = {
-  page: { minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'sans-serif' },
-  header: { padding: '1rem 2rem', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  page: { minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' },
+  header: { padding: '0.8rem 2rem', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 },
+  miniLogo: { width: '32px', height: '32px', background: '#3b82f6', borderRadius: '8px', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 'bold', fontSize: '0.8rem' },
   mainContent: { padding: '2rem', maxWidth: '1200px', margin: '0 auto' },
-  card: { background: '#fff', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '2rem' },
-  inputGroup: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' },
-  input: { padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' },
-  btnPrimary: { backgroundColor: '#3b82f6', color: 'white', padding: '0.6rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' },
-  btnOutline: { background: 'none', color: '#64748b', padding: '0.5rem', borderRadius: '6px', border: '1px solid #e2e8f0', cursor: 'pointer' },
-  btnAction: { padding: '4px 8px', fontSize: '0.75rem', borderRadius: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', background: '#fff' },
-  statsRow: { display: 'flex', gap: '10px', marginBottom: '1rem' },
-  statBadge: { padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: '#eff6ff', color: '#1d4ed8' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' },
-  th: { padding: '10px', textAlign: 'left', borderBottom: '2px solid #f1f5f9', color: '#64748b' },
-  td: { padding: '10px', borderBottom: '1px solid #f1f5f9' },
-  overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  modal: { background: '#fff', padding: '2rem', borderRadius: '12px', width: '300px' },
-  loginPage: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a' },
-  loginCard: { background: '#1e293b', padding: '2rem', borderRadius: '12px', width: '300px', textAlign: 'center' }
-};
+  card: { background: '#fff', padding: '1.5rem', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '2rem', border: '1px solid #e2e8f0' },
+  cardTitle: { marginTop: 0, marginBottom: '1.2rem', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  inputGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' },
+  input: { padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', color: '#1e293b', outline: 'none' },
+  btnPrimary: { backgroundColor: '#3b82f6', color: 'white', padding: '0.6rem 1.2rem', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem' },
+  btnOutline: { background: 'none', color: '#475569', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontWeight: '500', cursor: 'pointer', fontSize: '0.85rem' },
+  btnAction: { padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', color: '#475569', fontWeight: '600' },
+  filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '
