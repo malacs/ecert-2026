@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient'; 
+import { supabase } from '../supabaseClient';
 import { getCertificateDataUrl, downloadCertificate } from '../certificateGenerator';
 
 export default function CertificatePage() {
@@ -22,7 +22,7 @@ export default function CertificatePage() {
       }
 
       try {
-        // 1. Fetch data from Supabase to check the ROLE
+        // 1. Fetch the actual role from Supabase to correctly identify Speakers
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role')
@@ -30,13 +30,11 @@ export default function CertificatePage() {
           .eq('cert_date', day)
           .single();
 
-        if (dbError) throw dbError;
-
-        // 2. Set the role to state (Speaker or Student)
+        // 2. Fallback to 'Student' if database check fails
         const role = data?.role || 'Student';
         setParticipantRole(role);
 
-        // 3. Generate image using the role from database
+        // 3. Generate the specific layout based on the role found
         const imgData = await getCertificateDataUrl(participantName, day || null, role);
         setImgSrc(imgData);
       } catch (err) {
@@ -80,9 +78,7 @@ export default function CertificatePage() {
             <div style={styles.infoCard}>
               <p style={styles.issuedTo}>This certificate is officially issued to:</p>
               <h2 style={styles.nameHeader}>{participantName}</h2>
-              <span style={styles.roleTag}>
-                {participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}
-              </span>
+              <span style={styles.roleTag}>{participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}</span>
             </div>
 
             <div style={styles.imgShadowBox}>
@@ -120,5 +116,5 @@ const styles = {
   btnSecondary: { background: 'transparent', color: '#fff', padding: '14px 28px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', textDecoration: 'none', fontWeight: '600' },
   centerBox: { textAlign: 'center', padding: '100px 0' },
   spinner: { width: 40, height: 40, border: '4px solid #334155', borderTop: '4px solid #c9a84c', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 1s linear infinite' },
-  btnBack: { color: '#c9a84c', textDecoration: 'none', display: 'block', marginTop: '10px' }
+  btnBack: { color: '#c9a84c', textDecoration: 'none', marginTop: '10px', display: 'block' }
 };
