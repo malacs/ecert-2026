@@ -85,7 +85,7 @@ export default function PublicPage() {
             <div style={S.searchWrapper}>
               <input 
                 style={S.input} 
-                placeholder="Ex: Juan Dela Cruz" 
+                placeholder="Enter Name" 
                 value={search} 
                 onChange={(e) => setSearch(e.target.value)} 
               />
@@ -107,7 +107,6 @@ export default function PublicPage() {
               </div>
               <button 
                 style={S.downloadBtn} 
-                {/* UPDATED THIS LINE TO PASS p.role */}
                 onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
               >
                 Download PDF
