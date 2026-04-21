@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../supabaseClient'; 
 import { getCertificateDataUrl, downloadCertificate } from '../certificateGenerator';
 
 export default function CertificatePage() {
@@ -22,7 +22,7 @@ export default function CertificatePage() {
       }
 
       try {
-        // 1. IMPORTANT: Check database for actual role
+        // 1. Fetch data from Supabase to check the ROLE
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role')
@@ -30,7 +30,9 @@ export default function CertificatePage() {
           .eq('cert_date', day)
           .single();
 
-        // 2. Default to 'Student' if not found or no role set
+        if (dbError) throw dbError;
+
+        // 2. Set the role to state (Speaker or Student)
         const role = data?.role || 'Student';
         setParticipantRole(role);
 
@@ -100,7 +102,6 @@ export default function CertificatePage() {
   );
 }
 
-// ... styles remain the same ...
 const styles = {
   page: { minHeight: '100vh', background: '#0f172a', fontFamily: 'Inter, sans-serif', color: '#fff' },
   heroSection: { background: 'radial-gradient(circle at top, #1e293b 0%, #0f172a 100%)', padding: '60px 20px', textAlign: 'center', borderBottom: '1px solid rgba(201, 168, 76, 0.2)' },
@@ -119,5 +120,5 @@ const styles = {
   btnSecondary: { background: 'transparent', color: '#fff', padding: '14px 28px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', textDecoration: 'none', fontWeight: '600' },
   centerBox: { textAlign: 'center', padding: '100px 0' },
   spinner: { width: 40, height: 40, border: '4px solid #334155', borderTop: '4px solid #c9a84c', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 1s linear infinite' },
-  btnBack: { color: '#c9a84c', textDecoration: 'none', marginTop: '10px', display: 'block' }
+  btnBack: { color: '#c9a84c', textDecoration: 'none', display: 'block', marginTop: '10px' }
 };
