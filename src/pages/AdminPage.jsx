@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import emailjs from '@emailjs/browser';
 
-const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'DataMining2026!';
+const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'DataMining2026!Cs!';
 const ITEMS_PER_PAGE = 20;
 
 const TRAINING_DAYS = [
