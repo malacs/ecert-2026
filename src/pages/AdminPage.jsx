@@ -30,6 +30,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all'); 
+  
+  // --- NEW ROLE FILTER STATE ---
+  const [roleFilter, setRoleFilter] = useState('all'); 
+
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [name, setName] = useState('');
@@ -72,29 +76,23 @@ export default function AdminPage() {
     setAdding(false);
   };
 
-  // CLEANED INDIVIDUAL SEND
   const sendIndividualEmail = async (p) => {
     if (!p.email.includes('@') || !p.email.includes('.')) {
         return alert("Invalid email address format.");
     }
-    
     setSendingStatus(p.id);
     try {
       emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
-
-      // We explicitly map only the data needed for the template
       const templateParams = { 
         to_name: p.name, 
-        to_email: p.email.trim(), // Ensure no hidden spaces
+        to_email: p.email.trim(), 
         certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}` 
       };
-
       const result = await emailjs.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
         process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
         templateParams
       );
-
       if (result.status === 200) {
         await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
         setParticipants(prev => prev.map(item => item.id === p.id ? {...item, email_sent: true} : item));
@@ -117,16 +115,18 @@ export default function AdminPage() {
     fetchParticipants();
   };
 
+  // --- UPDATED FILTERING LOGIC ---
   const filtered = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === String(selectedFilter);
-    return matchesSearch && matchesDay;
+    const matchesRole = roleFilter === 'all' || p.role === roleFilter;
+    return matchesSearch && matchesDay && matchesRole;
   });
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  useEffect(() => { setCurrentPage(1); }, [search, selectedFilter]);
+  useEffect(() => { setCurrentPage(1); }, [search, selectedFilter, roleFilter]);
 
   if (!authed) return (
     <div style={S.loginPage}>
@@ -153,13 +153,13 @@ export default function AdminPage() {
       <main style={S.main}>
         <div style={S.card}>
           <div style={S.formRow}>
-            <input style={S.input} placeholder="FULL NAME" value={name} onChange={e => setName(e.target.value)} />
-            <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
-            <select style={S.select} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
+            <input style={S.input} placeholder="FULL NAME" value={name} onChange={e => setName(target.value)} />
+            <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(target.value)} />
+            <select style={S.select} value={trainingDay} onChange={e => setTrainingDay(target.value)}>
               <option value="">Select Day</option>
               {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
-            <select style={S.select} value={role} onChange={e => setRole(e.target.value)}>
+            <select style={S.select} value={role} onChange={e => setRole(target.value)}>
               <option value="Student">Student</option>
               <option value="Speaker">Speaker</option>
             </select>
@@ -168,12 +168,22 @@ export default function AdminPage() {
         </div>
 
         <div style={S.card}>
-          <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
+          <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px', gap: '10px'}}>
             <input style={{...S.input, maxWidth: 350}} placeholder="Search by name..." value={search} onChange={e => setSearch(e.target.value)} />
-            <select style={S.select} value={selectedFilter} onChange={e => setSelectedFilter(e.target.value)}>
-               <option value="all">All Training Days</option>
-               {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
-            </select>
+            
+            <div style={{display: 'flex', gap: '10px'}}>
+              {/* --- ADDED ROLE FILTER SELECT --- */}
+              <select style={S.select} value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
+                 <option value="all">All Roles</option>
+                 <option value="Student">Students</option>
+                 <option value="Speaker">Speakers</option>
+              </select>
+
+              <select style={S.select} value={selectedFilter} onChange={e => setSelectedFilter(e.target.value)}>
+                 <option value="all">All Training Days</option>
+                 {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
+              </select>
+            </div>
           </div>
 
           <table style={S.table}>
@@ -230,14 +240,35 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
-          {/* Send All button has been removed from here */}
         </div>
       </main>
+
+      {/* Presentation Modal Logic */}
+      {showConfigModal && (
+        <div style={S.overlay}>
+          <div style={S.modal}>
+            <h3 style={{marginBottom: '15px', color: '#333'}}>Presentation Settings</h3>
+            <label style={S.modalLabel}>Select Training Day</label>
+            <select style={S.modalSelect} value={presDay} onChange={e => setPresDay(e.target.value)}>
+              {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+            <label style={S.modalLabel}>Who to display?</label>
+            <select style={S.modalSelect} value={presRole} onChange={e => setPresRole(e.target.value)}>
+              <option value="All">Everyone</option>
+              <option value="Speaker">Speakers Only</option>
+              <option value="Student">Students Only</option>
+            </select>
+            <div style={{display: 'flex', gap: 10, marginTop: '20px'}}>
+              <button style={S.btnPrimary} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>START SESSION</button>
+              <button style={S.btnCancel} onClick={() => setShowConfigModal(false)}>CANCEL</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// ... (Styles same as before)
 const S = {
   loginPage: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#04050a' },
   loginCard: { padding: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px', textAlign: 'center' },
@@ -255,6 +286,7 @@ const S = {
   input: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd', flex: 1 },
   select: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd' },
   btnPrimary: { background: '#1a1060', color: 'white', border: 'none', padding: '10px 25px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
+  btnCancel: { background: '#ddd', color: '#333', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: { textAlign: 'left', padding: '12px', fontSize: '11px', color: '#888', borderBottom: '2px solid #eee', textTransform: 'uppercase' },
   td: { padding: '12px', borderBottom: '1px solid #f5f5f5', fontSize: '13px' },
@@ -263,4 +295,8 @@ const S = {
   btnSave: { background: '#22863a', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer' },
   btnDelete: { background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer' },
   btnSingleSend: { background: '#4f46e5', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', marginRight: '5px', cursor: 'pointer', fontSize: '12px' },
+  overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  modal: { background: '#fff', padding: '30px', borderRadius: '15px', width: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' },
+  modalLabel: { display: 'block', marginTop: '15px', marginBottom: '5px', fontSize: '12px', color: '#666', fontWeight: 'bold' },
+  modalSelect: { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }
 };
