@@ -174,7 +174,6 @@ export default function AdminPage() {
       </header>
 
       <main style={S.mainContent}>
-        {/* ADD SECTION */}
         <div style={S.card}>
           <h3 style={S.cardTitle}>Add New Participant</h3>
           <div style={S.inputGrid}>
@@ -192,7 +191,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* LIST SECTION */}
         <div style={S.card}>
           <div style={S.filterBar}>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -262,7 +260,6 @@ export default function AdminPage() {
         </div>
       </main>
 
-      {/* PRESENTATION MODAL */}
       {showConfigModal && (
         <div style={S.overlay}>
           <div style={S.modal}>
@@ -288,7 +285,6 @@ export default function AdminPage() {
   );
 }
 
-// STYLES FOR MAIN ADMIN
 const S = {
   page: { minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' },
   header: { padding: '0.8rem 2rem', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 },
@@ -301,4 +297,25 @@ const S = {
   btnPrimary: { backgroundColor: '#3b82f6', color: 'white', padding: '0.6rem 1.2rem', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem' },
   btnOutline: { background: 'none', color: '#475569', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontWeight: '500', cursor: 'pointer', fontSize: '0.85rem' },
   btnAction: { padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', color: '#475569', fontWeight: '600' },
-  filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '
+  filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' },
+  statsRow: { display: 'flex', gap: '10px', marginBottom: '1.5rem' },
+  statBadge: { padding: '5px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', background: '#eff6ff', color: '#1d4ed8', border: '1px solid rgba(0,0,0,0.05)' },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' },
+  th: { padding: '12px', textAlign: 'left', borderBottom: '2px solid #f1f5f9', color: '#64748b', fontWeight: '600' },
+  td: { padding: '12px', borderBottom: '1px solid #f1f5f9', color: '#475569' },
+  overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
+  modal: { background: '#fff', padding: '2rem', borderRadius: '20px', width: '340px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' },
+  modalLabel: { fontSize: '0.75rem', fontWeight: '700', color: '#64748b', display: 'block', marginBottom: '5px', marginLeft: '2px' }
+};
+
+const L = {
+  container: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', fontFamily: 'system-ui, sans-serif' },
+  card: { backgroundColor: '#1e293b', padding: '3rem', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', textAlign: 'center', width: '100%', maxWidth: '380px', border: '1px solid rgba(255,255,255,0.05)' },
+  iconBox: { width: '60px', height: '60px', background: '#3b82f6', borderRadius: '16px', display: 'grid', placeItems: 'center', color: '#fff', fontSize: '1.5rem', fontWeight: '800', margin: '0 auto 20px auto' },
+  title: { color: '#ffffff', fontSize: '24px', margin: '0 0 8px 0', fontWeight: '700' },
+  subtitle: { color: '#94a3b8', fontSize: '14px', marginBottom: '30px' },
+  label: { color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', marginBottom: '8px', display: 'block', marginLeft: '4px' },
+  input: { width: '100%', padding: '14px', borderRadius: '12px', background: '#0f172a', border: '1px solid #334155', color: '#fff', fontSize: '1rem', outline: 'none', marginBottom: '20px', textAlign: 'center' },
+  button: { width: '100%', padding: '14px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' },
+  footerText: { marginTop: '25px', color: '#475569', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em' }
+};
