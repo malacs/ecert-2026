@@ -41,7 +41,7 @@ const fitTextToWidth = (ctx, text, maxWidth, initialSize, fontFamily) => {
 const DAY_DATES = {
   1: { day: 15, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
   2: { day: 17, month: 'April', year: 2026, time: '8:30 AM to 12:00 PM' },
-  3: { day: 22, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' }, // Tomorrow's Session
+  3: { day: 22, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
   4: { day: 24, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
   5: { day: 29, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
 };
@@ -89,7 +89,7 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   let drawH = (aspect > 1) ? (logoSize * citeScale) / aspect : (logoSize * citeScale);
   ctx.drawImage(logoCite, citeX - drawW / 2, logoY - drawH / 2, drawW, drawH);
 
-  // Text setup
+  // Header Text
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
   ctx.font = '13px Arial';
@@ -102,7 +102,7 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.fillText('College of Information Technology Education', W / 2, 165);
   ctx.fillText('Department of Computer Studies', W / 2, 185);
 
-  // Title changes based on role
+  // Title
   const titleText = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
   ctx.font = 'bold 46px Calibri, Arial';
   ctx.fillText(titleText, W / 2, 250);
@@ -118,49 +118,53 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = `bold ${nameFontSize}px Calibri, Arial`;
   ctx.fillText(nameDisplay, W / 2, 365);
 
-  // BODY TEXT - RESTORED FULL VERSION
+  // Body Text Logic
   ctx.fillStyle = '#d6e6ff';
   ctx.font = '14px Arial';
   const lineGap = 22;
+  let startY = 410;
 
-  // Role-based wording for the first line
-  const introText = role === 'Speaker' 
-    ? 'for sharing their invaluable expertise as the Resource Speaker during the' 
-    : 'for actively participating in the';
-
-  ctx.fillText(`${introText} DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications`, W / 2, 410);
+  if (role === 'Speaker') {
+    // Break long Speaker text into two lines
+    ctx.fillText('for sharing their invaluable expertise as the Resource Speaker during the', W / 2, startY);
+    ctx.fillText('DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, startY + lineGap);
+    startY += lineGap; // Push following lines down
+  } else {
+    // Standard Participant text
+    ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, startY);
+  }
 
   ctx.fillText(
     `held virtually via Google Meet on ${sMonth} ${sDay}, ${sYear} from ${sTime}, in recognition of commitment`,
     W / 2,
-    410 + lineGap
+    startY + lineGap
   );
-
   ctx.fillText(
     'to learning and professional development through active engagement in the training sessions.',
     W / 2,
-    410 + lineGap * 2
+    startY + lineGap * 2
   );
 
-  // Date line
-  const yGiven = 500;
+  // Date and Place - Shifted dynamically based on lines used
+  const yGiven = role === 'Speaker' ? 525 : 500;
   const part1 = 'Given this ';
   const part2 = ` of ${sMonth}, ${sYear} at North Eastern Mindanao State University – Lianga Campus,`;
-  const totalW = ctx.measureText(part1).width + 30 + ctx.measureText(part2).width;
-  let startX = (W / 2) - (totalW / 2);
-
+  
   ctx.textAlign = 'left';
-  ctx.fillText(part1, startX, yGiven);
-  startX += ctx.measureText(part1).width;
+  const fullWidth = ctx.measureText(part1).width + 30 + ctx.measureText(part2).width;
+  let dateX = (W / 2) - (fullWidth / 2);
+
+  ctx.fillText(part1, dateX, yGiven);
+  dateX += ctx.measureText(part1).width;
   ctx.fillStyle = '#ffffff';
-  startX += drawOrdinalInline(ctx, startX, yGiven, sDay);
+  dateX += drawOrdinalInline(ctx, dateX, yGiven, sDay);
   ctx.fillStyle = '#d6e6ff';
-  ctx.fillText(part2, startX, yGiven);
+  ctx.fillText(part2, dateX, yGiven);
 
   ctx.textAlign = 'center';
   ctx.fillText('Lianga, Surigao del Sur', W / 2, yGiven + lineGap);
 
-  // Signature
+  // Signature Section
   const sigW = 65;
   const sigH = 38;
   const sigCanvas = document.createElement('canvas');
