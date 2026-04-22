@@ -22,7 +22,7 @@ export default function CertificatePage() {
       }
 
       try {
-        // FIXED: Force name to UpperCase to find the DB record saved by Admin
+        // FIX: Force name to UPPERCASE to find the record saved by Admin
         const cleanSearch = participantName.replace(/\s+/g, ' ').toUpperCase();
 
         const { data, error: dbError } = await supabase
@@ -41,7 +41,7 @@ export default function CertificatePage() {
         const role = data.role || 'Student';
         setParticipantRole(role);
 
-        // FIXED: Pass data.name (the one from DB) to the generator to ensure it matches logic
+        // Use the official DB name for the visual image
         const imgData = await getCertificateDataUrl(data.name, day || null, role);
         setImgSrc(imgData);
       } catch (err) {
