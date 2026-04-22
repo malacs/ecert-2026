@@ -5,7 +5,7 @@ const loadImage = (src) =>
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load: ${src}`));
+    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
     img.src = src;
   });
 
@@ -32,63 +32,82 @@ export const generateCertificate = async (participantName, trainingDay = null, r
     loadImage('/logo-signature.png'),
   ]);
 
-  ctx.clearRect(0, 0, W, H);
+  // Draw Background
   ctx.drawImage(bg, 0, 0, W, H);
-  
-  const dateInfo = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
+  const { day, month, year, time } = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // Logos
-  ctx.drawImage(logoNemsu, 280, 80, 80, 80);
-  ctx.drawImage(logoCite, 640, 80, 80, 80);
+  // Logos - Positioned to fit the header
+  ctx.drawImage(logoNemsu, 380, 75, 70, 70);
+  ctx.drawImage(logoCite, 550, 75, 70, 70);
 
-  // Text
+  // --- HEADER SECTION ---
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#FFFFFF';
+  
+  ctx.font = '12px Arial';
+  ctx.fillText('Republic of the Philippines', W / 2, 55);
+
   ctx.font = 'bold 16px Arial';
-  ctx.fillText('North Eastern Mindanao State University', W / 2, 85);
-  ctx.font = '13px Arial';
-  ctx.fillText('Lianga Campus', W / 2, 105);
+  ctx.fillText('North Eastern Mindanao State University', W / 2, 75);
 
-  // Title
+  ctx.font = '12px Arial';
+  ctx.fillText('Lianga Campus', W / 2, 90);
+
+  ctx.font = 'bold 12px Arial';
+  ctx.fillText('College of Information Technology Education', W / 2, 115);
+  ctx.fillText('Department of Computer Studies', W / 2, 132);
+
+  // --- TITLE SECTION ---
   ctx.font = 'bold 38px Arial';
-  ctx.fillText(role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION', W / 2, 210);
+  const title = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
+  ctx.fillText(title, W / 2, 210);
 
-  // Name (Ensure it is Uppercase)
-  ctx.font = 'bold 42px Arial';
-  ctx.fillText(participantName.toUpperCase(), W / 2, 310);
+  ctx.font = 'italic 16px Arial';
+  ctx.fillText('This certificate is hereby presented to', W / 2, 245);
 
-  // Body
-  ctx.font = '14px Arial';
-  ctx.fillText(`Held on ${dateInfo.month} ${dateInfo.day}, ${dateInfo.year} from ${dateInfo.time}`, W / 2, 360);
+  // --- NAME SECTION ---
+  ctx.font = 'bold 52px serif'; // Using serif to match the professional look in image_6197a9
+  ctx.fillText(participantName.toUpperCase(), W / 2, 315);
 
-  // Signature (Gold Tinting)
-  const sigCanv = document.createElement('canvas');
-  sigCanv.width = 120; sigCanv.height = 70;
-  const sCtx = sigCanv.getContext('2d');
-  sCtx.drawImage(logoSig, 0, 0, 120, 70);
-  sCtx.globalCompositeOperation = 'source-atop';
-  sCtx.fillStyle = '#C9A84C';
-  sCtx.fillRect(0,0, 120, 70);
-  ctx.drawImage(sigCanv, W / 2 - 60, 500);
+  // --- BODY SECTION (Multi-line text from your image) ---
+  ctx.font = '13px Arial';
+  const line1 = "for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining";
+  const line2 = "Concepts, Techniques, and Applications held virtually via Google Meet on";
+  const line3 = `${month} ${day}, ${year} from ${time}, in recognition of commitment to learning`;
+  const line4 = "and professional development through active engagement in the training sessions.";
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 14px Arial';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 590);
+  ctx.fillText(line1, W / 2, 370);
+  ctx.fillText(line2, W / 2, 388);
+  ctx.fillText(line3, W / 2, 406);
+  ctx.fillText(line4, W / 2, 424);
 
-  // Mobile Safe Output
-  const imgData = canvas.toDataURL('image/jpeg', 0.8);
+  // --- LOCATION/DATE SECTION ---
+  ctx.font = '13px Arial';
+  ctx.fillText(`Given this ${day}th of ${month}, ${year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, 465);
+  ctx.fillText(`Lianga, Surigao del Sur.`, W / 2, 482);
+
+  // --- SIGNATURE SECTION ---
+  ctx.drawImage(logoSig, W / 2 - 55, 525, 110, 65);
+  
+  ctx.font = 'bold 15px Arial';
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 615);
+  ctx.font = '13px Arial';
+  ctx.fillText('BSCS Program Coordinator', W / 2, 635);
+
+  // Final Output
+  const imgData = canvas.toDataURL('image/jpeg', 0.95);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
   pdf.addImage(imgData, 'JPEG', 0, 0, W, H);
 
   return { pdf, imgData };
 };
 
-export const downloadCertificate = async (name, day, role) => {
-  const { pdf } = await generateCertificate(name, day, role);
-  pdf.save(`Certificate_${name.replace(/\s+/g, '_')}.pdf`);
+export const downloadCertificate = async (participantName, trainingDay, role) => {
+  const { pdf } = await generateCertificate(participantName, trainingDay, role);
+  pdf.save(`Certificate_${participantName.replace(/\s+/g, '_')}.pdf`);
 };
 
-export const getCertificateDataUrl = async (name, day, role) => {
-  const { imgData } = await generateCertificate(name, day, role);
+export const getCertificateDataUrl = async (participantName, trainingDay, role) => {
+  const { imgData } = await generateCertificate(participantName, trainingDay, role);
   return imgData;
 };
