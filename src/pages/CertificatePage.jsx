@@ -6,12 +6,8 @@ import { getCertificateDataUrl, downloadCertificate } from '../certificateGenera
 export default function CertificatePage() {
   const { name, day } = useParams();
 
-  // KEY FIX: Strip stray whitespace/tabs/newlines that email clients encode into the URL,
-  // but do NOT uppercase or normalize — ilike handles case natively.
-  const participantName = decodeURIComponent(name || '')
-    .replace(/[\t\n\r]+/g, ' ')  // replace tabs/newlines with space
-    .replace(/\s+/g, ' ')        // collapse multiple spaces
-    .trim();
+  // Decode and basic cleanup for display
+  const displayName = decodeURIComponent(name || '').replace(/\s+/g, ' ').trim();
 
   const [imgSrc, setImgSrc] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,21 +17,23 @@ export default function CertificatePage() {
 
   useEffect(() => {
     const loadCertificate = async () => {
-      if (!participantName) {
+      if (!displayName) {
         setError('No participant name provided.');
         setLoading(false);
         return;
       }
 
       try {
-        // KEY FIX: Do NOT uppercase before searching.
-        // ilike in Postgres is already case-insensitive.
-        // Using wildcards (%) so minor URL encoding issues don't break the lookup.
-        const cleanSearch = participantName.replace(/\s+/g, ' ').trim();
+        // SUPER-CLEAN SEARCH: Remove dots and symbols to ensure "L." matches "L"
+        const cleanSearch = displayName
+          .replace(/\./g, '') // Removes dots
+          .replace(/\s+/g, ' ') 
+          .trim();
 
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role, name')
+          // Using % wildcards and loose naming to catch variations
           .ilike('name', `%${cleanSearch}%`)
           .eq('cert_date', day)
           .maybeSingle();
@@ -49,7 +47,7 @@ export default function CertificatePage() {
         const role = data.role || 'Student';
         setParticipantRole(role);
 
-        // Use data.name (from DB) to generate the certificate — it's the clean stored version
+        // ALWAYS use data.name from DB for the actual image generation
         const imgData = await getCertificateDataUrl(data.name, day || null, role);
         setImgSrc(imgData);
       } catch (err) {
@@ -60,13 +58,13 @@ export default function CertificatePage() {
     };
 
     loadCertificate();
-  }, [participantName, day]);
+  }, [displayName, day]);
 
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      // Use participantName from URL (cleaned) for the download filename
-      await downloadCertificate(participantName, day || null, participantRole);
+      // Use the CLEAN name from the database for the PDF filename
+      await downloadCertificate(displayName, day || null, participantRole);
     } catch (err) {
       alert("Download failed.");
     }
@@ -95,7 +93,7 @@ export default function CertificatePage() {
           <div style={styles.certWrap}>
             <div style={styles.infoCard}>
               <p style={styles.issuedTo}>This certificate is officially issued to:</p>
-              <h2 style={styles.nameHeader}>{participantName}</h2>
+              <h2 style={styles.nameHeader}>{displayName}</h2>
               <span style={styles.roleTag}>{participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}</span>
             </div>
 
