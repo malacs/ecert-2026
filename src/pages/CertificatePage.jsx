@@ -3,11 +3,30 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { getCertificateDataUrl, downloadCertificate } from '../certificateGenerator';
 
+const styles = {
+  page: { minHeight: '100vh', background: '#0f172a', fontFamily: 'Inter, sans-serif', color: '#fff', boxSizing: 'border-box' },
+  heroSection: { background: 'radial-gradient(circle at top, #1e293b 0%, #0f172a 100%)', padding: '60px 20px', textAlign: 'center', borderBottom: '1px solid rgba(201, 168, 76, 0.2)' },
+  badge: { color: '#c9a84c', fontSize: '12px', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '10px' },
+  headerTitle: { fontSize: 'calc(24px + 1vw)', fontWeight: '800', margin: '0' },
+  headerSub: { color: '#94a3b8', fontSize: '16px', marginTop: '5px' },
+  content: { maxWidth: '1000px', margin: '-40px auto 40px', padding: '0 15px', boxSizing: 'border-box' },
+  infoCard: { background: '#1e293b', padding: '30px 20px', borderRadius: '16px', textAlign: 'center', marginBottom: '30px', border: '1px solid rgba(255,255,255,0.1)', boxSizing: 'border-box' },
+  issuedTo: { color: '#94a3b8', fontSize: '14px', marginBottom: '5px' },
+  nameHeader: { fontSize: '24px', color: '#fff', margin: '0 0 10px 0', wordBreak: 'break-word', textTransform: 'uppercase' },
+  roleTag: { background: 'rgba(201, 168, 76, 0.15)', color: '#c9a84c', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #c9a84c' },
+  imgShadowBox: { borderRadius: '8px', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.5)', border: '4px solid #1e293b', maxWidth: '100%', margin: '0 auto' },
+  certImg: { width: '100%', height: 'auto', display: 'block' },
+  actions: { marginTop: '40px', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' },
+  btnDownload: { background: '#3b82f6', color: '#fff', padding: '14px 28px', borderRadius: '12px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem' },
+  btnSecondary: { background: 'transparent', color: '#94a3b8', padding: '14px 28px', borderRadius: '12px', border: '1px solid #334155', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'none', fontSize: '1rem', display: 'inline-block' },
+  centerBox: { textAlign: 'center', padding: '100px 20px' },
+  spinner: { width: '40px', height: '40px', border: '4px solid #334155', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }
+};
+
 export default function CertificatePage() {
   const { name, day } = useParams();
 
-  // FIX: Strip stray tabs/newlines that email clients may encode into the URL,
-  // then collapse spaces and trim. Do NOT uppercase — ilike handles case natively.
+  // Decode and clean stray characters from URL
   const participantName = decodeURIComponent(name || '')
     .replace(/[\t\n\r]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -28,15 +47,10 @@ export default function CertificatePage() {
       }
 
       try {
-        // FIX: Just trim/collapse whitespace. Do NOT uppercase.
-        // ilike in Postgres is case-insensitive by default.
-        // Wildcards (%) ensure minor URL encoding remnants don't break the lookup.
-        const cleanSearch = participantName.replace(/\s+/g, ' ').trim();
-
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role, name')
-          .ilike('name', `%${cleanSearch}%`)
+          .ilike('name', `%${participantName}%`)
           .eq('cert_date', day)
           .maybeSingle();
 
@@ -49,7 +63,7 @@ export default function CertificatePage() {
         const role = data.role || 'Student';
         setParticipantRole(role);
 
-        // Use data.name (from DB) so the certificate always shows the clean stored name
+        // Always generate based on the clean name from Database
         const imgData = await getCertificateDataUrl(data.name, day || null, role);
         setImgSrc(imgData);
       } catch (err) {
@@ -111,26 +125,7 @@ export default function CertificatePage() {
           </div>
         )}
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
-
-const styles = {
-  page: { minHeight: '100vh', background: '#0f172a', fontFamily: 'Inter, sans-serif', color: '#fff', boxSizing: 'border-box' },
-  heroSection: { background: 'radial-gradient(circle at top, #1e293b 0%, #0f172a 100%)', padding: '60px 20px', textAlign: 'center', borderBottom: '1px solid rgba(201, 168, 76, 0.2)' },
-  badge: { color: '#c9a84c', fontSize: '12px', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '10px' },
-  headerTitle: { fontSize: 'calc(24px + 1vw)', fontWeight: '800', margin: '0' },
-  headerSub: { color: '#94a3b8', fontSize: '16px', marginTop: '5px' },
-  content: { maxWidth: '1000px', margin: '-40px auto 40px', padding: '0 15px', boxSizing: 'border-box' },
-  infoCard: { background: '#1e293b', padding: '30px 20px', borderRadius: '16px', textAlign: 'center', marginBottom: '30px', border: '1px solid rgba(255,255,255,0.1)', boxSizing: 'border-box' },
-  issuedTo: { color: '#94a3b8', fontSize: '14px', marginBottom: '5px' },
-  nameHeader: { fontSize: '24px', color: '#fff', margin: '0 0 10px 0', wordBreak: 'break-word', textTransform: 'uppercase' },
-  roleTag: { background: 'rgba(201, 168, 76, 0.15)', color: '#c9a84c', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #c9a84c' },
-  imgShadowBox: { borderRadius: '8px', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.5)', border: '4px solid #1e293b', maxWidth: '100%' },
-  certImg: { width: '100%', height: 'auto', display: 'block' },
-  actions: { marginTop: '40px', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' },
-  btnDownload: { background: '#c9a84c', color: '#000', padding: '14px 28px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', minWidth: '200px' },
-  btnSecondary: { background: 'transparent', color: '#fff', padding: '14px 28px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', textDecoration: 'none', fontWeight: '600', minWidth: '200px', textAlign: 'center' },
-  centerBox: { textAlign: 'center', padding: '100px 0' },
-  spinner: { width: 40, height: 40, border: '4px solid #334155', borderTop: '4px solid #c9a84c', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 1s linear infinite' },
-};
