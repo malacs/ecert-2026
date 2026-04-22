@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import PublicPage from './pages/PublicPage';
 import AdminPage from './pages/AdminPage';
 import CertificatePage from './pages/CertificatePage';
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/presentation" element={<PresentationPage />} />
         <Route path="/certificate/:name/:day" element={<CertificatePage />} />
       </Routes>
+      <Analytics />
     </BrowserRouter>
   );
 }
