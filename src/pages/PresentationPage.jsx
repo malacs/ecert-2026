@@ -38,6 +38,7 @@ export default function PresentationPage() {
 
       const { data } = await query;
       if (data) {
+        // Alphabetical sorting for professional presentation
         const sorted = data.sort((a, b) => a.name.localeCompare(b.name));
         setParticipants(sorted);
       }
@@ -46,17 +47,17 @@ export default function PresentationPage() {
     fetchParticipants();
   }, []);
 
-  const totalSlides = participants.length + 2;
+  const totalSlides = participants.length + 2; // Intro + Participants + Ending
 
   const changeSlide = useCallback((direction) => {
-    setIsVisible(false);
+    setIsVisible(false); // Fade out
     setTimeout(() => {
       if (direction === 'next' && currentIndex < totalSlides - 1) {
         setCurrentIndex(prev => prev + 1);
       } else if (direction === 'prev' && currentIndex > 0) {
         setCurrentIndex(prev => prev - 1);
       }
-      setIsVisible(true);
+      setIsVisible(true); // Fade in
     }, 300);
   }, [currentIndex, totalSlides]);
 
@@ -72,6 +73,7 @@ export default function PresentationPage() {
   useEffect(() => {
     const pIndex = currentIndex - 1;
     if (participants[pIndex]) {
+      // LOGIC FIX: Generate ONLY when current index points to a participant
       getCertificateDataUrl(participants[pIndex].name, participants[pIndex].cert_date, participants[pIndex].role)
         .then(setCurrentCertUrl);
     }
@@ -93,9 +95,13 @@ export default function PresentationPage() {
             <p style={S.desc}>Presentation of Certificates for <br/><strong>{trainingDayLabel}</strong></p>
           </div>
         )}
+
         {!isIntro && !isEnding && currentCertUrl && (
-          <div style={S.certWrapper}><img src={currentCertUrl} alt="Cert" style={S.certImg} /></div>
+          <div style={S.certWrapper}>
+            <img src={currentCertUrl} alt="Certificate" style={S.certImg} />
+          </div>
         )}
+
         {isEnding && (
           <div style={S.textSlide}>
             <h1 style={S.mainTitle}>Congratulations!</h1>
@@ -103,6 +109,7 @@ export default function PresentationPage() {
           </div>
         )}
       </div>
+      
       <div style={S.counter}>
         {isIntro ? 'READY' : isEnding ? 'END' : `SLIDE ${currentIndex} OF ${participants.length}`}
       </div>
@@ -111,94 +118,15 @@ export default function PresentationPage() {
 }
 
 const S = {
-  container: { 
-    backgroundColor: '#000', 
-    height: '100vh', 
-    width: '100vw', 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    overflow: 'hidden', 
-    position: 'relative', 
-    fontFamily: 'serif' 
-  },
-  slideWrapper: { 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    transition: 'all 0.4s ease-out', 
-    width: '100%', 
-    height: '100%' 
-  },
-  certWrapper: { 
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  },
-  certImg: { 
-    maxHeight: '94vh', 
-    maxWidth: '94vw', 
-    objectFit: 'contain', 
-    boxShadow: '0 0 50px rgba(201, 168, 76, 0.3)' 
-  },
-  textSlide: { 
-    textAlign: 'center', 
-    color: '#fff', 
-    padding: '0 15%', // Increased side padding to clear the "overflowing" gold decorations
-    maxWidth: '1200px',
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center'
-  },
-  mainTitle: { 
-    fontSize: '64px', 
-    margin: '20px 0', 
-    color: '#c9a84c', 
-    textTransform: 'uppercase', 
-    letterSpacing: '2px', 
-    fontWeight: 'bold',
-    lineHeight: '1.1' 
-  },
-  subTitle: { 
-    fontSize: '18px', 
-    color: '#fff', 
-    fontWeight: '300', 
-    letterSpacing: '1px', 
-    lineHeight: '1.6', 
-    maxWidth: '850px', // Restricts width so text wraps before hitting edges
-    margin: '0 auto',
-    wordWrap: 'break-word'
-  },
-  desc: { 
-    fontSize: '24px', 
-    color: '#bbb', 
-    marginTop: '20px', 
-    fontStyle: 'italic',
-    lineHeight: '1.4'
-  },
-  divider: { 
-    width: '100px', 
-    height: '2px', 
-    background: '#c9a84c', 
-    margin: '40px auto' 
-  },
-  counter: { 
-    position: 'absolute', 
-    bottom: '20px', 
-    right: '30px', 
-    color: 'rgba(255, 255, 255, 0.2)', 
-    fontSize: '11px', 
-    fontFamily: 'sans-serif', 
-    letterSpacing: '1px' 
-  },
-  load: { 
-    height: '100vh', 
-    background: '#000', 
-    color: '#c9a84c', 
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    fontSize: '20px' 
-  }
+  container: { backgroundColor: '#000', height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', fontFamily: 'serif' },
+  slideWrapper: { display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.4s ease-out', width: '100%', height: '100%' },
+  certWrapper: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  certImg: { maxHeight: '94vh', maxWidth: '94vw', objectFit: 'contain', boxShadow: '0 0 50px rgba(201, 168, 76, 0.3)' },
+  textSlide: { textAlign: 'center', color: '#fff', padding: '0 15%', maxWidth: '1200px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  mainTitle: { fontSize: '64px', margin: '20px 0', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 'bold', lineHeight: '1.1' },
+  subTitle: { fontSize: '18px', color: '#fff', fontWeight: '300', letterSpacing: '1px', lineHeight: '1.6', maxWidth: '850px', margin: '0 auto', wordWrap: 'break-word' },
+  desc: { fontSize: '24px', color: '#bbb', marginTop: '20px', fontStyle: 'italic', lineHeight: '1.4' },
+  divider: { width: '100px', height: '2px', background: '#c9a84c', margin: '40px auto' },
+  counter: { position: 'absolute', bottom: '20px', right: '30px', color: 'rgba(255, 255, 255, 0.2)', fontSize: '11px', fontFamily: 'sans-serif', letterSpacing: '1px' },
+  load: { height: '100vh', background: '#000', color: '#c9a84c', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '20px' }
 };
