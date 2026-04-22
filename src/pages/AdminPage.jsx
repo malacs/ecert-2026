@@ -97,12 +97,11 @@ export default function AdminPage() {
     if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
     
-    // MOBILE-FIX NORMALIZATION: 
-    // Strips invisible control characters and collapses mobile "smart spaces"
+    // FIX: Normalize the name to handle mobile keyboard hidden characters and extra spaces
     const cleanName = name
       .normalize('NFKD') 
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-      .replace(/\s+/g, ' ')
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Strips hidden control characters
+      .replace(/\s+/g, ' ') // Collapses multiple spaces into one
       .trim()
       .toUpperCase();
 
@@ -158,8 +157,10 @@ export default function AdminPage() {
     setSendingStatus(null);
   };
 
+  // FIX: Normalized search to match the cleaned names in the DB
   const filtered = participants.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const cleanSearch = search.normalize('NFKD').replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim().toLowerCase();
+    const matchesSearch = p.name.toLowerCase().includes(cleanSearch);
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === selectedFilter;
     const matchesRole = roleFilter === 'all' || p.role === roleFilter;
     return matchesSearch && matchesDay && matchesRole;
@@ -230,20 +231,8 @@ export default function AdminPage() {
         <div style={{...S.card, borderLeft: editingId ? '8px solid #3b82f6' : '1px solid #e2e8f0'}}>
           <h3 style={S.cardTitle}>{editingId ? 'EDITING PARTICIPANT' : 'ADD NEW PARTICIPANT'}</h3>
           <div style={S.inputGrid}>
-            <input 
-              style={S.input} 
-              placeholder="Full Name" 
-              value={name} 
-              onChange={e => setName(e.target.value)} 
-              autoComplete="off"
-              autoCorrect="off"
-            />
-            <input 
-              style={S.input} 
-              placeholder="Email Address" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-            />
+            <input style={S.input} placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} />
+            <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
             <select style={S.input} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
               <option value="">Select Day</option>
               {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
@@ -341,6 +330,7 @@ export default function AdminPage() {
   );
 }
 
+// STYLES KEPT EXACTLY THE SAME AS PER YOUR REQUEST
 const S = {
   page: { minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' },
   header: { padding: '0.8rem 2rem', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 },
