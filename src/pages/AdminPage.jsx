@@ -14,7 +14,11 @@ const TRAINING_DAYS = [
 ];
 
 const DAY_LABEL = {
-  '1': 'April 15, 2026', '2': 'April 17, 2026', '3': 'April 22, 2026', '4': 'April 24, 2026', '5': 'April 29, 2026'
+  '1': 'April 15, 2026', 
+  '2': 'April 17, 2026', 
+  '3': 'April 22, 2026', 
+  '4': 'April 24, 2026', 
+  '5': 'April 29, 2026'
 };
 
 export default function AdminPage() {
@@ -93,7 +97,7 @@ export default function AdminPage() {
     if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
     
-    // FIX: Normalize data before saving
+    // Normalizing data to ensure public search/verification works perfectly
     const cleanName = name.trim().replace(/\s+/g, ' ').toUpperCase();
     const cleanEmail = email.trim().toLowerCase();
 
