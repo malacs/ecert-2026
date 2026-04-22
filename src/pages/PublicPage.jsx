@@ -42,11 +42,8 @@ export default function PublicPage() {
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
 
-    // FIX: Only trim and collapse whitespace.
-    // Do NOT uppercase — ilike is already case-insensitive in Postgres/Supabase.
-    // Do NOT use normalize('NFKD') — it breaks Filipino names with special characters.
+    // Clean whitespace only - ilike is case-insensitive
     const cleanSearch = search.replace(/\s+/g, ' ').trim();
-
     if (!cleanSearch) return;
 
     setLoading(true);
@@ -64,7 +61,6 @@ export default function PublicPage() {
     } catch {
       setResults([]);
     }
-
     setLoading(false);
   };
 
@@ -99,8 +95,6 @@ export default function PublicPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 type="text"
                 autoComplete="off"
-                autoCorrect="off"
-                spellCheck="false"
               />
               <button type="submit" style={S.button} disabled={loading}>
                 {loading ? '...' : 'Search'}
@@ -133,7 +127,7 @@ export default function PublicPage() {
           )}
         </div>
       </div>
-      <footer style={S.footer}>NEMSU Lianga Campus - BSCS</footer>
+      <footer style={S.footer}>NEMSU Lianga Campus - Bachelor of Science in Computer Science</footer>
     </div>
   );
 }
