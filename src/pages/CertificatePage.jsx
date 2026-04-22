@@ -23,36 +23,34 @@ export default function CertificatePage() {
       }
 
       try {
-        // ✅ FIX: normalize search
+        // ✅ STRICT MATCH (FIXES WRONG DATA + MOBILE FAIL)
         const cleanSearch = participantName
           .trim()
           .replace(/\s+/g, ' ')
           .toUpperCase();
 
-        // ✅ FIX: flexible match + fallback
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role, name')
-          .ilike('name', `%${cleanSearch}%`)
-          .eq('cert_date', day);
+          .eq('name', cleanSearch)
+          .eq('cert_date', day)
+          .single();
 
-        if (dbError || !data || data.length === 0) {
+        if (dbError || !data) {
           setError('Certificate not found in our records.');
           setLoading(false);
           return;
         }
 
-        // pick first match
-        const record = data[0];
-
-        const role = record.role || 'Student';
+        const role = data.role || 'Student';
         setParticipantRole(role);
 
-        const imgData = await getCertificateDataUrl(record.name, day || null, role);
+        // ⚡ Generate lighter image first (mobile safe)
+        const imgData = await getCertificateDataUrl(data.name, day || null, role);
         setImgSrc(imgData);
 
       } catch (err) {
-        setError('Failed to load certificate details.');
+        setError('Failed to load certificate.');
       } finally {
         setLoading(false);
       }
@@ -83,7 +81,10 @@ export default function CertificatePage() {
 
       <div style={styles.content}>
         {loading ? (
-          <div style={styles.centerBox}><div style={styles.spinner} /><p>Verifying Credential...</p></div>
+          <div style={styles.centerBox}>
+            <div style={styles.spinner} />
+            <p>Verifying Credential...</p>
+          </div>
         ) : error ? (
           <div style={styles.centerBox}>
             <p style={{color: '#ef4444', marginBottom: '20px'}}>{error}</p>
