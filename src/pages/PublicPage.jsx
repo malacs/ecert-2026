@@ -41,7 +41,7 @@ export default function PublicPage() {
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
-    // FIXED: Convert to UpperCase to match the Admin's handleSave logic
+    // FIX: Normalize search to UPPERCASE to match database
     const cleanSearch = search.trim().replace(/\s+/g, ' ').toUpperCase();
     if (!cleanSearch) return;
 
