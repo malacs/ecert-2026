@@ -5,7 +5,6 @@ import { getCertificateDataUrl, downloadCertificate } from '../certificateGenera
 
 export default function CertificatePage() {
   const { name, day } = useParams();
-  // Decode and clean the name from the URL
   const participantName = decodeURIComponent(name || '').trim();
 
   const [imgSrc, setImgSrc] = useState(null);
@@ -23,13 +22,13 @@ export default function CertificatePage() {
       }
 
       try {
-        // Clean the name for the database query
-        const cleanSearch = participantName.replace(/\s+/g, ' ');
+        // FIXED: Force name to UpperCase to find the DB record saved by Admin
+        const cleanSearch = participantName.replace(/\s+/g, ' ').toUpperCase();
 
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role, name')
-          .ilike('name', cleanSearch) // Case-insensitive match
+          .ilike('name', cleanSearch) 
           .eq('cert_date', day)
           .maybeSingle();
 
@@ -42,7 +41,7 @@ export default function CertificatePage() {
         const role = data.role || 'Student';
         setParticipantRole(role);
 
-        // Use the EXACT name from the database to generate the visual certificate
+        // FIXED: Pass data.name (the one from DB) to the generator to ensure it matches logic
         const imgData = await getCertificateDataUrl(data.name, day || null, role);
         setImgSrc(imgData);
       } catch (err) {
