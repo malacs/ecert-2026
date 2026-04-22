@@ -42,12 +42,12 @@ export default function PublicPage() {
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
 
-    // FIX: Normalize unicode characters (handles mobile smart apostrophes, accents, etc.)
-    // then strip ALL non-printable/control characters, collapse whitespace, uppercase
+    // MOBILE-SPECIFIC FIX: 
+    // This strips out invisible Unicode characters and "smart" mobile spaces
     const normalized = search
-      .normalize('NFKD')                        // decompose unicode (accents, etc.)
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // strip control characters
-      .replace(/\s+/g, ' ')                     // collapse any whitespace
+      .normalize('NFKD')                         // Breaks down complex mobile chars
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Strips hidden control characters
+      .replace(/\s+/g, ' ')                      // Collapses double spaces/tabs into single space
       .trim()
       .toUpperCase();
 
@@ -60,6 +60,7 @@ export default function PublicPage() {
       const { data, error } = await supabase
         .from('participants')
         .select('*')
+        // Using wildcards (%) around the name for better matching on mobile
         .ilike('name', `%${normalized}%`)
         .eq('cert_date', selectedDay);
 
@@ -81,7 +82,11 @@ export default function PublicPage() {
         <form onSubmit={handleSearch}>
           <div style={S.formGroup}>
             <label style={S.label}>Step 1: Select Training Day</label>
-            <select value={selectedDay} onChange={(e) => { setSelectedDay(e.target.value); setResults([]); setHasSearched(false); }} style={S.select}>
+            <select 
+              value={selectedDay} 
+              onChange={(e) => { setSelectedDay(e.target.value); setResults([]); setHasSearched(false); }} 
+              style={S.select}
+            >
               {TRAINING_DAYS.map(day => (<option key={day.value} value={day.value}>{day.label}</option>))}
             </select>
           </div>
@@ -91,13 +96,10 @@ export default function PublicPage() {
             <div style={S.searchWrapper}>
               <input 
                 style={S.input} 
-                placeholder="Enter Name" 
+                placeholder="Ex: Juan Dela Cruz" 
                 value={search} 
                 onChange={(e) => setSearch(e.target.value)} 
-                type="text"
-                // FIX: Changed from type="search" to type="text" — mobile browsers
-                // sometimes add extra characters or behave differently with type="search".
-                // Removed autoCapitalize to prevent mobile OS from injecting formatting chars.
+                type="text" // Changed from "search" to "text" for better mobile compatibility
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
@@ -116,11 +118,18 @@ export default function PublicPage() {
                   {p.role === 'Speaker' ? 'Resource Speaker' : 'Training Participant'}
                 </div>
               </div>
-              <button style={S.downloadBtn} onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}>Download PDF</button>
+              <button 
+                style={S.downloadBtn} 
+                onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
+              >
+                Download PDF
+              </button>
             </div>
           ))}
           {hasSearched && results.length === 0 && !loading && (
-            <div style={S.noRecord}>No record found. Please check spelling or try just your last name.</div>
+            <div style={S.noRecord}>
+              Certificate not found. Please ensure you selected the correct day or try using just your last name.
+            </div>
           )}
         </div>
       </div>
