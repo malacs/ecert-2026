@@ -8,31 +8,24 @@ export default function CertificatePage() {
   const [imgSrc, setImgSrc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [participantData, setParticipantData] = useState(null);
+  const [role, setRole] = useState('Student');
 
   useEffect(() => {
     const load = async () => {
       try {
-        const decoded = decodeURIComponent(name);
-        // THE FIX: Standardize the URL name to match the DB
-        const cleanSearch = decoded
-          .normalize('NFKD')
-          .replace(/[^\w\s]/gi, '')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .toUpperCase();
-
+        const decodedName = decodeURIComponent(name).trim();
+        
+        // FIX: Using ilike with wildcards to handle hidden dots/spaces from the email link
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('*')
-          .ilike('name', `%${cleanSearch}%`)
+          .ilike('name', `%${decodedName}%`)
           .eq('cert_date', day)
           .maybeSingle();
 
-        if (dbError || !data) throw new Error("Certificate record not found.");
+        if (dbError || !data) throw new Error("Certificate not found in our records.");
 
-        setParticipantData(data);
-        // Always generate based on the clean name stored in the database
+        setRole(data.role);
         const img = await getCertificateDataUrl(data.name, day, data.role);
         setImgSrc(img);
       } catch (err) {
@@ -44,32 +37,27 @@ export default function CertificatePage() {
     load();
   }, [name, day]);
 
-  if (loading) return <div style={V.bg}><div className="spinner"></div><p>Verifying Credential...</p></div>;
+  if (loading) return <div style={V.bg}>Verifying...</div>;
   
   if (error) return (
     <div style={V.bg}>
-      <div style={{color:'#ef4444', marginBottom:'20px'}}>{error}</div>
-      <Link to="/" style={{color:'#fff', textDecoration:'underline'}}>Back to Search Portal</Link>
+      <h2 style={{color:'#ef4444'}}>{error}</h2>
+      <Link to="/" style={{color:'#fff', marginTop:'20px', display:'block'}}>Back to Search</Link>
     </div>
   );
 
   return (
     <div style={V.bg}>
       <div style={V.container}>
-        <div style={V.badge}>DATA INSIGHTS 2026</div>
-        <h2 style={{margin:'0 0 10px 0'}}>Digital Credential</h2>
-        <p style={{color:'#94a3b8', fontSize:'14px', marginBottom:'25px'}}>Issued to: <strong>{participantData?.name}</strong></p>
-        
-        <div style={V.imgWrap}>
-          <img src={imgSrc} style={V.img} alt="Certificate" />
-        </div>
-
-        <div style={{marginTop:'30px', display:'flex', gap:'15px', justifyContent:'center'}}>
+        <h1 style={{fontSize:'1.5rem', marginBottom:'10px'}}>Verification Portal</h1>
+        <p style={{color:'#94a3b8', marginBottom:'20px'}}>Official Digital Credentials</p>
+        <img src={imgSrc} style={V.img} alt="Verified Certificate" />
+        <div style={{marginTop:'30px'}}>
           <button 
-            onClick={() => downloadCertificate(participantData.name, day, participantData.role)} 
+            onClick={() => downloadCertificate(decodeURIComponent(name), day, role)} 
             style={V.btn}
           >
-            Download Official PDF
+            Download PDF
           </button>
         </div>
       </div>
@@ -78,10 +66,8 @@ export default function CertificatePage() {
 }
 
 const V = {
-  bg: { minHeight:'100vh', background:'#0f172a', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'20px', color:'#fff', textAlign:'center', fontFamily:'sans-serif' },
-  container: { maxWidth:'850px', width:'100%', background:'#1e293b', padding:'40px 20px', borderRadius:'24px', border:'1px solid rgba(255,255,255,0.1)' },
-  badge: { color:'#c9a84c', fontSize:'12px', fontWeight:'bold', letterSpacing:'2px', marginBottom:'10px' },
-  imgWrap: { background:'#0f172a', padding:'10px', borderRadius:'10px', boxShadow:'0 20px 50px rgba(0,0,0,0.5)' },
-  img: { width:'100%', borderRadius:'5px', display:'block' },
-  btn: { padding:'16px 32px', background:'#c9a84c', color:'#000', border:'none', borderRadius:'12px', fontWeight:'bold', cursor:'pointer', fontSize:'16px' }
+  bg: { minHeight: '100vh', background: '#0f172a', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' },
+  container: { maxWidth: '800px', width: '100%', background: '#1e293b', padding: '40px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)' },
+  img: { width: '100%', borderRadius: '10px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' },
+  btn: { padding: '15px 40px', background: '#c9a84c', color: '#000', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }
 };
