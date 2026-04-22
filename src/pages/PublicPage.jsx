@@ -34,7 +34,7 @@ const TRAINING_DAYS = [
 
 export default function PublicPage() {
   const [search, setSearch] = useState('');
-  const [selectedDay, setSelectedDay] = useState('1'); 
+  const [selectedDay, setSelectedDay] = useState('1');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -42,16 +42,13 @@ export default function PublicPage() {
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
 
-    // MOBILE-SPECIFIC FIX: 
-    // This strips out invisible Unicode characters and "smart" mobile spaces
-    const normalized = search
-      .normalize('NFKD')                         // Breaks down complex mobile chars
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Strips hidden control characters
-      .replace(/\s+/g, ' ')                      // Collapses double spaces/tabs into single space
-      .trim()
-      .toUpperCase();
+    // KEY FIX: Just trim whitespace. Do NOT uppercase, do NOT normalize('NFKD').
+    // Supabase ilike is case-insensitive by default in Postgres — it handles
+    // "marvin", "MARVIN", "Marvin" all the same. The previous .toUpperCase() +
+    // .normalize('NFKD') was corrupting searches, especially on mobile keyboards.
+    const cleanSearch = search.replace(/\s+/g, ' ').trim();
 
-    if (!normalized) return;
+    if (!cleanSearch) return;
 
     setLoading(true);
     setHasSearched(true);
@@ -60,8 +57,7 @@ export default function PublicPage() {
       const { data, error } = await supabase
         .from('participants')
         .select('*')
-        // Using wildcards (%) around the name for better matching on mobile
-        .ilike('name', `%${normalized}%`)
+        .ilike('name', `%${cleanSearch}%`)
         .eq('cert_date', selectedDay);
 
       if (!error) setResults(data || []);
@@ -69,6 +65,7 @@ export default function PublicPage() {
     } catch {
       setResults([]);
     }
+
     setLoading(false);
   };
 
@@ -78,33 +75,37 @@ export default function PublicPage() {
         <div style={S.brandBadge}>Data Insights 2026</div>
         <h2 style={S.header}>Certificate Portal</h2>
         <p style={S.subtitle}>Enter your name to download your e-certificate.</p>
-        
+
         <form onSubmit={handleSearch}>
           <div style={S.formGroup}>
             <label style={S.label}>Step 1: Select Training Day</label>
-            <select 
-              value={selectedDay} 
-              onChange={(e) => { setSelectedDay(e.target.value); setResults([]); setHasSearched(false); }} 
+            <select
+              value={selectedDay}
+              onChange={(e) => { setSelectedDay(e.target.value); setResults([]); setHasSearched(false); }}
               style={S.select}
             >
-              {TRAINING_DAYS.map(day => (<option key={day.value} value={day.value}>{day.label}</option>))}
+              {TRAINING_DAYS.map(day => (
+                <option key={day.value} value={day.value}>{day.label}</option>
+              ))}
             </select>
           </div>
 
           <div style={S.formGroup}>
             <label style={S.label}>Step 2: Enter Full Name</label>
             <div style={S.searchWrapper}>
-              <input 
-                style={S.input} 
-                placeholder="Ex: Juan Dela Cruz" 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                type="text" // Changed from "search" to "text" for better mobile compatibility
+              <input
+                style={S.input}
+                placeholder="Ex: Juan Dela Cruz"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                type="text"
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
               />
-              <button type="submit" style={S.button} disabled={loading}>{loading ? '...' : 'Search'}</button>
+              <button type="submit" style={S.button} disabled={loading}>
+                {loading ? '...' : 'Search'}
+              </button>
             </div>
           </div>
         </form>
@@ -114,12 +115,12 @@ export default function PublicPage() {
             <div key={p.id} style={S.resultBox}>
               <div style={S.resInfo}>
                 <div style={S.resName}>{p.name}</div>
-                <div style={{...S.resRole, color: p.role === 'Speaker' ? '#b45309' : '#64748b'}}>
+                <div style={{ ...S.resRole, color: p.role === 'Speaker' ? '#b45309' : '#64748b' }}>
                   {p.role === 'Speaker' ? 'Resource Speaker' : 'Training Participant'}
                 </div>
               </div>
-              <button 
-                style={S.downloadBtn} 
+              <button
+                style={S.downloadBtn}
                 onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
               >
                 Download PDF
@@ -128,12 +129,12 @@ export default function PublicPage() {
           ))}
           {hasSearched && results.length === 0 && !loading && (
             <div style={S.noRecord}>
-              Certificate not found. Please ensure you selected the correct day or try using just your last name.
+              No record found. Please check spelling or try just your last name.
             </div>
           )}
         </div>
       </div>
-      <footer style={S.footer}>NEMSU Lianga Campus - BS in Computer Science</footer>
+      <footer style={S.footer}>NEMSU Lianga Campus - BSCS</footer>
     </div>
   );
 }
