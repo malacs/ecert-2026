@@ -3,141 +3,79 @@ import { supabase } from '../supabaseClient';
 import { downloadCertificate } from '../certificateGenerator';
 
 const S = {
-  container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: '#f8fafc', fontFamily: 'system-ui, sans-serif', padding: '15px' },
-  notice: { width: '100%', maxWidth: '500px', background: '#fffbeb', border: '1px solid #fef3c7', padding: '12px', borderRadius: '12px', marginBottom: '15px', textAlign: 'center', fontSize: '0.8rem', color: '#92400e', lineHeight: '1.4' },
-  card: { background: '#ffffff', padding: '40px 20px', borderRadius: '20px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', textAlign: 'center', width: '100%', maxWidth: '500px', border: '1px solid #e2e8f0', boxSizing: 'border-box' },
-  brandBadge: { background: '#eff6ff', color: '#1d4ed8', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-block', marginBottom: '15px', textTransform: 'uppercase' },
-  header: { color: '#0f172a', fontSize: '28px', margin: '0 0 10px 0', fontWeight: '800' },
-  subtitle: { color: '#64748b', fontSize: '14px', lineHeight: '1.5', marginBottom: '30px' },
-  formGroup: { textAlign: 'left', marginBottom: '20px' },
-  label: { color: '#475569', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', display: 'block' },
-  select: { width: '100%', padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '16px', color: '#1e293b', outline: 'none', boxSizing: 'border-box' },
-  searchWrapper: { display: 'flex', gap: '8px', flexWrap: 'nowrap' },
-  input: { flex: 1, padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '16px', outline: 'none', minWidth: '0', boxSizing: 'border-box' },
-  button: { padding: '12px 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', whiteSpace: 'nowrap' },
-  resultsWrapper: { marginTop: '20px' },
-  resultBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '16px', borderRadius: '12px', marginBottom: '10px', borderLeft: '4px solid #3b82f6', gap: '10px', flexWrap: 'wrap' },
-  resInfo: { textAlign: 'left', flex: 1 },
-  resName: { color: '#0f172a', fontWeight: 'bold', fontSize: '15px', wordBreak: 'break-word' },
-  resRole: { fontSize: '0.75rem', marginTop: '2px', fontWeight: '500' },
-  downloadBtn: { background: '#1e293b', color: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', border: 'none', flexShrink: 0 },
-  noRecord: { color: '#ef4444', fontSize: '0.85rem', marginTop: '20px', padding: '12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fee2e2' },
-  footer: { marginTop: '30px', color: '#94a3b8', fontSize: '0.75rem', textAlign: 'center' }
+  container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#f8fafc', padding: '20px', fontFamily: 'sans-serif' },
+  notice: { width: '100%', maxWidth: '500px', background: '#fffbeb', border: '1px solid #fef3c7', padding: '12px', borderRadius: '12px', marginBottom: '15px', textAlign: 'center', fontSize: '0.8rem', color: '#92400e' },
+  card: { background: '#fff', padding: '35px 25px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', width: '100%', maxWidth: '500px', textAlign: 'center', border: '1px solid #e2e8f0', boxSizing: 'border-box' },
+  header: { color: '#0f172a', fontSize: '24px', marginBottom: '10px' },
+  subtitle: { color: '#64748b', fontSize: '14px', marginBottom: '25px' },
+  input: { width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginBottom: '15px', fontSize: '16px', boxSizing: 'border-box' },
+  button: { width: '100%', padding: '14px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' },
+  result: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '15px', borderRadius: '12px', marginTop: '10px', textAlign: 'left' }
 };
 
 export default function PublicPage() {
   const [search, setSearch] = useState('');
-  const [selectedDay, setSelectedDay] = useState('1'); 
+  const [day, setDay] = useState('1');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearch = async (e) => {
-    if (e) e.preventDefault();
-
-    // MATCHES ADMIN & CERTIFICATE CLEANER: 
-    // Strips Google Docs junk, hidden mobile characters, and symbols/dots
-    const normalized = search
+    e.preventDefault();
+    setLoading(true);
+    
+    const cleanSearch = search
       .normalize('NFKD')
-      .replace(/[\u00A0\u1680​\u180e\u2000-\u200b\u202f\u205f\u3000\ufeff]/g, ' ') 
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-      .replace(/[^\w\s]/gi, '') // Removes dots and special symbols for loose matching
+      .replace(/[^\w\s]/gi, '')
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
 
-    if (!normalized) return;
+    if(!cleanSearch) return setLoading(false);
 
-    setLoading(true);
-    setHasSearched(true);
+    const { data } = await supabase
+      .from('participants')
+      .select('*')
+      .ilike('name', `%${cleanSearch}%`)
+      .eq('cert_date', day);
 
-    try {
-      const { data, error } = await supabase
-        .from('participants')
-        .select('*')
-        // We search with wildcards so "L" can match "L." even if the dot was removed
-        .ilike('name', `%${normalized}%`)
-        .eq('cert_date', selectedDay);
-
-      if (!error) setResults(data || []);
-      else setResults([]);
-    } catch {
-      setResults([]);
-    }
+    setResults(data || []);
     setLoading(false);
   };
 
   return (
     <div style={S.container}>
-      {/* MOBILE FIX NOTICE */}
       <div style={S.notice}>
-        ⚠️ <strong>Mobile Compatibility:</strong> We are currently optimizing the mobile search experience. If your name isn't found, try searching using just your <strong>Last Name</strong> or use a laptop.
+        ⚠️ <strong>Mobile Note:</strong> If your name is not found, try searching using only your <strong>Last Name</strong> or use a desktop browser.
       </div>
-
       <div style={S.card}>
-        <div style={S.brandBadge}>Data Insights 2026</div>
         <h2 style={S.header}>Certificate Portal</h2>
-        <p style={S.subtitle}>Enter your name to download your digital credentials.</p>
-        
+        <p style={S.subtitle}>NEMSU Data Insights 2026 Virtual Training</p>
         <form onSubmit={handleSearch}>
-          <div style={S.formGroup}>
-            <label style={S.label}>Step 1: Select Training Day</label>
-            <select 
-              value={selectedDay} 
-              onChange={(e) => { setSelectedDay(e.target.value); setResults([]); setHasSearched(false); }} 
-              style={S.select}
-            >
-              <option value="1">Day 1 - April 15</option>
-              <option value="2">Day 2 - April 17</option>
-              <option value="3">Day 3 - April 22</option>
-              <option value="4">Day 4 - April 24</option>
-              <option value="5">Day 5 - April 29</option>
-            </select>
-          </div>
-
-          <div style={S.formGroup}>
-            <label style={S.label}>Step 2: Enter Full Name</label>
-            <div style={S.searchWrapper}>
-              <input 
-                style={S.input} 
-                placeholder="Ex: Juan Dela Cruz" 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                type="text"
-                autoComplete="off"
-              />
-              <button type="submit" style={S.button} disabled={loading}>
-                {loading ? '...' : 'Search'}
-              </button>
-            </div>
-          </div>
+          <select style={S.input} value={day} onChange={e => setDay(e.target.value)}>
+            <option value="1">Day 1 - April 15</option>
+            <option value="2">Day 2 - April 17</option>
+            <option value="3">Day 3 - April 22</option>
+            <option value="4">Day 4 - April 24</option>
+            <option value="5">Day 5 - April 29</option>
+          </select>
+          <input style={S.input} placeholder="Enter Full Name" value={search} onChange={e => setSearch(e.target.value)} />
+          <button style={S.button} type="submit">{loading ? 'Searching...' : 'Find Certificate'}</button>
         </form>
-
-        <div style={S.resultsWrapper}>
-          {results.map((p) => (
-            <div key={p.id} style={S.resultBox}>
-              <div style={S.resInfo}>
-                <div style={S.resName}>{p.name}</div>
-                <div style={{...S.resRole, color: p.role === 'Speaker' ? '#b45309' : '#64748b'}}>
-                  {p.role === 'Speaker' ? 'Resource Speaker' : 'Training Participant'}
-                </div>
-              </div>
-              <button 
-                style={S.downloadBtn} 
-                onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
-              >
-                Download PDF
-              </button>
+        {results.map(p => (
+          <div key={p.id} style={S.result}>
+            <div>
+              <div style={{fontWeight:'bold', fontSize:'14px'}}>{p.name}</div>
+              <div style={{fontSize:'12px', color:'#64748b'}}>{p.role}</div>
             </div>
-          ))}
-          {hasSearched && results.length === 0 && !loading && (
-            <div style={S.noRecord}>
-              Certificate not found. Ensure you selected the correct day or try using just your Last Name.
-            </div>
-          )}
-        </div>
+            <button 
+              style={{background:'#1e293b', color:'#fff', border:'none', padding:'8px 12px', borderRadius:'6px', cursor:'pointer', fontSize:'12px'}}
+              onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
+            >
+              Download
+            </button>
+          </div>
+        ))}
       </div>
-      <footer style={S.footer}>NEMSU Lianga Campus - BS in Computer Science</footer>
     </div>
   );
 }
