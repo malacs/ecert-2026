@@ -13,45 +13,29 @@ const TRAINING_DAYS = [
   { value: '5', label: 'Day 5 — April 29, 2026' },
 ];
 
-const DAY_LABEL = {
-  '1': 'April 15, 2026',
-  '2': 'April 17, 2026',
-  '3': 'April 22, 2026',
-  '4': 'April 24, 2026',
-  '5': 'April 29, 2026'
-};
+const DAY_LABEL = { '1': 'April 15, 2026', '2': 'April 17, 2026', '3': 'April 22, 2026', '4': 'April 24, 2026', '5': 'April 29, 2026' };
 
 export default function AdminPage() {
   const navigate = useNavigate();
-
-  // Authentication State
   const [user, setUser] = useState(null);
   const [emailLogin, setEmailLogin] = useState('');
   const [pw, setPw] = useState('');
   const [authLoading, setAuthLoading] = useState(true);
   const [notification, setNotification] = useState(null);
-
-  // Participants State
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-
-  // Form & Edit State
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [trainingDay, setTrainingDay] = useState('');
   const [role, setRole] = useState('Student');
-
-  // Action States
   const [adding, setAdding] = useState(false);
   const [sendingStatus, setSendingStatus] = useState(null);
   const [sendingAll, setSendingAll] = useState(false);
-
-  // Modal State
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [presDay, setPresDay] = useState('1');
   const [presRole, setPresRole] = useState('All');
@@ -88,25 +72,14 @@ export default function AdminPage() {
     if (error) { alert("Authentication Failed: " + error.message); setAuthLoading(false); }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
-  };
+  const handleLogout = async () => { await supabase.auth.signOut(); navigate('/'); };
 
   const handleSave = async () => {
     if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
-
-    // Normalize: uppercase and collapse whitespace for consistent DB storage
     const cleanName = name.trim().replace(/\s+/g, ' ').toUpperCase();
     const cleanEmail = email.trim().toLowerCase();
-
-    const payload = {
-      name: cleanName,
-      email: cleanEmail,
-      cert_date: trainingDay,
-      role,
-    };
+    const payload = { name: cleanName, email: cleanEmail, cert_date: trainingDay, role };
 
     if (editingId) {
       const { error } = await supabase.from('participants').update(payload).eq('id', editingId);
@@ -116,18 +89,13 @@ export default function AdminPage() {
       const { error } = await supabase.from('participants').insert([{ ...payload, email_sent: false }]);
       if (!error) notify("Added Successfully!");
     }
-
     setName(''); setEmail(''); setTrainingDay(''); setRole('Student');
     fetchParticipants();
     setAdding(false);
   };
 
   const startEdit = (p) => {
-    setEditingId(p.id);
-    setName(p.name);
-    setEmail(p.email);
-    setTrainingDay(String(p.cert_date));
-    setRole(p.role);
+    setEditingId(p.id); setName(p.name); setEmail(p.email); setTrainingDay(String(p.cert_date)); setRole(p.role);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -135,7 +103,6 @@ export default function AdminPage() {
     setSendingStatus(p.id);
     try {
       emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
-      // FIX: Trim the name before building the URL to prevent whitespace being encoded
       const safeName = p.name.trim().replace(/\s+/g, ' ');
       await emailjs.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
@@ -171,7 +138,6 @@ export default function AdminPage() {
     emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
     for (const p of availableToSend) {
       try {
-        // FIX: Trim the name before building the URL
         const safeName = p.name.trim().replace(/\s+/g, ' ');
         await emailjs.send(
           process.env.REACT_APP_EMAILJS_SERVICE_ID,
