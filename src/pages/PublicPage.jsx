@@ -41,7 +41,8 @@ export default function PublicPage() {
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
-    const cleanSearch = search.trim().replace(/\s+/g, ' ');
+    // FIXED: Convert to UpperCase to match the Admin's handleSave logic
+    const cleanSearch = search.trim().replace(/\s+/g, ' ').toUpperCase();
     if (!cleanSearch) return;
 
     setLoading(true);
@@ -51,7 +52,7 @@ export default function PublicPage() {
       const { data, error } = await supabase
         .from('participants')
         .select('*')
-        .ilike('name', `%${cleanSearch}%`) // Wildcard search is better for mobile
+        .ilike('name', `%${cleanSearch}%`) 
         .eq('cert_date', selectedDay);
 
       if (!error) setResults(data || []);
