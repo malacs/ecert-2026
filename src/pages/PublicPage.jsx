@@ -11,7 +11,7 @@ const S = {
   formGroup: { textAlign: 'left', marginBottom: '20px' },
   label: { color: '#475569', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', display: 'block' },
   select: { width: '100%', padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.95rem', color: '#1e293b', outline: 'none', boxSizing: 'border-box' },
-  searchWrapper: { display: 'flex', gap: '8px', flexWrap: 'wrap' }, // ✅ responsive improvement
+  searchWrapper: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
   input: { flex: 1, padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.95rem', outline: 'none', minWidth: '0', boxSizing: 'border-box' },
   button: { padding: '12px 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', whiteSpace: 'nowrap' },
   resultsWrapper: { marginTop: '20px' },
@@ -42,11 +42,10 @@ export default function PublicPage() {
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
 
-    // ✅ FIX: normalize input (handles mobile issues)
-    let cleanSearch = search
+    // ✅ FINAL FIX (mobile-safe)
+    const cleanSearch = search
       .trim()
-      .replace(/\s+/g, ' ')
-      .toLowerCase();
+      .replace(/\s+/g, ' ');
 
     if (!cleanSearch) return;
 
@@ -102,9 +101,9 @@ export default function PublicPage() {
                 placeholder="Enter Name"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                autoCapitalize="none"   // ✅ mobile fix
-                autoCorrect="off"       // ✅ mobile fix
-                spellCheck="false"      // ✅ mobile fix
+                autoCapitalize="words"   // ✅ mobile-friendly
+                autoCorrect="off"
+                spellCheck="false"
               />
               <button type="submit" style={S.button} disabled={loading}>
                 {loading ? '...' : 'Search'}
