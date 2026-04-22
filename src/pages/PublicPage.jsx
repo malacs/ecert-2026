@@ -4,6 +4,7 @@ import { downloadCertificate } from '../certificateGenerator';
 
 const S = {
   container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: '#f8fafc', fontFamily: 'system-ui, sans-serif', padding: '15px' },
+  notice: { width: '100%', maxWidth: '500px', background: '#fffbeb', border: '1px solid #fef3c7', padding: '12px', borderRadius: '12px', marginBottom: '15px', textAlign: 'center', fontSize: '0.8rem', color: '#92400e', lineHeight: '1.4' },
   card: { background: '#ffffff', padding: '40px 20px', borderRadius: '20px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', textAlign: 'center', width: '100%', maxWidth: '500px', border: '1px solid #e2e8f0', boxSizing: 'border-box' },
   brandBadge: { background: '#eff6ff', color: '#1d4ed8', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-block', marginBottom: '15px', textTransform: 'uppercase' },
   header: { color: '#0f172a', fontSize: '28px', margin: '0 0 10px 0', fontWeight: '800' },
@@ -34,11 +35,13 @@ export default function PublicPage() {
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
 
-    // MATCHES ADMIN CLEANER: Strips Google Docs junk and mobile hidden chars
+    // MATCHES ADMIN & CERTIFICATE CLEANER: 
+    // Strips Google Docs junk, hidden mobile characters, and symbols/dots
     const normalized = search
       .normalize('NFKD')
       .replace(/[\u00A0\u1680​\u180e\u2000-\u200b\u202f\u205f\u3000\ufeff]/g, ' ') 
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/[^\w\s]/gi, '') // Removes dots and special symbols for loose matching
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
@@ -52,6 +55,7 @@ export default function PublicPage() {
       const { data, error } = await supabase
         .from('participants')
         .select('*')
+        // We search with wildcards so "L" can match "L." even if the dot was removed
         .ilike('name', `%${normalized}%`)
         .eq('cert_date', selectedDay);
 
@@ -65,10 +69,15 @@ export default function PublicPage() {
 
   return (
     <div style={S.container}>
+      {/* MOBILE FIX NOTICE */}
+      <div style={S.notice}>
+        ⚠️ <strong>Mobile Compatibility:</strong> We are currently optimizing the mobile search experience. If your name isn't found, try searching using just your <strong>Last Name</strong> or use a laptop.
+      </div>
+
       <div style={S.card}>
         <div style={S.brandBadge}>Data Insights 2026</div>
         <h2 style={S.header}>Certificate Portal</h2>
-        <p style={S.subtitle}>Enter your name to download your e-certificate.</p>
+        <p style={S.subtitle}>Enter your name to download your digital credentials.</p>
         
         <form onSubmit={handleSearch}>
           <div style={S.formGroup}>
@@ -97,7 +106,9 @@ export default function PublicPage() {
                 type="text"
                 autoComplete="off"
               />
-              <button type="submit" style={S.button} disabled={loading}>{loading ? '...' : 'Search'}</button>
+              <button type="submit" style={S.button} disabled={loading}>
+                {loading ? '...' : 'Search'}
+              </button>
             </div>
           </div>
         </form>
@@ -121,7 +132,7 @@ export default function PublicPage() {
           ))}
           {hasSearched && results.length === 0 && !loading && (
             <div style={S.noRecord}>
-              Certificate not found. Ensure you selected the correct day or try using just your last name.
+              Certificate not found. Ensure you selected the correct day or try using just your Last Name.
             </div>
           )}
         </div>
