@@ -97,8 +97,15 @@ export default function AdminPage() {
     if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
     
-    // Normalizing data to ensure public search/verification works perfectly
-    const cleanName = name.trim().replace(/\s+/g, ' ').toUpperCase();
+    // MOBILE-FIX NORMALIZATION: 
+    // Strips invisible control characters and collapses mobile "smart spaces"
+    const cleanName = name
+      .normalize('NFKD') 
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+
     const cleanEmail = email.trim().toLowerCase();
 
     const payload = {
@@ -223,8 +230,20 @@ export default function AdminPage() {
         <div style={{...S.card, borderLeft: editingId ? '8px solid #3b82f6' : '1px solid #e2e8f0'}}>
           <h3 style={S.cardTitle}>{editingId ? 'EDITING PARTICIPANT' : 'ADD NEW PARTICIPANT'}</h3>
           <div style={S.inputGrid}>
-            <input style={S.input} placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} />
-            <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
+            <input 
+              style={S.input} 
+              placeholder="Full Name" 
+              value={name} 
+              onChange={e => setName(e.target.value)} 
+              autoComplete="off"
+              autoCorrect="off"
+            />
+            <input 
+              style={S.input} 
+              placeholder="Email Address" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+            />
             <select style={S.input} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
               <option value="">Select Day</option>
               {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
