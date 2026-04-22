@@ -22,17 +22,28 @@ export default function CertificatePage() {
       }
 
       try {
+        // ✅ FIX: normalize input (mobile-safe)
+        const cleanName = participantName
+          .trim()
+          .replace(/\s+/g, ' ')
+          .toLowerCase();
+
         const { data } = await supabase
           .from('participants')
           .select('role')
-          .ilike('name', participantName)
+          .ilike('name', `%${cleanName}%`) // ✅ FIX: wildcard search
           .eq('cert_date', day)
-          .single();
+          .maybeSingle(); // ✅ FIX: prevents crash if no match
 
         const role = data?.role || 'Student';
         setParticipantRole(role);
 
-        const imgData = await getCertificateDataUrl(participantName, day || null, role);
+        const imgData = await getCertificateDataUrl(
+          participantName,
+          day || null,
+          role
+        );
+
         setImgSrc(imgData);
       } catch (err) {
         setError('Failed to load certificate details.');
@@ -66,15 +77,25 @@ export default function CertificatePage() {
 
       <div style={styles.content}>
         {loading ? (
-          <div style={styles.centerBox}><div style={styles.spinner} /><p>Verifying Credential...</p></div>
+          <div style={styles.centerBox}>
+            <div style={styles.spinner} />
+            <p>Verifying Credential...</p>
+          </div>
         ) : error ? (
-          <div style={styles.centerBox}><p>{error}</p><Link to="/" style={styles.btnBack}>Return Home</Link></div>
+          <div style={styles.centerBox}>
+            <p>{error}</p>
+            <Link to="/" style={styles.btnBack}>Return Home</Link>
+          </div>
         ) : (
           <div style={styles.certWrap}>
             <div style={styles.infoCard}>
               <p style={styles.issuedTo}>This certificate is officially issued to:</p>
               <h2 style={styles.nameHeader}>{participantName}</h2>
-              <span style={styles.roleTag}>{participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}</span>
+              <span style={styles.roleTag}>
+                {participantRole === 'Speaker'
+                  ? 'Resource Speaker'
+                  : 'Participant'}
+              </span>
             </div>
 
             <div style={styles.imgShadowBox}>
@@ -82,10 +103,16 @@ export default function CertificatePage() {
             </div>
 
             <div style={styles.actions}>
-              <button onClick={handleDownload} disabled={downloading} style={styles.btnDownload}>
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                style={styles.btnDownload}
+              >
                 {downloading ? 'Preparing PDF...' : 'Download Official PDF'}
               </button>
-              <Link to="/" style={styles.btnSecondary}>Back to Portal</Link>
+              <Link to="/" style={styles.btnSecondary}>
+                Back to Portal
+              </Link>
             </div>
           </div>
         )}
@@ -95,22 +122,132 @@ export default function CertificatePage() {
 }
 
 const styles = {
-  page: { minHeight: '100vh', background: '#0f172a', fontFamily: 'Inter, sans-serif', color: '#fff', boxSizing: 'border-box' },
-  heroSection: { background: 'radial-gradient(circle at top, #1e293b 0%, #0f172a 100%)', padding: '60px 20px', textAlign: 'center', borderBottom: '1px solid rgba(201, 168, 76, 0.2)' },
-  badge: { color: '#c9a84c', fontSize: '12px', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '10px' },
-  headerTitle: { fontSize: 'calc(24px + 1vw)', fontWeight: '800', margin: '0' },
-  headerSub: { color: '#94a3b8', fontSize: '16px', marginTop: '5px' },
-  content: { maxWidth: '1000px', margin: '-40px auto 40px', padding: '0 15px', boxSizing: 'border-box' },
-  infoCard: { background: '#1e293b', padding: '30px 20px', borderRadius: '16px', textAlign: 'center', marginBottom: '30px', border: '1px solid rgba(255,255,255,0.1)', boxSizing: 'border-box' },
-  issuedTo: { color: '#94a3b8', fontSize: '14px', marginBottom: '5px' },
-  nameHeader: { fontSize: '24px', color: '#fff', margin: '0 0 10px 0', wordBreak: 'break-word' },
-  roleTag: { background: 'rgba(201, 168, 76, 0.15)', color: '#c9a84c', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #c9a84c' },
-  imgShadowBox: { borderRadius: '8px', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.5)', border: '4px solid #1e293b', maxWidth: '100%' },
-  certImg: { width: '100%', height: 'auto', display: 'block' },
-  actions: { marginTop: '40px', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' },
-  btnDownload: { background: '#c9a84c', color: '#000', padding: '14px 28px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', minWidth: '200px' },
-  btnSecondary: { background: 'transparent', color: '#fff', padding: '14px 28px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', textDecoration: 'none', fontWeight: '600', minWidth: '200px', textAlign: 'center' },
-  centerBox: { textAlign: 'center', padding: '100px 0' },
-  spinner: { width: 40, height: 40, border: '4px solid #334155', borderTop: '4px solid #c9a84c', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 1s linear infinite' },
-  btnBack: { color: '#c9a84c', textDecoration: 'none', marginTop: '10px', display: 'block' }
+  page: {
+    minHeight: '100vh',
+    background: '#0f172a',
+    fontFamily: 'Inter, sans-serif',
+    color: '#fff',
+    boxSizing: 'border-box'
+  },
+  heroSection: {
+    background: 'radial-gradient(circle at top, #1e293b 0%, #0f172a 100%)',
+    padding: '60px 20px',
+    textAlign: 'center',
+    borderBottom: '1px solid rgba(201, 168, 76, 0.2)'
+  },
+  badge: {
+    color: '#c9a84c',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    letterSpacing: '2px',
+    marginBottom: '10px'
+  },
+  headerTitle: {
+    fontSize: 'calc(24px + 1vw)',
+    fontWeight: '800',
+    margin: '0'
+  },
+  headerSub: {
+    color: '#94a3b8',
+    fontSize: '16px',
+    marginTop: '5px'
+  },
+  content: {
+    maxWidth: '1000px',
+    margin: '-40px auto 40px',
+    padding: '0 15px',
+    boxSizing: 'border-box'
+  },
+  certWrap: {
+    width: '100%',
+    boxSizing: 'border-box'
+  },
+  infoCard: {
+    background: '#1e293b',
+    padding: '30px 20px',
+    borderRadius: '16px',
+    textAlign: 'center',
+    marginBottom: '30px',
+    border: '1px solid rgba(255,255,255,0.1)',
+    boxSizing: 'border-box'
+  },
+  issuedTo: {
+    color: '#94a3b8',
+    fontSize: '14px',
+    marginBottom: '5px'
+  },
+  nameHeader: {
+    fontSize: '24px',
+    color: '#fff',
+    margin: '0 0 10px 0',
+    wordBreak: 'break-word'
+  },
+  roleTag: {
+    background: 'rgba(201, 168, 76, 0.15)',
+    color: '#c9a84c',
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    border: '1px solid #c9a84c'
+  },
+  imgShadowBox: {
+    borderRadius: '8px',
+    overflow: 'hidden',
+    boxShadow: '0 0 40px rgba(0,0,0,0.5)',
+    border: '4px solid #1e293b',
+    maxWidth: '100%'
+  },
+  certImg: {
+    width: '100%',
+    height: 'auto',
+    display: 'block'
+  },
+  actions: {
+    marginTop: '40px',
+    display: 'flex',
+    gap: '15px',
+    justifyContent: 'center',
+    flexWrap: 'wrap' // ✅ small responsive improvement
+  },
+  btnDownload: {
+    background: '#c9a84c',
+    color: '#000',
+    padding: '14px 28px',
+    borderRadius: '8px',
+    border: 'none',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    minWidth: '200px'
+  },
+  btnSecondary: {
+    background: 'transparent',
+    color: '#fff',
+    padding: '14px 28px',
+    borderRadius: '8px',
+    border: '1px solid rgba(255,255,255,0.2)',
+    textDecoration: 'none',
+    fontWeight: '600',
+    minWidth: '200px',
+    textAlign: 'center'
+  },
+  centerBox: {
+    textAlign: 'center',
+    padding: '100px 0'
+  },
+  spinner: {
+    width: 40,
+    height: 40,
+    border: '4px solid #334155',
+    borderTop: '4px solid #c9a84c',
+    borderRadius: '50%',
+    margin: '0 auto 20px',
+    animation: 'spin 1s linear infinite'
+  },
+  btnBack: {
+    color: '#c9a84c',
+    textDecoration: 'none',
+    marginTop: '10px',
+    display: 'block'
+  }
 };
