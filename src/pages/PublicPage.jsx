@@ -10,9 +10,9 @@ const S = {
   subtitle: { color: '#64748b', fontSize: '14px', lineHeight: '1.5', marginBottom: '30px' },
   formGroup: { textAlign: 'left', marginBottom: '20px' },
   label: { color: '#475569', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', display: 'block' },
-  select: { width: '100%', padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.95rem', color: '#1e293b', outline: 'none', boxSizing: 'border-box' },
-  searchWrapper: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
-  input: { flex: 1, padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.95rem', outline: 'none', minWidth: '0', boxSizing: 'border-box' },
+  select: { width: '100%', padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '16px', color: '#1e293b', outline: 'none', boxSizing: 'border-box' },
+  searchWrapper: { display: 'flex', gap: '8px', flexWrap: 'nowrap' },
+  input: { flex: 1, padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '16px', outline: 'none', minWidth: '0', boxSizing: 'border-box' },
   button: { padding: '12px 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', whiteSpace: 'nowrap' },
   resultsWrapper: { marginTop: '20px' },
   resultBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '16px', borderRadius: '12px', marginBottom: '10px', borderLeft: '4px solid #3b82f6', gap: '10px', flexWrap: 'wrap' },
@@ -41,12 +41,7 @@ export default function PublicPage() {
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
-
-    // ✅ FINAL FIX (mobile-safe)
-    const cleanSearch = search
-      .trim()
-      .replace(/\s+/g, ' ');
-
+    const cleanSearch = search.trim().replace(/\s+/g, ' ');
     if (!cleanSearch) return;
 
     setLoading(true);
@@ -56,7 +51,7 @@ export default function PublicPage() {
       const { data, error } = await supabase
         .from('participants')
         .select('*')
-        .ilike('name', `%${cleanSearch}%`)
+        .ilike('name', `%${cleanSearch}%`) // Wildcard search is better for mobile
         .eq('cert_date', selectedDay);
 
       if (!error) setResults(data || []);
@@ -64,7 +59,6 @@ export default function PublicPage() {
     } catch {
       setResults([]);
     }
-
     setLoading(false);
   };
 
@@ -73,41 +67,30 @@ export default function PublicPage() {
       <div style={S.card}>
         <div style={S.brandBadge}>Data Insights 2026</div>
         <h2 style={S.header}>Certificate Portal</h2>
-        <p style={S.subtitle}>Enter your name as it appears on your registration to download your e-certificate.</p>
+        <p style={S.subtitle}>Enter your name to download your e-certificate.</p>
         
         <form onSubmit={handleSearch}>
           <div style={S.formGroup}>
             <label style={S.label}>Step 1: Select Training Day</label>
-            <select
-              value={selectedDay}
-              onChange={(e) => {
-                setSelectedDay(e.target.value);
-                setResults([]);
-                setHasSearched(false);
-              }}
-              style={S.select}
-            >
-              {TRAINING_DAYS.map(day => (
-                <option key={day.value} value={day.value}>{day.label}</option>
-              ))}
+            <select value={selectedDay} onChange={(e) => { setSelectedDay(e.target.value); setResults([]); setHasSearched(false); }} style={S.select}>
+              {TRAINING_DAYS.map(day => (<option key={day.value} value={day.value}>{day.label}</option>))}
             </select>
           </div>
 
           <div style={S.formGroup}>
             <label style={S.label}>Step 2: Enter Full Name</label>
             <div style={S.searchWrapper}>
-              <input
-                style={S.input}
-                placeholder="Enter Name"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                autoCapitalize="words"   // ✅ mobile-friendly
+              <input 
+                style={S.input} 
+                placeholder="Enter Name" 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)} 
+                type="search"
+                autoCapitalize="words"
                 autoCorrect="off"
                 spellCheck="false"
               />
-              <button type="submit" style={S.button} disabled={loading}>
-                {loading ? '...' : 'Search'}
-              </button>
+              <button type="submit" style={S.button} disabled={loading}>{loading ? '...' : 'Search'}</button>
             </div>
           </div>
         </form>
@@ -121,26 +104,15 @@ export default function PublicPage() {
                   {p.role === 'Speaker' ? 'Resource Speaker' : 'Training Participant'}
                 </div>
               </div>
-              <button
-                style={S.downloadBtn}
-                onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
-              >
-                Download PDF
-              </button>
+              <button style={S.downloadBtn} onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}>Download PDF</button>
             </div>
           ))}
-
           {hasSearched && results.length === 0 && !loading && (
-            <div style={S.noRecord}>
-              No record found for this name. Please check your spelling.
-            </div>
+            <div style={S.noRecord}>No record found. Please check spelling or try just your last name.</div>
           )}
         </div>
       </div>
-
-      <footer style={S.footer}>
-        NEMSU Lianga Campus - Bachelor of Science in Computer Science
-      </footer>
+      <footer style={S.footer}>NEMSU Lianga Campus - BSCS</footer>
     </div>
   );
 }
