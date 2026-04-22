@@ -2,31 +2,18 @@ import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { downloadCertificate } from '../certificateGenerator';
 
-const S = {
-  container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#f8fafc', padding: '20px', fontFamily: 'sans-serif' },
-  card: { background: '#fff', padding: '35px 25px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', width: '100%', maxWidth: '500px', textAlign: 'center', border: '1px solid #e2e8f0', boxSizing: 'border-box' },
-  header: { color: '#0f172a', fontSize: '24px', marginBottom: '10px', fontWeight: 'bold' },
-  subtitle: { color: '#64748b', fontSize: '14px', marginBottom: '25px' },
-  input: { width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginBottom: '15px', fontSize: '16px', boxSizing: 'border-box' },
-  button: { width: '100%', padding: '14px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' },
-  result: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '15px', borderRadius: '12px', marginTop: '10px', textAlign: 'left' },
-  errorBox: { marginTop: '20px', padding: '15px', background: '#fef2f2', color: '#ef4444', borderRadius: '10px', fontSize: '14px', border: '1px solid #fee2e2' }
-};
-
 export default function PublicPage() {
   const [search, setSearch] = useState('');
   const [day, setDay] = useState('1');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!search.trim()) return;
     setLoading(true);
-    setSearched(true);
     
-    // THE FIX: We use a "Loose" search so MARVIN LI L. matches even if the user types MARVIN LI
+    // SEARCH FIX: Uses % wildcard so names with dots (L.) or middle initials match easily
     const { data } = await supabase
       .from('participants')
       .select('*')
@@ -38,12 +25,13 @@ export default function PublicPage() {
   };
 
   return (
-    <div style={S.container}>
-      <div style={S.card}>
-        <h2 style={S.header}>Certificate Portal</h2>
-        <p style={S.subtitle}>NEMSU Data Insights 2026</p>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+      <div style={{ background: '#fff', padding: '40px', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', width: '100%', maxWidth: '450px', textAlign: 'center' }}>
+        <h2 style={{ fontSize: '28px', color: '#0f172a', marginBottom: '10px' }}>Certificate Portal</h2>
+        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '30px' }}>NEMSU Data Insights 2026 Virtual Training</p>
+        
         <form onSubmit={handleSearch}>
-          <select style={S.input} value={day} onChange={e => setDay(e.target.value)}>
+          <select style={S_PUB.input} value={day} onChange={e => setDay(e.target.value)}>
             <option value="1">Day 1 - April 15</option>
             <option value="2">Day 2 - April 17</option>
             <option value="3">Day 3 - April 22</option>
@@ -51,34 +39,38 @@ export default function PublicPage() {
             <option value="5">Day 5 - April 29</option>
           </select>
           <input 
-            style={S.input} 
-            placeholder="Enter Full Name" 
+            style={S_PUB.input} 
+            placeholder="Enter your Full Name" 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
           />
-          <button style={S.button} type="submit">{loading ? 'Searching...' : 'Find Certificate'}</button>
+          <button style={S_PUB.btn} type="submit">{loading ? 'Searching...' : 'Find My Certificate'}</button>
         </form>
 
-        {results.map(p => (
-          <div key={p.id} style={S.result}>
-            <div>
-              <div style={{fontWeight:'bold', fontSize:'14px'}}>{p.name}</div>
-              <div style={{fontSize:'12px', color:'#64748b'}}>{p.role}</div>
+        <div style={{ marginTop: '20px' }}>
+          {results.map(p => (
+            <div key={p.id} style={S_PUB.resCard}>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{p.name}</div>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>{p.role}</div>
+              </div>
+              <button 
+                style={S_PUB.dlBtn} 
+                onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
+              >
+                Download
+              </button>
             </div>
-            <button 
-              style={{background:'#1e293b', color:'#fff', border:'none', padding:'8px 12px', borderRadius:'6px', cursor:'pointer'}}
-              onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
-            >
-              Download
-            </button>
-          </div>
-        ))}
-
-        {searched && results.length === 0 && !loading && (
-          <div style={S.errorBox}>No record found. Please try searching with just your <b>Last Name</b>.</div>
-        )}
+          ))}
+        </div>
       </div>
-      <footer style={{marginTop:'20px', fontSize:'10px', color:'#94a3b8'}}>NEMSU Lianga Campus - BSCS</footer>
     </div>
   );
 }
+
+const S_PUB = {
+  input: { width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', marginBottom: '15px', fontSize: '16px', boxSizing: 'border-box' },
+  btn: { width: '100%', padding: '14px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' },
+  resCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '15px', borderRadius: '12px', marginBottom: '10px' },
+  dlBtn: { background: '#1e293b', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }
+};
