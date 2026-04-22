@@ -5,7 +5,10 @@ import { getCertificateDataUrl, downloadCertificate } from '../certificateGenera
 
 export default function CertificatePage() {
   const { name, day } = useParams();
-  const participantName = decodeURIComponent(name || '').trim();
+
+  // FIX: Aggressively strip ALL whitespace characters (spaces, tabs, newlines)
+  // that may have been encoded into the URL by the email template
+  const participantName = decodeURIComponent(name || '').replace(/[\s\t\n\r]+/g, ' ').trim();
 
   const [imgSrc, setImgSrc] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,13 +25,13 @@ export default function CertificatePage() {
       }
 
       try {
-        // FIX: Force name to UPPERCASE to find the record saved by Admin
-        const cleanSearch = participantName.replace(/\s+/g, ' ').toUpperCase();
+        // FIX: Use uppercase + wildcard ilike so minor spacing/encoding issues don't break lookup
+        const cleanSearch = participantName.replace(/\s+/g, ' ').trim().toUpperCase();
 
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role, name')
-          .ilike('name', cleanSearch) 
+          .ilike('name', `%${cleanSearch}%`)   // FIX: added wildcards so partial matches still resolve
           .eq('cert_date', day)
           .maybeSingle();
 
@@ -41,7 +44,6 @@ export default function CertificatePage() {
         const role = data.role || 'Student';
         setParticipantRole(role);
 
-        // Use the official DB name for the visual image
         const imgData = await getCertificateDataUrl(data.name, day || null, role);
         setImgSrc(imgData);
       } catch (err) {
