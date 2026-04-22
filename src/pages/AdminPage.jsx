@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import emailjs from '@emailjs/browser';
 
 const ITEMS_PER_PAGE = 20;
+
 const TRAINING_DAYS = [
   { value: '1', label: 'Day 1 — April 15, 2026' },
   { value: '2', label: 'Day 2 — April 17, 2026' },
@@ -12,31 +13,48 @@ const TRAINING_DAYS = [
   { value: '5', label: 'Day 5 — April 29, 2026' },
 ];
 
+const DAY_LABEL = {
+  '1': 'April 15, 2026',
+  '2': 'April 17, 2026',
+  '3': 'April 22, 2026',
+  '4': 'April 24, 2026',
+  '5': 'April 29, 2026'
+};
+
 export default function AdminPage() {
   const navigate = useNavigate();
+
+  // Authentication State
   const [user, setUser] = useState(null);
   const [emailLogin, setEmailLogin] = useState('');
   const [pw, setPw] = useState('');
   const [authLoading, setAuthLoading] = useState(true);
   const [notification, setNotification] = useState(null);
+
+  // Participants State
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Form & Edit State
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [trainingDay, setTrainingDay] = useState('');
   const [role, setRole] = useState('Student');
+
+  // Action States
   const [adding, setAdding] = useState(false);
   const [sendingStatus, setSendingStatus] = useState(null);
   const [sendingAll, setSendingAll] = useState(false);
 
-  // --- UI STATE FOR ORIGINAL MODALS & TABS ---
-  const [activeTab, setActiveTab] = useState('list');
+  // Modal State
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [presDay, setPresDay] = useState('1');
+  const [presRole, setPresRole] = useState('All');
 
   const notify = (msg, type = 'success') => {
     setNotification({ msg, type });
@@ -50,6 +68,8 @@ export default function AdminPage() {
       setAuthLoading(false);
     };
     initAuth();
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
   useEffect(() => { if (user) fetchParticipants(); }, [user]);
@@ -61,200 +81,329 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  const handleLogin = async () => {
+    if (!emailLogin || !pw) return alert("Enter both email and password");
+    setAuthLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: emailLogin, password: pw });
+    if (error) { alert("Authentication Failed: " + error.message); setAuthLoading(false); }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
+
   const handleSave = async () => {
-    if (!name || !email || !trainingDay) return alert("All fields are required.");
+    if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
-    
-    // LOOSE CLEANING: Fixes the Google Docs hidden characters while keeping the name recognizable
-    const cleanName = name.trim().toUpperCase();
-    const payload = { 
-      name: cleanName, 
-      email: email.trim().toLowerCase(), 
-      cert_date: trainingDay, 
-      role 
+
+    // Normalize: uppercase and collapse whitespace for consistent DB storage
+    const cleanName = name.trim().replace(/\s+/g, ' ').toUpperCase();
+    const cleanEmail = email.trim().toLowerCase();
+
+    const payload = {
+      name: cleanName,
+      email: cleanEmail,
+      cert_date: trainingDay,
+      role,
     };
 
-    const { error } = editingId 
-      ? await supabase.from('participants').update(payload).eq('id', editingId)
-      : await supabase.from('participants').insert([{ ...payload, email_sent: false }]);
-
-    if (!error) {
-      notify(editingId ? "Entry Updated" : "Participant Added");
-      setName(''); setEmail(''); setTrainingDay(''); setRole('Student'); setEditingId(null);
-      fetchParticipants();
+    if (editingId) {
+      const { error } = await supabase.from('participants').update(payload).eq('id', editingId);
+      if (!error) notify("Updated Successfully!");
+      setEditingId(null);
+    } else {
+      const { error } = await supabase.from('participants').insert([{ ...payload, email_sent: false }]);
+      if (!error) notify("Added Successfully!");
     }
+
+    setName(''); setEmail(''); setTrainingDay(''); setRole('Student');
+    fetchParticipants();
     setAdding(false);
   };
 
-  // FULL BULK SEND LOGIC (RESTORED)
-  const sendBulkEmails = async () => {
-    const pending = filtered.filter(p => !p.email_sent);
-    if (pending.length === 0) return alert("No pending emails to send.");
-    if (!window.confirm(`Send emails to ${pending.length} participants?`)) return;
+  const startEdit = (p) => {
+    setEditingId(p.id);
+    setName(p.name);
+    setEmail(p.email);
+    setTrainingDay(String(p.cert_date));
+    setRole(p.role);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-    setSendingAll(true);
-    emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
-
-    for (const p of pending) {
-      try {
-        await emailjs.send(
-          process.env.REACT_APP_EMAILJS_SERVICE_ID, 
-          process.env.REACT_APP_EMAILJS_TEMPLATE_ID, 
-          {
-            to_name: p.name,
-            to_email: p.email,
-            certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}`
-          }
-        );
-        await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
-      } catch (err) {
-        console.error("Failed for:", p.name);
-      }
-    }
-    setSendingAll(false);
-    notify("Bulk sending complete");
-    fetchParticipants();
+  const sendIndividualEmail = async (p) => {
+    setSendingStatus(p.id);
+    try {
+      emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
+      // FIX: Trim the name before building the URL to prevent whitespace being encoded
+      const safeName = p.name.trim().replace(/\s+/g, ' ');
+      await emailjs.send(
+        process.env.REACT_APP_EMAILJS_SERVICE_ID,
+        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+        {
+          to_name: safeName,
+          to_email: p.email,
+          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(safeName)}/${p.cert_date}`
+        }
+      );
+      await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+      notify("Email sent!");
+      fetchParticipants();
+    } catch { notify("Failed", "error"); }
+    setSendingStatus(null);
   };
 
   const filtered = participants.filter(p => {
-    // SEARCH FIX: Allows dots and symbols to be ignored during search
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === selectedFilter;
     const matchesRole = roleFilter === 'all' || p.role === roleFilter;
     return matchesSearch && matchesDay && matchesRole;
   });
 
+  const availableToSend = filtered.filter(p => !p.email_sent);
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  if (authLoading) return <div style={L.container}>System Initializing...</div>;
+  const sendAllEmails = async () => {
+    if (availableToSend.length === 0) return alert("No pending emails.");
+    if (!window.confirm(`Send emails to ${availableToSend.length} participants?`)) return;
+    setSendingAll(true);
+    emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
+    for (const p of availableToSend) {
+      try {
+        // FIX: Trim the name before building the URL
+        const safeName = p.name.trim().replace(/\s+/g, ' ');
+        await emailjs.send(
+          process.env.REACT_APP_EMAILJS_SERVICE_ID,
+          process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+          {
+            to_name: safeName,
+            to_email: p.email,
+            certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(safeName)}/${p.cert_date}`
+          }
+        );
+        await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+      } catch (err) { console.error(p.email); }
+    }
+    notify("Bulk process finished");
+    fetchParticipants();
+    setSendingAll(false);
+  };
+
+  if (authLoading) return <div style={L.container}><p style={{ color: '#fff' }}>Verifying Session...</p></div>;
 
   if (!user) return (
     <div style={L.container}>
       <div style={L.card}>
-        <h2 style={L.title}>Admin Portal</h2>
-        <input style={L.input} type="email" placeholder="Email" value={emailLogin} onChange={e => setEmailLogin(e.target.value)} />
-        <input style={L.input} type="password" placeholder="Password" value={pw} onChange={e => setPw(e.target.value)} />
-        <button style={L.button} onClick={async () => {
-          const { error } = await supabase.auth.signInWithPassword({ email: emailLogin, password: pw });
-          if (error) alert(error.message);
-        }}>Login</button>
+        <div style={L.iconBox}>DI</div>
+        <h2 style={L.title}>Admin Access</h2>
+        <p style={L.subtitle}>Secure login for NEMSU Data Insights</p>
+        <div style={{ textAlign: 'left', width: '100%' }}>
+          <label style={L.label}>Admin Email</label>
+          <input style={L.input} type="email" value={emailLogin} onChange={e => setEmailLogin(e.target.value)} />
+          <label style={L.label}>Password</label>
+          <input style={L.input} type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+          <button style={L.button} onClick={handleLogin}>Authenticate</button>
+        </div>
       </div>
     </div>
   );
 
   return (
     <div style={S.page}>
-      {notification && <div style={{ ...S.toast, backgroundColor: notification.type === 'error' ? '#ef4444' : '#10b981' }}>{notification.msg}</div>}
-      
-      {/* ORIGINAL SIDEBAR & HEADER UI */}
-      <div style={S.sidebar}>
-        <div style={S.sidebarLogo}>DI 2026</div>
-        <nav style={S.nav}>
-          <button style={activeTab === 'list' ? S.navBtnActive : S.navBtn} onClick={() => setActiveTab('list')}>Participants</button>
-          <button style={activeTab === 'add' ? S.navBtnActive : S.navBtn} onClick={() => setActiveTab('add')}>Quick Add</button>
-          <button style={S.navBtn} onClick={() => setShowConfigModal(true)}>Settings</button>
-          <button style={{...S.navBtn, marginTop:'auto', color:'#ef4444'}} onClick={() => supabase.auth.signOut()}>Sign Out</button>
-        </nav>
-      </div>
-
-      <div style={S.main}>
-        <header style={S.header}>
-          <h2>{activeTab === 'list' ? 'Management Dashboard' : 'Add New Entry'}</h2>
-          <div style={S.userMeta}>{user.email}</div>
-        </header>
-
-        <div style={S.content}>
-          {activeTab === 'add' || editingId ? (
-            <div style={S.formCard}>
-              <h3>{editingId ? 'Edit Record' : 'Create New Participant'}</h3>
-              <div style={S.grid}>
-                <input style={S.input} placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} />
-                <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
-                <select style={S.input} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
-                  <option value="">Select Training Day</option>
-                  {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-                </select>
-                <select style={S.input} value={role} onChange={e => setRole(e.target.value)}>
-                  <option>Student</option><option>Speaker</option>
-                </select>
-              </div>
-              <div style={{marginTop:'20px', display:'flex', gap:'10px'}}>
-                <button style={S.btnPrimary} onClick={handleSave}>{adding ? 'Processing...' : 'Save Participant'}</button>
-                {editingId && <button style={S.btnOutline} onClick={() => {setEditingId(null); setName(''); setEmail(''); setActiveTab('list');}}>Cancel</button>}
-              </div>
-            </div>
-          ) : (
-            <div style={S.tableCard}>
-              <div style={S.tableActions}>
-                <input style={S.searchBar} placeholder="Search names..." value={search} onChange={e => setSearch(e.target.value)} />
-                <button style={S.btnBulk} onClick={sendBulkEmails} disabled={sendingAll}>
-                  {sendingAll ? 'Sending...' : `Bulk Email (${filtered.filter(p=>!p.email_sent).length} pending)`}
-                </button>
-              </div>
-              <table style={S.table}>
-                <thead>
-                  <tr><th>Name</th><th>Role</th><th>Training Day</th><th>Email Status</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                  {currentItems.map(p => (
-                    <tr key={p.id}>
-                      <td style={{fontWeight:'600'}}>{p.name}</td>
-                      <td><span style={p.role==='Speaker'?S.badgeSpeaker:S.badgeStudent}>{p.role}</span></td>
-                      <td>Day {p.cert_date}</td>
-                      <td style={{color: p.email_sent ? '#10b981' : '#f59e0b'}}>{p.email_sent ? 'Sent' : 'Pending'}</td>
-                      <td>
-                        <button style={S.actionBtn} onClick={() => startEdit(p)}>Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={S.pagination}>
-                <button onClick={() => setCurrentPage(p => Math.max(p-1, 1))}>Previous</button>
-                <span>Page {currentPage} of {totalPages || 1}</span>
-                <button onClick={() => setCurrentPage(p => Math.min(p+1, totalPages))}>Next</button>
-              </div>
-            </div>
-          )}
+      {notification && (
+        <div style={{ ...S.toast, backgroundColor: notification.type === 'error' ? '#ef4444' : '#10b981' }}>
+          {notification.msg}
         </div>
-      </div>
+      )}
+
+      <header style={S.header}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={S.miniLogo}>DI</div>
+          <h1 style={{ fontSize: '1.1rem', margin: 0, fontWeight: 700, color: '#0f172a' }}>Data Insights 2026</h1>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button style={S.btnOutline} onClick={() => setShowConfigModal(true)}>Presentation Mode</button>
+          <button style={{ ...S.btnOutline, color: '#ef4444' }} onClick={handleLogout}>Logout</button>
+        </div>
+      </header>
+
+      <main style={S.mainContent}>
+        <div style={{ ...S.card, borderLeft: editingId ? '8px solid #3b82f6' : '1px solid #e2e8f0' }}>
+          <h3 style={S.cardTitle}>{editingId ? 'EDITING PARTICIPANT' : 'ADD NEW PARTICIPANT'}</h3>
+          <div style={S.inputGrid}>
+            <input style={S.input} placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} />
+            <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
+            <select style={S.input} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
+              <option value="">Select Day</option>
+              {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+            <select style={S.input} value={role} onChange={e => setRole(e.target.value)}>
+              <option>Student</option><option>Speaker</option>
+            </select>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button style={S.btnPrimary} onClick={handleSave}>{adding ? '...' : editingId ? 'UPDATE' : 'ADD'}</button>
+              {editingId && <button style={S.btnOutline} onClick={() => { setEditingId(null); setName(''); setEmail(''); }}>CANCEL</button>}
+            </div>
+          </div>
+        </div>
+
+        <div style={S.card}>
+          <div style={S.filterBar}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <input
+                style={{ ...S.input, width: '200px' }}
+                placeholder="Search name..."
+                value={search}
+                onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+              />
+              <select style={S.input} value={selectedFilter} onChange={e => { setSelectedFilter(e.target.value); setCurrentPage(1); }}>
+                <option value="all">All Days</option>
+                {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
+              </select>
+              <select style={S.input} value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setCurrentPage(1); }}>
+                <option value="all">All Roles</option>
+                <option value="Student">Students Only</option>
+                <option value="Speaker">Speakers Only</option>
+              </select>
+            </div>
+            <button style={{ ...S.btnPrimary, backgroundColor: '#10b981' }} onClick={sendAllEmails} disabled={sendingAll}>
+              {sendingAll ? 'Processing...' : `Send to ${availableToSend.length} Available`}
+            </button>
+          </div>
+
+          <div style={S.statsRow}>
+            <div style={S.statBadge}>Total: {filtered.length}</div>
+            <div style={{ ...S.statBadge, background: '#f0fdf4', color: '#166534' }}>Students: {filtered.filter(p => p.role === 'Student').length}</div>
+            <div style={{ ...S.statBadge, background: '#fdf2f8', color: '#9d174d' }}>Speakers: {filtered.filter(p => p.role === 'Speaker').length}</div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <th style={S.th}>#</th>
+                  <th style={S.th}>Full Name</th>
+                  <th style={S.th}>Role</th>
+                  <th style={S.th}>Email</th>
+                  <th style={S.th}>Date</th>
+                  <th style={S.th}>Status</th>
+                  <th style={S.th}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentItems.map((p, i) => (
+                  <tr key={p.id}>
+                    <td style={S.td}>{((currentPage - 1) * ITEMS_PER_PAGE) + i + 1}</td>
+                    <td style={{ ...S.td, fontWeight: '600', color: '#1e293b' }}>{p.name}</td>
+                    <td style={S.td}>{p.role}</td>
+                    <td style={S.td}>{p.email}</td>
+                    <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
+                    <td style={S.td}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: p.email_sent ? '#059669' : '#d97706' }}>
+                        {p.email_sent ? 'SENT' : 'PENDING'}
+                      </span>
+                    </td>
+                    <td style={S.td}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button style={S.btnAction} onClick={() => startEdit(p)}>Edit</button>
+                        <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>
+                          {sendingStatus === p.id ? '...' : 'Send'}
+                        </button>
+                        <button
+                          style={{ ...S.btnAction, color: '#ef4444' }}
+                          onClick={async () => {
+                            if (window.confirm("Delete?")) {
+                              await supabase.from('participants').delete().eq('id', p.id);
+                              fetchParticipants();
+                              notify("Deleted", "error");
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={S.pagination}>
+            <button
+              style={{ ...S.btnOutline, visibility: currentPage === 1 ? 'hidden' : 'visible' }}
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+            >
+              Previous
+            </button>
+            <span style={{ fontSize: '0.9rem', color: '#64748b' }}>
+              Page <strong>{currentPage}</strong> of {totalPages || 1}
+            </span>
+            <button
+              style={{ ...S.btnOutline, visibility: currentPage === totalPages || totalPages === 0 ? 'hidden' : 'visible' }}
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </main>
+
+      {showConfigModal && (
+        <div style={S.overlay}>
+          <div style={S.modal}>
+            <h3 style={{ marginTop: 0 }}>Presentation View</h3>
+            <select style={{ ...S.input, width: '100%', marginBottom: '15px' }} value={presDay} onChange={e => setPresDay(e.target.value)}>
+              {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+            <select style={{ ...S.input, width: '100%', marginBottom: '25px' }} value={presRole} onChange={e => setPresRole(e.target.value)}>
+              <option value="All">All Roles</option>
+              <option value="Speaker">Speakers Only</option>
+              <option value="Student">Students Only</option>
+            </select>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button style={{ ...S.btnPrimary, flex: 1 }} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>Launch</button>
+              <button style={{ ...S.btnOutline, flex: 1 }} onClick={() => setShowConfigModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// RESTORED ORIGINAL STYLES (THE LONG STYLESHEET)
 const S = {
-  page: { display: 'flex', minHeight: '100vh', backgroundColor: '#f1f5f9', fontFamily: 'Inter, system-ui, sans-serif' },
-  sidebar: { width: '260px', background: '#0f172a', color: '#fff', display: 'flex', flexDirection: 'column', padding: '20px' },
-  sidebarLogo: { fontSize: '24px', fontWeight: '800', marginBottom: '40px', color: '#3b82f6', textAlign: 'center' },
-  nav: { display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 },
-  navBtn: { padding: '12px 15px', background: 'none', border: 'none', color: '#94a3b8', textAlign: 'left', cursor: 'pointer', borderRadius: '8px', fontWeight: '500' },
-  navBtnActive: { padding: '12px 15px', background: '#1e293b', border: 'none', color: '#3b82f6', textAlign: 'left', cursor: 'pointer', borderRadius: '8px', fontWeight: 'bold' },
-  main: { flex: 1, display: 'flex', flexDirection: 'column' },
-  header: { padding: '20px 40px', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  userMeta: { fontSize: '13px', color: '#64748b' },
-  content: { padding: '40px' },
-  formCard: { background: '#fff', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' },
-  input: { padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' },
-  btnPrimary: { background: '#3b82f6', color: '#fff', padding: '12px 25px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
-  btnOutline: { background: 'none', border: '1px solid #cbd5e1', padding: '12px 25px', borderRadius: '8px', cursor: 'pointer' },
-  tableCard: { background: '#fff', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' },
-  tableActions: { display: 'flex', justifyContent: 'space-between', marginBottom: '20px', gap: '15px' },
-  searchBar: { flex: 1, padding: '10px 15px', borderRadius: '8px', border: '1px solid #cbd5e1' },
-  btnBulk: { background: '#10b981', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
-  table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
-  badgeStudent: { padding: '4px 8px', background: '#eff6ff', color: '#1d4ed8', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' },
-  badgeSpeaker: { padding: '4px 8px', background: '#fff7ed', color: '#9a3412', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' },
-  actionBtn: { padding: '6px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer' },
-  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '30px', fontSize: '14px' },
-  toast: { position: 'fixed', top: '20px', right: '20px', padding: '15px 25px', borderRadius: '10px', color: '#fff', zIndex: 1000, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }
+  page: { minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' },
+  header: { padding: '0.8rem 2rem', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 },
+  miniLogo: { width: '32px', height: '32px', background: '#3b82f6', borderRadius: '8px', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 'bold', fontSize: '0.8rem' },
+  mainContent: { padding: '2rem', maxWidth: '1200px', margin: '0 auto' },
+  card: { background: '#fff', padding: '1.5rem', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '2rem', border: '1px solid #e2e8f0' },
+  cardTitle: { marginTop: 0, marginBottom: '1.2rem', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase' },
+  inputGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' },
+  input: { padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', color: '#1e293b' },
+  btnPrimary: { backgroundColor: '#3b82f6', color: 'white', padding: '0.6rem 1.2rem', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer' },
+  btnOutline: { background: 'none', color: '#475569', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', cursor: 'pointer' },
+  btnAction: { padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer' },
+  filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' },
+  statsRow: { display: 'flex', gap: '10px', marginBottom: '1.5rem' },
+  statBadge: { padding: '5px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', background: '#eff6ff', color: '#1d4ed8' },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' },
+  th: { padding: '12px', textAlign: 'left', borderBottom: '2px solid #f1f5f9', color: '#64748b' },
+  td: { padding: '12px', borderBottom: '1px solid #f1f5f9', color: '#475569' },
+  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '20px', padding: '10px' },
+  overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
+  modal: { background: '#fff', padding: '2rem', borderRadius: '20px', width: '340px' },
+  toast: { position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', padding: '12px 24px', borderRadius: '8px', color: '#fff', fontWeight: 'bold', zIndex: 1000 }
 };
 
 const L = {
   container: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a' },
-  card: { background: '#1e293b', padding: '2.5rem', borderRadius: '20px', textAlign: 'center', width: '340px' },
-  title: { color: '#fff', marginBottom: '2rem', fontSize: '24px' },
-  input: { width: '100%', padding: '12px', marginBottom: '1rem', borderRadius: '8px', border: 'none', boxSizing: 'border-box' },
-  button: { width: '100%', padding: '12px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }
+  card: { backgroundColor: '#1e293b', padding: '3rem', borderRadius: '24px', textAlign: 'center', width: '100%', maxWidth: '380px' },
+  iconBox: { width: '60px', height: '60px', background: '#3b82f6', borderRadius: '16px', display: 'grid', placeItems: 'center', color: '#fff', fontSize: '1.5rem', fontWeight: '800', margin: '0 auto 20px' },
+  title: { color: '#ffffff', fontSize: '24px', margin: '0 0 8px' },
+  subtitle: { color: '#94a3b8', fontSize: '14px', marginBottom: '30px' },
+  label: { color: '#94a3b8', fontSize: '0.8rem', display: 'block', marginBottom: '8px' },
+  input: { width: '100%', padding: '14px', borderRadius: '12px', background: '#0f172a', border: '1px solid #334155', color: '#fff', marginBottom: '20px' },
+  button: { width: '100%', padding: '14px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }
 };
