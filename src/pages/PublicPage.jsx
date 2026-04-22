@@ -41,9 +41,17 @@ export default function PublicPage() {
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
-    // FIX: Normalize search to UPPERCASE to match database
-    const cleanSearch = search.trim().replace(/\s+/g, ' ').toUpperCase();
-    if (!cleanSearch) return;
+
+    // FIX: Normalize unicode characters (handles mobile smart apostrophes, accents, etc.)
+    // then strip ALL non-printable/control characters, collapse whitespace, uppercase
+    const normalized = search
+      .normalize('NFKD')                        // decompose unicode (accents, etc.)
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // strip control characters
+      .replace(/\s+/g, ' ')                     // collapse any whitespace
+      .trim()
+      .toUpperCase();
+
+    if (!normalized) return;
 
     setLoading(true);
     setHasSearched(true);
@@ -52,7 +60,7 @@ export default function PublicPage() {
       const { data, error } = await supabase
         .from('participants')
         .select('*')
-        .ilike('name', `%${cleanSearch}%`) 
+        .ilike('name', `%${normalized}%`)
         .eq('cert_date', selectedDay);
 
       if (!error) setResults(data || []);
@@ -86,8 +94,11 @@ export default function PublicPage() {
                 placeholder="Enter Name" 
                 value={search} 
                 onChange={(e) => setSearch(e.target.value)} 
-                type="search"
-                autoCapitalize="words"
+                type="text"
+                // FIX: Changed from type="search" to type="text" — mobile browsers
+                // sometimes add extra characters or behave differently with type="search".
+                // Removed autoCapitalize to prevent mobile OS from injecting formatting chars.
+                autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
               />
@@ -113,7 +124,7 @@ export default function PublicPage() {
           )}
         </div>
       </div>
-      <footer style={S.footer}>NEMSU Lianga Campus - BSCS</footer>
+      <footer style={S.footer}>NEMSU Lianga Campus - BS in Computer Science</footer>
     </div>
   );
 }
