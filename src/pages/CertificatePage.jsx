@@ -6,9 +6,12 @@ import { getCertificateDataUrl, downloadCertificate } from '../certificateGenera
 export default function CertificatePage() {
   const { name, day } = useParams();
 
-  // FIX: Aggressively strip ALL whitespace characters (spaces, tabs, newlines)
-  // that may have been encoded into the URL by the email template
-  const participantName = decodeURIComponent(name || '').replace(/[\s\t\n\r]+/g, ' ').trim();
+  // KEY FIX: Strip stray whitespace/tabs/newlines that email clients encode into the URL,
+  // but do NOT uppercase or normalize — ilike handles case natively.
+  const participantName = decodeURIComponent(name || '')
+    .replace(/[\t\n\r]+/g, ' ')  // replace tabs/newlines with space
+    .replace(/\s+/g, ' ')        // collapse multiple spaces
+    .trim();
 
   const [imgSrc, setImgSrc] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -25,13 +28,15 @@ export default function CertificatePage() {
       }
 
       try {
-        // FIX: Use uppercase + wildcard ilike so minor spacing/encoding issues don't break lookup
-        const cleanSearch = participantName.replace(/\s+/g, ' ').trim().toUpperCase();
+        // KEY FIX: Do NOT uppercase before searching.
+        // ilike in Postgres is already case-insensitive.
+        // Using wildcards (%) so minor URL encoding issues don't break the lookup.
+        const cleanSearch = participantName.replace(/\s+/g, ' ').trim();
 
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role, name')
-          .ilike('name', `%${cleanSearch}%`)   // FIX: added wildcards so partial matches still resolve
+          .ilike('name', `%${cleanSearch}%`)
           .eq('cert_date', day)
           .maybeSingle();
 
@@ -44,6 +49,7 @@ export default function CertificatePage() {
         const role = data.role || 'Student';
         setParticipantRole(role);
 
+        // Use data.name (from DB) to generate the certificate — it's the clean stored version
         const imgData = await getCertificateDataUrl(data.name, day || null, role);
         setImgSrc(imgData);
       } catch (err) {
@@ -59,6 +65,7 @@ export default function CertificatePage() {
   const handleDownload = async () => {
     setDownloading(true);
     try {
+      // Use participantName from URL (cleaned) for the download filename
       await downloadCertificate(participantName, day || null, participantRole);
     } catch (err) {
       alert("Download failed.");
@@ -81,7 +88,7 @@ export default function CertificatePage() {
           <div style={styles.centerBox}><div style={styles.spinner} /><p>Verifying Credential...</p></div>
         ) : error ? (
           <div style={styles.centerBox}>
-            <p style={{color: '#ef4444', marginBottom: '20px'}}>{error}</p>
+            <p style={{ color: '#ef4444', marginBottom: '20px' }}>{error}</p>
             <Link to="/" style={styles.btnSecondary}>Back to Search</Link>
           </div>
         ) : (
