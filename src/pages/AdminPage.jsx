@@ -97,11 +97,13 @@ export default function AdminPage() {
     if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
     
-    // FIX: Normalize the name to handle mobile keyboard hidden characters and extra spaces
+    // NEW CLEANER: Specifically removes Non-Breaking Spaces (from Google Docs)
+    // and other invisible characters that break mobile search
     const cleanName = name
       .normalize('NFKD') 
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Strips hidden control characters
-      .replace(/\s+/g, ' ') // Collapses multiple spaces into one
+      .replace(/[\u00A0\u1680​\u180e\u2000-\u200b\u202f\u205f\u3000\ufeff]/g, ' ') 
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/\s+/g, ' ') 
       .trim()
       .toUpperCase();
 
@@ -157,9 +159,8 @@ export default function AdminPage() {
     setSendingStatus(null);
   };
 
-  // FIX: Normalized search to match the cleaned names in the DB
   const filtered = participants.filter(p => {
-    const cleanSearch = search.normalize('NFKD').replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim().toLowerCase();
+    const cleanSearch = search.normalize('NFKD').replace(/\s+/g, ' ').trim().toLowerCase();
     const matchesSearch = p.name.toLowerCase().includes(cleanSearch);
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === selectedFilter;
     const matchesRole = roleFilter === 'all' || p.role === roleFilter;
@@ -330,7 +331,6 @@ export default function AdminPage() {
   );
 }
 
-// STYLES KEPT EXACTLY THE SAME AS PER YOUR REQUEST
 const S = {
   page: { minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' },
   header: { padding: '0.8rem 2rem', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 },
