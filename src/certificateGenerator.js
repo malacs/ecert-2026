@@ -5,7 +5,7 @@ const loadImage = (src) =>
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Load fail: ${src}`));
+    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
     img.src = src;
   });
 
@@ -17,14 +17,16 @@ const DAY_DATES = {
   5: { day: 29, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
 };
 
-export const generateCertificate = async (participantName, trainingDay, role = 'Student') => {
+export const generateCertificate = async (participantName, trainingDay = null, role = 'Student') => {
+  const W = 1000;
+  const H = 700;
+
   const canvas = document.createElement('canvas');
-  const W = 1123; // A4 Landscape
-  const H = 794;
-  canvas.width = W; 
+  canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
+  // Load all assets
   const [bg, logoNemsu, logoCite, logoSig] = await Promise.all([
     loadImage('/cert-bg.png'),
     loadImage('/logo-nemsu.png'),
@@ -32,68 +34,78 @@ export const generateCertificate = async (participantName, trainingDay, role = '
     loadImage('/logo-signature.png'),
   ]);
 
-  // 1. Draw Background
+  ctx.clearRect(0, 0, W, H);
+
+  // 1. BACKGROUND & OVERLAY
   ctx.drawImage(bg, 0, 0, W, H);
+  ctx.fillStyle = 'rgba(10, 20, 60, 0.15)';
+  ctx.fillRect(0, 0, W, H);
 
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
+
+  // 2. LOGOS (Using your preferred spacing logic)
+  const logoSize = 75;
+  const logoY = 70;
+  const spacing = 240; 
+
+  ctx.drawImage(logoNemsu, (W / 2) - spacing, logoY, logoSize, logoSize);
+  ctx.drawImage(logoCite, (W / 2) + spacing - logoSize, logoY, logoSize, logoSize);
+
+  // 3. HEADER TEXT
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
 
-  // 2. Header Section
-  // Logos: NEMSU on Left, CITE on Right
-  ctx.drawImage(logoNemsu, 310, 55, 75, 75);
-  ctx.drawImage(logoCite, 735, 55, 75, 75);
-
-  ctx.font = '14px Arial';
-  ctx.fillText('Republic of the Philippines', W / 2, 70);
-  ctx.font = 'bold 18px Arial';
-  ctx.fillText('North Eastern Mindanao State University', W / 2, 90);
-  ctx.font = '14px Arial';
+  ctx.font = '13px Arial';
+  ctx.fillText('Republic of the Philippines', W / 2, 60);
+  ctx.font = 'bold 17px Arial';
+  ctx.fillText('North Eastern Mindanao State University', W / 2, 85);
+  ctx.font = '13px Arial';
   ctx.fillText('Lianga Campus', W / 2, 105);
-  ctx.font = 'bold 15px Arial';
+  ctx.font = 'bold 14px Arial';
   ctx.fillText('College of Information Technology Education', W / 2, 135);
   ctx.font = '13px Arial';
-  ctx.fillText('Department of Computer Studies', W / 2, 150);
+  ctx.fillText('Department of Computer Studies', W / 2, 155);
 
-  // 3. Title Section
-  ctx.font = 'bold 42px Arial';
+  // 4. TITLE & PRESENTATION LINE
+  ctx.font = 'bold 38px Arial';
   const title = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
-  ctx.fillText(title, W / 2, 245);
+  ctx.fillText(title, W / 2, 220);
 
-  ctx.font = 'italic 18px Georgia';
-  ctx.fillText('This certificate is hereby presented to', W / 2, 285);
+  ctx.font = 'italic 16px Georgia';
+  ctx.fillText('This certificate is hereby presented to', W / 2, 255);
 
-  // 4. Participant Name
-  ctx.font = 'bold 60px "Times New Roman"';
-  ctx.fillText(participantName.toUpperCase(), W / 2, 365);
+  // 5. PARTICIPANT NAME
+  ctx.font = 'bold 50px "Times New Roman"';
+  ctx.fillText(participantName.toUpperCase(), W / 2, 320);
 
-  // 5. Body Text with manual line breaks
-  ctx.font = '16px Arial';
-  const lineHeight = 24;
-  const startY = 435;
-
-  ctx.fillText(`for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications`, W / 2, startY);
-  ctx.fillText(`held virtually via Google Meet on ${data.month} ${data.day}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, startY + lineHeight);
-  ctx.fillText(`to learning and professional development through active engagement in the training sessions.`, W / 2, startY + (lineHeight * 2));
-
-  // 6. Final Footer Text
-  ctx.font = '15px Arial';
-  ctx.fillText(`Given this ${data.day} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, 540);
-  ctx.fillText('Lianga, Surigao del Sur.', W / 2, 560);
-
-  // 7. Signature Area
-  ctx.drawImage(logoSig, (W / 2) - 60, 590, 120, 70);
-  
-  ctx.font = 'bold 18px Arial';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 685);
+  // 6. BODY TEXT (With your specific line breaks)
   ctx.font = '14px Arial';
-  ctx.fillText('BSCS Program Coordinator', W / 2, 705);
+  const bodyY = 380;
+  const lineGap = 22;
 
-  // Output
-  const imgData = canvas.toDataURL('image/jpeg', 1.0);
+  ctx.fillText(`for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications`, W / 2, bodyY);
+  ctx.fillText(`held virtually via Google Meet on ${data.month} ${data.day}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
+  ctx.fillText(`to learning and professional development through active engagement in the training sessions.`, W / 2, bodyY + (lineGap * 2));
+
+  // 7. FOOTER LOCATION TEXT
+  ctx.font = '14px Arial';
+  ctx.fillText(`Given this ${data.day} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, 480);
+  ctx.fillText('Lianga, Surigao del Sur.', W / 2, 500);
+
+  // 8. SIGNATURE SECTION
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(logoSig, (W / 2) - 60, 530, 120, 70);
+
+  ctx.font = 'bold 16px Arial';
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 620);
+  ctx.font = '13px Arial';
+  ctx.fillText('BSCS Program Coordinator', W / 2, 640);
+
+  // OUTPUT
+  const imgData = canvas.toDataURL('image/jpeg', 0.9);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
   pdf.addImage(imgData, 'JPEG', 0, 0, W, H);
-  
+
   return { pdf, imgData };
 };
 
