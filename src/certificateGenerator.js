@@ -17,33 +17,14 @@ const DAY_DATES = {
   5: { day: 29, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
 };
 
-// Helper to wrap long body text on the canvas
-const wrapText = (ctx, text, x, y, maxWidth, lineHeight) => {
-  const words = text.split(' ');
-  let line = '';
-  for (let n = 0; n < words.length; n++) {
-    let testLine = line + words[n] + ' ';
-    let metrics = ctx.measureText(testLine);
-    if (metrics.width > maxWidth && n > 0) {
-      ctx.fillText(line, x, y);
-      line = words[n] + ' ';
-      y += lineHeight;
-    } else {
-      line = testLine;
-    }
-  }
-  ctx.fillText(line, x, y);
-};
-
 export const generateCertificate = async (participantName, trainingDay, role = 'Student') => {
   const canvas = document.createElement('canvas');
-  const W = 1123; // A4 Landscape width at 96 DPI
-  const H = 794;  // A4 Landscape height
+  const W = 1123; // A4 Landscape
+  const H = 794;
   canvas.width = W; 
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Load all assets
   const [bg, logoNemsu, logoCite, logoSig] = await Promise.all([
     loadImage('/cert-bg.png'),
     loadImage('/logo-nemsu.png'),
@@ -86,27 +67,29 @@ export const generateCertificate = async (participantName, trainingDay, role = '
   ctx.font = 'bold 60px "Times New Roman"';
   ctx.fillText(participantName.toUpperCase(), W / 2, 365);
 
-  // 5. Body Paragraph (Wrapped Text)
+  // 5. Body Text with manual line breaks
   ctx.font = '16px Arial';
-  const bodyText = `for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications held virtually via Google Meet on ${data.month} ${data.day}, ${data.year} from ${data.time}, in recognition of commitment to learning and professional development through active engagement in the training sessions.`;
-  
-  wrapText(ctx, bodyText, W / 2, 435, 750, 22);
+  const lineHeight = 24;
+  const startY = 435;
 
-  // 6. Given At Date
+  ctx.fillText(`for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications`, W / 2, startY);
+  ctx.fillText(`held virtually via Google Meet on ${data.month} ${data.day}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, startY + lineHeight);
+  ctx.fillText(`to learning and professional development through active engagement in the training sessions.`, W / 2, startY + (lineHeight * 2));
+
+  // 6. Final Footer Text
   ctx.font = '15px Arial';
-  ctx.fillText(`Given this ${data.day} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, 530);
-  ctx.fillText('Lianga, Surigao del Sur.', W / 2, 550);
+  ctx.fillText(`Given this ${data.day} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, 540);
+  ctx.fillText('Lianga, Surigao del Sur.', W / 2, 560);
 
-  // 7. Signature Section (Clean - No Blue Line)
-  ctx.drawImage(logoSig, (W / 2) - 60, 580, 120, 70); // Signature over the name
+  // 7. Signature Area
+  ctx.drawImage(logoSig, (W / 2) - 60, 590, 120, 70);
   
   ctx.font = 'bold 18px Arial';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 675);
-  
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 685);
   ctx.font = '14px Arial';
-  ctx.fillText('BSCS Program Coordinator', W / 2, 695);
+  ctx.fillText('BSCS Program Coordinator', W / 2, 705);
 
-  // Final Output
+  // Output
   const imgData = canvas.toDataURL('image/jpeg', 1.0);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
   pdf.addImage(imgData, 'JPEG', 0, 0, W, H);
