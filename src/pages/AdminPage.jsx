@@ -20,34 +20,25 @@ const DAY_LABEL = {
 export default function AdminPage() {
   const navigate = useNavigate();
 
-  // Authentication State
   const [user, setUser] = useState(null);
   const [emailLogin, setEmailLogin] = useState('');
   const [pw, setPw] = useState('');
   const [authLoading, setAuthLoading] = useState(true);
   const [notification, setNotification] = useState(null);
-
-  // Participants State
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-
-  // Form & Edit State
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [trainingDay, setTrainingDay] = useState('');
   const [role, setRole] = useState('Student');
-
-  // Action States
   const [adding, setAdding] = useState(false);
   const [sendingStatus, setSendingStatus] = useState(null);
   const [sendingAll, setSendingAll] = useState(false);
-
-  // Modal State
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [presDay, setPresDay] = useState('1');
   const [presRole, setPresRole] = useState('All');
@@ -93,15 +84,12 @@ export default function AdminPage() {
     if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
     
-    // LOGIC FIX: Normalize to UPPERCASE to ensure database consistency
-    const cleanName = name.trim().replace(/\s+/g, ' ').toUpperCase();
-    const cleanEmail = email.trim().toLowerCase();
-
+    // BACK TO OLD LOGIC: No auto-uppercase, no auto-trimming
     const payload = {
-      name: cleanName,
-      email: cleanEmail,
+      name: name,
+      email: email,
       cert_date: trainingDay,
-      role,
+      role: role,
     };
 
     if (editingId) {
@@ -131,7 +119,6 @@ export default function AdminPage() {
     setSendingStatus(p.id);
     try {
       emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
-      // LOGIC FIX: Use encodeURIComponent for URLs with names containing dots or spaces
       const safeName = encodeURIComponent(p.name);
       await emailjs.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
@@ -321,7 +308,6 @@ export default function AdminPage() {
   );
 }
 
-// STYLES PRESERVED
 const S = {
   page: { minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' },
   header: { padding: '0.8rem 2rem', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 },
