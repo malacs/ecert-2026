@@ -1,223 +1,377 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
+import emailjs from '@emailjs/browser';
 
-const styles = {
-  container: { minHeight: '100vh', background: '#f8fafc', padding: '20px', fontFamily: 'Inter, system-ui, sans-serif' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', maxWidth: '1200px', margin: '0 auto 2rem' },
-  title: { fontSize: '28px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.5px' },
-  btnLogout: { padding: '10px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s opacity' },
-  
-  card: { background: '#fff', borderRadius: '24px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', padding: '30px', maxWidth: '1200px', margin: '0 auto' },
-  
-  // Stats
-  statsRow: { display: 'flex', gap: '15px', marginBottom: '25px', flexWrap: 'wrap' },
-  statBadge: { padding: '12px 20px', borderRadius: '15px', fontSize: '0.9rem', fontWeight: '700', display: 'flex', flexDirection: 'column' },
-  statLabel: { fontSize: '0.7rem', textTransform: 'uppercase', opacity: 0.8, marginBottom: '4px' },
-  
-  // Controls
-  filterBar: { display: 'flex', gap: '12px', marginBottom: '25px', flexWrap: 'wrap', alignItems: 'center' },
-  input: { flex: 1, minWidth: '250px', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '14px' },
-  select: { padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer' },
-  btnAdd: { padding: '12px 24px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' },
+const ITEMS_PER_PAGE = 20;
 
-  // Table
-  tableWrapper: { overflowX: 'auto', borderRadius: '12px', border: '1px solid #f1f5f9' },
-  table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
-  th: { padding: '16px', background: '#f8fafc', color: '#64748b', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9' },
-  td: { padding: '16px', borderBottom: '1px solid #f1f5f9', fontSize: '14px', color: '#334155' },
-  
-  // Modal & Overlay
-  overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-  modal: { background: '#fff', padding: '40px', borderRadius: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)' },
-  
-  // Toast
-  toast: { position: 'fixed', bottom: '30px', right: '30px', padding: '16px 24px', borderRadius: '12px', color: '#fff', fontWeight: 'bold', boxShadow: '0 10px 15px rgba(0,0,0,0.1)', zIndex: 2000 }
+const TRAINING_DAYS = [
+  { value: '1', label: 'Day 1 — April 15, 2026' },
+  { value: '2', label: 'Day 2 — April 17, 2026' },
+  { value: '3', label: 'Day 3 — April 22, 2026' },
+  { value: '4', label: 'Day 4 — April 24, 2026' },
+  { value: '5', label: 'Day 5 — April 29, 2026' },
+];
+
+const DAY_LABEL = {
+  '1': 'April 15, 2026', 
+  '2': 'April 17, 2026', 
+  '3': 'April 22, 2026', 
+  '4': 'April 24, 2026', 
+  '5': 'April 29, 2026'
 };
 
 export default function AdminPage() {
   const navigate = useNavigate();
-  const [list, setList] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [toast, setToast] = useState(null);
-  
-  // Filter States
+
+  // Authentication State
+  const [user, setUser] = useState(null);
+  const [emailLogin, setEmailLogin] = useState('');
+  const [pw, setPw] = useState('');
+  const [authLoading, setAuthLoading] = useState(true);
+  const [notification, setNotification] = useState(null);
+
+  // Participants State
+  const [participants, setParticipants] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterDay, setFilterDay] = useState('All');
-  const [filterRole, setFilterRole] = useState('All');
+  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Form State
-  const [form, setForm] = useState({ name: '', email: '', day: '1', role: 'Student' });
+  // Form & Edit State
+  const [editingId, setEditingId] = useState(null);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [trainingDay, setTrainingDay] = useState('');
+  const [role, setRole] = useState('Student');
 
-  useEffect(() => { fetchParticipants(); }, []);
+  // Action States
+  const [adding, setAdding] = useState(false);
+  const [sendingStatus, setSendingStatus] = useState(null);
+  const [sendingAll, setSendingAll] = useState(false);
+
+  // Modal State
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [presDay, setPresDay] = useState('1');
+  const [presRole, setPresRole] = useState('All');
+
+  const notify = (msg, type = 'success') => {
+    setNotification({ msg, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  useEffect(() => {
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    };
+    initAuth();
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
+    return () => authListener.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => { if (user) fetchParticipants(); }, [user]);
 
   const fetchParticipants = async () => {
     setLoading(true);
     const { data } = await supabase.from('participants').select('*').order('created_at', { ascending: false });
-    setList(data || []);
+    if (data) setParticipants(data);
     setLoading(false);
+  };
+
+  const handleLogin = async () => {
+    if (!emailLogin || !pw) return alert("Enter both email and password");
+    setAuthLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: emailLogin, password: pw });
+    if (error) { alert("Authentication Failed: " + error.message); setAuthLoading(false); }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/', { replace: true });
+    navigate('/');
   };
 
-  const showNotification = (msg, type = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const handleSave = async () => {
+    if (!name || !email || !trainingDay) return alert("Please fill all fields");
+    setAdding(true);
+    
+    // MOBILE-FIX NORMALIZATION: 
+    // Strips invisible control characters and collapses mobile "smart spaces"
+    const cleanName = name
+      .normalize('NFKD') 
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
 
-  const handleAdd = async (e) => {
-    e.preventDefault();
-    const { error } = await supabase.from('participants').insert([{
-      name: form.name.trim(),
-      email: form.email.trim(),
-      cert_date: form.day,
-      role: form.role
-    }]);
+    const cleanEmail = email.trim().toLowerCase();
 
-    if (!error) {
-      showNotification('Participant added successfully!');
-      setShowModal(false);
-      setForm({ name: '', email: '', day: '1', role: 'Student' });
-      fetchParticipants();
+    const payload = {
+      name: cleanName,
+      email: cleanEmail,
+      cert_date: trainingDay,
+      role,
+    };
+
+    if (editingId) {
+      const { error } = await supabase.from('participants').update(payload).eq('id', editingId);
+      if (!error) notify("Updated Successfully!");
+      setEditingId(null);
     } else {
-      showNotification('Error adding participant', 'error');
+      const { error } = await supabase.from('participants').insert([{ ...payload, email_sent: false }]);
+      if (!error) notify("Added Successfully!");
     }
+
+    setName(''); setEmail(''); setTrainingDay(''); setRole('Student');
+    fetchParticipants();
+    setAdding(false);
   };
 
-  // Advanced Filtering Logic
-  const filtered = list.filter(p => {
-    const nameMatch = p.name.toLowerCase().includes(search.toLowerCase());
-    const dayMatch = filterDay === 'All' || String(p.cert_date) === filterDay;
-    const roleMatch = filterRole === 'All' || p.role === filterRole;
-    return nameMatch && dayMatch && roleMatch;
+  const startEdit = (p) => {
+    setEditingId(p.id);
+    setName(p.name);
+    setEmail(p.email);
+    setTrainingDay(String(p.cert_date));
+    setRole(p.role);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const sendIndividualEmail = async (p) => {
+    setSendingStatus(p.id);
+    try {
+      emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
+      await emailjs.send(
+        process.env.REACT_APP_EMAILJS_SERVICE_ID,
+        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+        {
+          to_name: p.name,
+          to_email: p.email,
+          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}`
+        }
+      );
+      await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+      notify("Email sent!");
+      fetchParticipants();
+    } catch { notify("Failed", "error"); }
+    setSendingStatus(null);
+  };
+
+  const filtered = participants.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchesDay = selectedFilter === 'all' || String(p.cert_date) === selectedFilter;
+    const matchesRole = roleFilter === 'all' || p.role === roleFilter;
+    return matchesSearch && matchesDay && matchesRole;
   });
 
+  const availableToSend = filtered.filter(p => !p.email_sent);
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const sendAllEmails = async () => {
+    if (availableToSend.length === 0) return alert("No pending emails.");
+    if (!window.confirm(`Send emails to ${availableToSend.length} participants?`)) return;
+    setSendingAll(true);
+    emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
+    for (const p of availableToSend) {
+      try {
+        await emailjs.send(process.env.REACT_APP_EMAILJS_SERVICE_ID, process.env.REACT_APP_EMAILJS_TEMPLATE_ID, {
+            to_name: p.name, to_email: p.email,
+            certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}`
+        });
+        await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+      } catch (err) { console.error(p.email); }
+    }
+    notify("Bulk process finished");
+    fetchParticipants();
+    setSendingAll(false);
+  };
+
+  if (authLoading) return <div style={L.container}><p style={{color:'#fff'}}>Verifying Session...</p></div>;
+
+  if (!user) return (
+    <div style={L.container}>
+      <div style={L.card}>
+        <div style={L.iconBox}>DI</div>
+        <h2 style={L.title}>Admin Access</h2>
+        <p style={L.subtitle}>Secure login for NEMSU Data Insights</p>
+        <div style={{ textAlign: 'left', width: '100%' }}>
+          <label style={L.label}>Admin Email</label>
+          <input style={L.input} type="email" value={emailLogin} onChange={e => setEmailLogin(e.target.value)} />
+          <label style={L.label}>Password</label>
+          <input style={L.input} type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+          <button style={L.button} onClick={handleLogin}>Authenticate</button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={styles.container}>
-      {toast && (
-        <div style={{ ...styles.toast, background: toast.type === 'error' ? '#ef4444' : '#10b981' }}>
-          {toast.msg}
+    <div style={S.page}>
+      {notification && (
+        <div style={{ ...S.toast, backgroundColor: notification.type === 'error' ? '#ef4444' : '#10b981' }}>
+          {notification.msg}
         </div>
       )}
 
-      <div style={styles.header}>
-        <h1 style={styles.title}>Data Insights Admin</h1>
-        <button onClick={handleLogout} style={styles.btnLogout}>Logout</button>
-      </div>
+      <header style={S.header}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={S.miniLogo}>DI</div>
+          <h1 style={{ fontSize: '1.1rem', margin: 0, fontWeight: 700, color: '#0f172a' }}>Data Insights 2026</h1>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button style={S.btnOutline} onClick={() => setShowConfigModal(true)}>Presentation Mode</button>
+          <button style={{ ...S.btnOutline, color: '#ef4444' }} onClick={handleLogout}>Logout</button>
+        </div>
+      </header>
 
-      <div style={styles.card}>
-        {/* Stats Row */}
-        <div style={styles.statsRow}>
-          <div style={{ ...styles.statBadge, background: '#eff6ff', color: '#1d4ed8' }}>
-            <span style={styles.statLabel}>Total Records</span>
-            <span>{filtered.length}</span>
-          </div>
-          <div style={{ ...styles.statBadge, background: '#ecfdf5', color: '#059669' }}>
-            <span style={styles.statLabel}>Students</span>
-            <span>{filtered.filter(x => x.role === 'Student').length}</span>
-          </div>
-          <div style={{ ...styles.statBadge, background: '#fff7ed', color: '#d97706' }}>
-            <span style={styles.statLabel}>Speakers</span>
-            <span>{filtered.filter(x => x.role === 'Speaker').length}</span>
+      <main style={S.mainContent}>
+        <div style={{...S.card, borderLeft: editingId ? '8px solid #3b82f6' : '1px solid #e2e8f0'}}>
+          <h3 style={S.cardTitle}>{editingId ? 'EDITING PARTICIPANT' : 'ADD NEW PARTICIPANT'}</h3>
+          <div style={S.inputGrid}>
+            <input 
+              style={S.input} 
+              placeholder="Full Name" 
+              value={name} 
+              onChange={e => setName(e.target.value)} 
+              autoComplete="off"
+              autoCorrect="off"
+            />
+            <input 
+              style={S.input} 
+              placeholder="Email Address" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+            />
+            <select style={S.input} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
+              <option value="">Select Day</option>
+              {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+            <select style={S.input} value={role} onChange={e => setRole(e.target.value)}>
+              <option>Student</option><option>Speaker</option>
+            </select>
+            <div style={{display:'flex', gap:'10px'}}>
+               <button style={S.btnPrimary} onClick={handleSave}>{adding ? '...' : editingId ? 'UPDATE' : 'ADD'}</button>
+               {editingId && <button style={S.btnOutline} onClick={() => {setEditingId(null); setName(''); setEmail('');}}>CANCEL</button>}
+            </div>
           </div>
         </div>
 
-        {/* Filter Bar */}
-        <div style={styles.filterBar}>
-          <input 
-            style={styles.input} 
-            placeholder="Filter by name..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select style={styles.select} value={filterDay} onChange={(e) => setFilterDay(e.target.value)}>
-            <option value="All">All Days</option>
-            {[1,2,3,4,5].map(d => <option key={d} value={d}>Day {d}</option>)}
-          </select>
-          <select style={styles.select} value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
-            <option value="All">All Roles</option>
-            <option value="Student">Student</option>
-            <option value="Speaker">Speaker</option>
-          </select>
-          <button style={styles.btnAdd} onClick={() => setShowModal(true)}>+ Add New</button>
-        </div>
+        <div style={S.card}>
+          <div style={S.filterBar}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <input style={{ ...S.input, width: '200px' }} placeholder="Search name..." value={search} onChange={e => {setSearch(e.target.value); setCurrentPage(1);}} />
+                <select style={S.input} value={selectedFilter} onChange={e=>{setSelectedFilter(e.target.value); setCurrentPage(1);}}>
+                    <option value="all">All Days</option>
+                    {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
+                </select>
+                <select style={S.input} value={roleFilter} onChange={e=>{setRoleFilter(e.target.value); setCurrentPage(1);}}>
+                    <option value="all">All Roles</option>
+                    <option value="Student">Students Only</option>
+                    <option value="Speaker">Speakers Only</option>
+                </select>
+            </div>
+            <button style={{ ...S.btnPrimary, backgroundColor: '#10b981' }} onClick={sendAllEmails} disabled={sendingAll}>
+              {sendingAll ? 'Processing...' : `Send to ${availableToSend.length} Available`}
+            </button>
+          </div>
 
-        {/* Table */}
-        <div style={styles.tableWrapper}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>Participant Name</th>
-                <th style={styles.th}>Role</th>
-                <th style={styles.th}>Training Day</th>
-                <th style={styles.th}>Email Address</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p) => (
-                <tr key={p.id}>
-                  <td style={{ ...styles.td, fontWeight: '700' }}>{p.name}</td>
-                  <td style={styles.td}>
-                    <span style={{ 
-                      padding: '4px 10px', 
-                      borderRadius: '6px', 
-                      fontSize: '11px', 
-                      fontWeight: 'bold',
-                      background: p.role === 'Speaker' ? '#fef3c7' : '#d1fae5',
-                      color: p.role === 'Speaker' ? '#92400e' : '#065f46'
-                    }}>
-                      {p.role.toUpperCase()}
-                    </span>
-                  </td>
-                  <td style={styles.td}>Day {p.cert_date}</td>
-                  <td style={styles.td}>{p.email || <span style={{ opacity: 0.3 }}>N/A</span>}</td>
+          <div style={S.statsRow}>
+            <div style={S.statBadge}>Total: {filtered.length}</div>
+            <div style={{ ...S.statBadge, background: '#f0fdf4', color: '#166534' }}>Students: {filtered.filter(p => p.role === 'Student').length}</div>
+            <div style={{ ...S.statBadge, background: '#fdf2f8', color: '#9d174d' }}>Speakers: {filtered.filter(p => p.role === 'Speaker').length}</div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <th style={S.th}>#</th><th style={S.th}>Full Name</th><th style={S.th}>Role</th><th style={S.th}>Email</th><th style={S.th}>Date</th><th style={S.th}>Status</th><th style={S.th}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody>
+                {currentItems.map((p, i) => (
+                  <tr key={p.id}>
+                    <td style={S.td}>{((currentPage - 1) * ITEMS_PER_PAGE) + i + 1}</td>
+                    <td style={{ ...S.td, fontWeight: '600', color: '#1e293b' }}>{p.name}</td>
+                    <td style={S.td}>{p.role}</td>
+                    <td style={S.td}>{p.email}</td>
+                    <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
+                    <td style={S.td}><span style={{fontSize:'0.7rem', fontWeight:'bold', color: p.email_sent?'#059669':'#d97706'}}>{p.email_sent?'SENT':'PENDING'}</span></td>
+                    <td style={S.td}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button style={S.btnAction} onClick={() => startEdit(p)}>Edit</button>
+                        <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>{sendingStatus === p.id ? '...' : 'Send'}</button>
+                        <button style={{ ...S.btnAction, color: '#ef4444' }} onClick={async () => { if (window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id', p.id); fetchParticipants(); notify("Deleted", "error"); } }}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      {/* Add Participant Modal */}
-      {showModal && (
-        <div style={styles.overlay}>
-          <div style={styles.modal}>
-            <h2 style={{ marginBottom: '20px', fontWeight: '800' }}>Add Participant</h2>
-            <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <input 
-                required 
-                style={styles.input} 
-                placeholder="Full Name" 
-                value={form.name}
-                onChange={e => setForm({...form, name: e.target.value})}
-              />
-              <input 
-                style={styles.input} 
-                placeholder="Email (Optional)" 
-                value={form.email}
-                onChange={e => setForm({...form, email: e.target.value})}
-              />
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <select style={{ ...styles.select, flex: 1 }} value={form.day} onChange={e => setForm({...form, day: e.target.value})}>
-                  {[1,2,3,4,5].map(d => <option key={d} value={d}>Day {d}</option>)}
-                </select>
-                <select style={{ ...styles.select, flex: 1 }} value={form.role} onChange={e => setForm({...form, role: e.target.value})}>
-                  <option value="Student">Student</option>
-                  <option value="Speaker">Speaker</option>
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button type="submit" style={{ ...styles.btnAdd, flex: 1 }}>Save</button>
-                <button type="button" onClick={() => setShowModal(false)} style={{ ...styles.select, flex: 1 }}>Cancel</button>
-              </div>
-            </form>
+          <div style={S.pagination}>
+            <button style={{ ...S.btnOutline, visibility: currentPage === 1 ? 'hidden' : 'visible' }} onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}>Previous</button>
+            <span style={{ fontSize: '0.9rem', color: '#64748b' }}>Page <strong>{currentPage}</strong> of {totalPages || 1}</span>
+            <button style={{ ...S.btnOutline, visibility: currentPage === totalPages || totalPages === 0 ? 'hidden' : 'visible' }} onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}>Next</button>
+          </div>
+        </div>
+      </main>
+
+      {showConfigModal && (
+        <div style={S.overlay}>
+          <div style={S.modal}>
+            <h3 style={{ marginTop: 0 }}>Presentation View</h3>
+            <select style={{ ...S.input, width: '100%', marginBottom: '15px' }} value={presDay} onChange={e => setPresDay(e.target.value)}>
+              {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+            <select style={{ ...S.input, width: '100%', marginBottom: '25px' }} value={presRole} onChange={e => setPresRole(e.target.value)}>
+              <option value="All">All Roles</option><option value="Speaker">Speakers Only</option><option value="Student">Students Only</option>
+            </select>
+            <div style={{ display: 'flex', gap: '10px' }}>
+                <button style={{ ...S.btnPrimary, flex: 1 }} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>Launch</button>
+                <button style={{ ...S.btnOutline, flex: 1 }} onClick={() => setShowConfigModal(false)}>Close</button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
+
+const S = {
+  page: { minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' },
+  header: { padding: '0.8rem 2rem', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 },
+  miniLogo: { width: '32px', height: '32px', background: '#3b82f6', borderRadius: '8px', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 'bold', fontSize: '0.8rem' },
+  mainContent: { padding: '2rem', maxWidth: '1200px', margin: '0 auto' },
+  card: { background: '#fff', padding: '1.5rem', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '2rem', border: '1px solid #e2e8f0' },
+  cardTitle: { marginTop: 0, marginBottom: '1.2rem', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase' },
+  inputGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' },
+  input: { padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', color: '#1e293b' },
+  btnPrimary: { backgroundColor: '#3b82f6', color: 'white', padding: '0.6rem 1.2rem', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer' },
+  btnOutline: { background: 'none', color: '#475569', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', cursor: 'pointer' },
+  btnAction: { padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer' },
+  filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' },
+  statsRow: { display: 'flex', gap: '10px', marginBottom: '1.5rem' },
+  statBadge: { padding: '5px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', background: '#eff6ff', color: '#1d4ed8' },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' },
+  th: { padding: '12px', textAlign: 'left', borderBottom: '2px solid #f1f5f9', color: '#64748b' },
+  td: { padding: '12px', borderBottom: '1px solid #f1f5f9', color: '#475569' },
+  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '20px', padding: '10px' },
+  overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
+  modal: { background: '#fff', padding: '2rem', borderRadius: '20px', width: '340px' },
+  toast: { position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', padding: '12px 24px', borderRadius: '8px', color: '#fff', fontWeight: 'bold', zIndex: 1000 }
+};
+
+const L = {
+  container: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a' },
+  card: { backgroundColor: '#1e293b', padding: '3rem', borderRadius: '24px', textAlign: 'center', width: '100%', maxWidth: '380px' },
+  iconBox: { width: '60px', height: '60px', background: '#3b82f6', borderRadius: '16px', display: 'grid', placeItems: 'center', color: '#fff', fontSize: '1.5rem', fontWeight: '800', margin: '0 auto 20px' },
+  title: { color: '#ffffff', fontSize: '24px', margin: '0 0 8px' },
+  subtitle: { color: '#94a3b8', fontSize: '14px', marginBottom: '30px' },
+  label: { color: '#94a3b8', fontSize: '0.8rem', display: 'block', marginBottom: '8px' },
+  input: { width: '100%', padding: '14px', borderRadius: '12px', background: '#0f172a', border: '1px solid #334155', color: '#fff', marginBottom: '20px' },
+  button: { width: '100%', padding: '14px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }
+};
