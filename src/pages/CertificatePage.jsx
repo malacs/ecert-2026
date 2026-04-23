@@ -1,187 +1,93 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-
-/** * CRITICAL FIX: 
- * If your file structure is:
- * src/supabaseClient.js
- * src/pages/CertificatePage.jsx
- * Then '../supabaseClient' is correct.
- * * If Vercel still complains, it usually means there is a "Ghost" file 
- * in the root directory that Git is still tracking.
- */
 import { supabase } from '../supabaseClient';
 import { getCertificateDataUrl, downloadCertificate } from '../certificateGenerator';
 
-const normalizeName = (raw) => {
-  if (!raw) return '';
-  return raw
-    .normalize('NFKD')
-    .replace(/[\u0000-\u001F\u007F-\u009F\u00A0\u200B-\u200D\uFEFF]/g, '')
-    .replace(/\+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toUpperCase();
-};
-
-const scoreMatch = (dbName, searchName) => {
-  const dbWords = normalizeName(dbName).split(' ').filter(Boolean);
-  const searchWords = normalizeName(searchName).split(' ').filter(Boolean);
-  if (searchWords.length === 0) return 0;
-  const hits = searchWords.filter(w => dbWords.includes(w)).length;
-  return Math.round((hits / searchWords.length) * 100);
-};
-
 export default function CertificatePage() {
   const { id, name, day } = useParams();
-
   const [imgSrc, setImgSrc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(false);
-  const [participantRole, setParticipantRole] = useState('Student');
-  const [dbName, setDbName] = useState('');
-  const [dbDay, setDbDay] = useState(null);
+  const [dbData, setDbData] = useState(null);
 
   useEffect(() => {
     const loadCertificate = async () => {
       try {
         let data = null;
 
-        // PATH A: Use the UUID (fixes mobile encoding issues)
-        if (id && !name) {
-          const { data: row, error: err } = await supabase
-            .from('participants')
-            .select('*')
-            .eq('id', id)
-            .maybeSingle();
-
-          if (!err && row) data = row;
+        // 1. Try finding by ID first (Most reliable for links)
+        if (id && id.length > 20) { 
+          const { data: row } = await supabase.from('participants').select('*').eq('id', id).maybeSingle();
+          if (row) data = row;
         }
 
-        // PATH B: Legacy Name/Day search
+        // 2. Fallback to Name and Day search (Simplified)
         if (!data && name && day) {
-          let decoded = name;
-          for (let i = 0; i < 2; i++) {
-            try {
-              const next = decodeURIComponent(decoded);
-              if (next === decoded) break;
-              decoded = next;
-            } catch { break; }
-          }
-          const cleanSearch = normalizeName(decoded);
-
-          const { data: allForDay } = await supabase
+          const cleanName = decodeURIComponent(name).trim();
+          const { data: rows } = await supabase
             .from('participants')
             .select('*')
+            .ilike('name', `%${cleanName}%`) // Case-insensitive partial match
             .eq('cert_date', day);
 
-          if (allForDay && allForDay.length > 0) {
-            const scored = allForDay
-              .map(p => ({ ...p, score: scoreMatch(p.name, cleanSearch) }))
-              .filter(p => p.score > 0)
-              .sort((a, b) => b.score - a.score);
-
-            if (scored.length > 0 && scored[0].score >= 45) {
-              data = scored[0];
-            }
-          }
+          if (rows && rows.length > 0) data = rows[0];
         }
 
         if (!data) {
-          setError('Certificate not found. Please check the link or search again.');
+          setError(`We couldn't find a record for "${decodeURIComponent(name || 'this participant')}".`);
           setLoading(false);
           return;
         }
 
-        setParticipantRole(data.role || 'Student');
-        setDbName(data.name);
-        setDbDay(data.cert_date);
-
-        const imgData = await getCertificateDataUrl(data.name, data.cert_date, data.role || 'Student');
+        setDbData(data);
+        const imgData = await getCertificateDataUrl(data.name, data.cert_date, data.role || 'Participant');
         setImgSrc(imgData);
       } catch (err) {
-        console.error('Error:', err);
-        setError('Failed to load certificate.');
+        setError('Technical error loading certificate.');
       } finally {
         setLoading(false);
       }
     };
-
     loadCertificate();
   }, [id, name, day]);
 
   const handleDownload = async () => {
+    if (!dbData) return;
     setDownloading(true);
-    try {
-      await downloadCertificate(dbName, dbDay, participantRole);
-    } catch {
-      alert("Download failed.");
-    }
+    await downloadCertificate(dbData.name, dbData.cert_date, dbData.role || 'Participant');
     setDownloading(false);
   };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.heroSection}>
-        <div style={styles.badge}>DATA INSIGHTS 2026</div>
-        <h1 style={styles.headerTitle}>Verification Portal</h1>
-        <p style={styles.headerSub}>Official Digital Credentials</p>
-      </div>
-
-      <div style={styles.content}>
-        {loading ? (
-          <div style={styles.centerBox}>
-            <div style={styles.spinner} />
-            <p>Verifying...</p>
-          </div>
-        ) : error ? (
-          <div style={styles.centerBox}>
-            <p style={{ color: '#ef4444', marginBottom: '20px' }}>{error}</p>
-            <Link to="/" style={styles.btnSecondary}>Back to Search</Link>
+    <div style={{ minHeight: '100vh', background: '#0f172a', color: '#fff', textAlign: 'center', padding: '40px 20px' }}>
+      <h2 style={{ color: '#c9a84c' }}>DATA INSIGHTS 2026</h2>
+      <h1>Verification Portal</h1>
+      
+      <div style={{ maxWidth: '900px', margin: '20px auto', background: '#1e293b', padding: '30px', borderRadius: '15px', border: '1px solid #334155' }}>
+        {loading ? <p>Verifying Credentials...</p> : error ? (
+          <div>
+            <p style={{ color: '#ef4444' }}>{error}</p>
+            <Link to="/" style={btnStyle}>Return to Search</Link>
           </div>
         ) : (
-          <div style={styles.certWrap}>
-            <div style={styles.infoCard}>
-              <p style={styles.issuedTo}>This certificate is officially issued to:</p>
-              <h2 style={styles.nameHeader}>{dbName}</h2>
-              <span style={styles.roleTag}>
-                {participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}
-              </span>
+          <>
+            <p>This certificate is officially issued to:</p>
+            <h2 style={{ textTransform: 'uppercase' }}>{dbData.name}</h2>
+            <div style={{ margin: '30px 0', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+              {imgSrc ? <img src={imgSrc} alt="Certificate" style={{ width: '100%', borderRadius: '5px' }} /> : <p>Generating Preview...</p>}
             </div>
-
-            <div style={styles.imgShadowBox}>
-              <img src={imgSrc} alt="Certificate" style={styles.certImg} />
-            </div>
-
-            <div style={styles.actions}>
-              <button onClick={handleDownload} disabled={downloading} style={styles.btnDownload}>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button onClick={handleDownload} disabled={downloading} style={{ ...btnStyle, background: '#c9a84c', color: '#000' }}>
                 {downloading ? 'Processing...' : 'Download PDF'}
               </button>
-              <Link to="/" style={styles.btnSecondary}>Back to Portal</Link>
+              <Link to="/" style={btnStyle}>Back to Portal</Link>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>
   );
 }
 
-const styles = {
-  page: { minHeight: '100vh', background: '#0f172a', fontFamily: 'sans-serif', color: '#fff' },
-  heroSection: { background: '#1e293b', padding: '60px 20px', textAlign: 'center', borderBottom: '1px solid #c9a84c' },
-  badge: { color: '#c9a84c', fontSize: '12px', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '10px' },
-  headerTitle: { fontSize: '28px', fontWeight: '800', margin: '0' },
-  headerSub: { color: '#94a3b8', fontSize: '16px' },
-  content: { maxWidth: '800px', margin: '-40px auto 40px', padding: '0 15px' },
-  infoCard: { background: '#1e293b', padding: '30px', borderRadius: '16px', textAlign: 'center', marginBottom: '30px', border: '1px solid rgba(255,255,255,0.1)' },
-  issuedTo: { color: '#94a3b8', fontSize: '14px' },
-  nameHeader: { fontSize: '24px', margin: '10px 0', textTransform: 'uppercase' },
-  roleTag: { color: '#c9a84c', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', border: '1px solid #c9a84c' },
-  imgShadowBox: { borderRadius: '8px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' },
-  certImg: { width: '100%', height: 'auto', display: 'block' },
-  actions: { marginTop: '30px', display: 'flex', gap: '15px', justifyContent: 'center' },
-  btnDownload: { background: '#c9a84c', color: '#000', padding: '12px 24px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' },
-  btnSecondary: { background: 'transparent', color: '#fff', padding: '12px 24px', borderRadius: '8px', border: '1px solid #fff', textDecoration: 'none' },
-  centerBox: { textAlign: 'center', padding: '100px 0' },
-  spinner: { width: 40, height: 40, border: '4px solid #334155', borderTop: '4px solid #c9a84c', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 1s linear infinite' },
-};
+const btnStyle = { padding: '12px 25px', borderRadius: '8px', textDecoration: 'none', color: '#fff', border: '1px solid #fff', fontWeight: 'bold', cursor: 'pointer' };
