@@ -32,20 +32,16 @@ export const generateCertificate = async (participantName, trainingDay = null, r
     loadImage('/logo-signature.png'),
   ]);
 
-  // Draw Background
   ctx.drawImage(bg, 0, 0, W, H);
   const { day, month, year, time } = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // Logos - Symmetrically placed around the center
   ctx.drawImage(logoNemsu, 385, 75, 65, 65);
   ctx.drawImage(logoCite, 550, 75, 65, 65);
 
-  // --- GLOBAL TEXT SETTINGS ---
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#FFFFFF';
   
-  // --- HEADER SECTION ---
   ctx.font = '11px Arial';
   ctx.fillText('Republic of the Philippines', W / 2, 55);
 
@@ -59,7 +55,6 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.fillText('College of Information Technology Education', W / 2, 115);
   ctx.fillText('Department of Computer Studies', W / 2, 130);
 
-  // --- TITLE SECTION ---
   ctx.font = 'bold 36px Arial';
   const title = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
   ctx.fillText(title, W / 2, 210);
@@ -67,11 +62,11 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = 'italic 15px Arial';
   ctx.fillText('This certificate is hereby presented to', W / 2, 245);
 
-  // --- NAME SECTION ---
+  // Participant Name
   ctx.font = 'bold 52px serif'; 
   ctx.fillText(participantName.toUpperCase(), W / 2, 310);
 
-  // --- BODY SECTION (Multi-line spacing fix) ---
+  // Body Content
   ctx.font = '13px Arial';
   const lineSpacing = 18;
   const bodyStartY = 370;
@@ -87,13 +82,10 @@ export const generateCertificate = async (participantName, trainingDay = null, r
     ctx.fillText(line, W / 2, bodyStartY + (index * lineSpacing));
   });
 
-  // --- LOCATION/DATE SECTION ---
   ctx.font = '13px Arial';
   ctx.fillText(`Given this ${day}th of ${month}, ${year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, 475);
   ctx.fillText(`Lianga, Surigao del Sur.`, W / 2, 493);
 
-  // --- SIGNATURE SECTION ---
-  // Centering the signature image itself
   ctx.drawImage(logoSig, (W / 2) - 55, 530, 110, 60);
   
   ctx.font = 'bold 14px Arial';
@@ -101,7 +93,6 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = '12px Arial';
   ctx.fillText('BSCS Program Coordinator', W / 2, 638);
 
-  // Final Output
   const imgData = canvas.toDataURL('image/jpeg', 1.0);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
   pdf.addImage(imgData, 'JPEG', 0, 0, W, H);
