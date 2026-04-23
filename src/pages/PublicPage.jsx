@@ -20,10 +20,8 @@ export default function PublicPage() {
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
     
-    // LOGIC FIX: Normalize search to UPPERCASE to match DB naming convention
-    const cleanSearch = search.trim().replace(/\s+/g, ' ').toUpperCase();
-    
-    if (!cleanSearch) return;
+    // BACK TO OLD LOGIC: Search exactly as typed
+    if (!search) return;
 
     setLoading(true);
     setHasSearched(true);
@@ -32,7 +30,7 @@ export default function PublicPage() {
       const { data, error } = await supabase
         .from('participants')
         .select('*')
-        .ilike('name', `%${cleanSearch}%`)
+        .ilike('name', `%${search}%`)
         .eq('cert_date', selectedDay);
 
       if (error) throw error;
