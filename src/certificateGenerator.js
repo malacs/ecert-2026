@@ -9,7 +9,6 @@ const loadImage = (src) =>
     img.src = src;
   });
 
-// Helper to get ordinal suffix (15th, 22nd, etc.)
 const getOrdinal = (n) => {
   const s = ["th", "st", "nd", "rd"],
     v = n % 100;
@@ -61,26 +60,19 @@ export const generateCertificate = async (participantName, trainingDay = null, r
 
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // LOGOS (FIXED SIZE + NO DISTORTION)
-  const maxLogoSize = 85; // Slightly increased for visibility
+  // LOGOS (FIXED UNIFORM SIZE)
+  // To keep both logos exactly the same size, we use a fixed diameter
+  const logoDiameter = 80; 
   const logoY = 65;
   const spacing = 240;
 
-  const drawLogo = (img, centerX) => {
-    const aspect = img.width / img.height;
-    let drawW, drawH;
-    if (aspect > 1) {
-      drawW = maxLogoSize;
-      drawH = maxLogoSize / aspect;
-    } else {
-      drawH = maxLogoSize;
-      drawW = maxLogoSize * aspect;
-    }
-    ctx.drawImage(img, centerX - drawW / 2, logoY, drawW, drawH);
+  // Optimized draw function for perfectly circular/uniform logos
+  const drawUniformLogo = (img, centerX) => {
+    ctx.drawImage(img, centerX - logoDiameter / 2, logoY, logoDiameter, logoDiameter);
   };
 
-  drawLogo(logoNemsu, (W / 2) - spacing);
-  drawLogo(logoCite, (W / 2) + spacing);
+  drawUniformLogo(logoNemsu, (W / 2) - spacing);
+  drawUniformLogo(logoCite, (W / 2) + spacing);
 
   // HEADER
   ctx.textAlign = 'center';
@@ -108,16 +100,15 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = 'bold 48px Arial';
   ctx.fillText(participantName.toUpperCase(), W / 2, 315);
 
-  // BODY (MOVED UPWARD - bodyY changed from 380 to 365)
+  // BODY
   ctx.font = '14px Arial';
   const bodyY = 365; 
   const lineGap = 22;
-
   ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, bodyY);
   ctx.fillText(`held virtually via Google Meet on ${data.month} ${data.day}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
   ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, bodyY + (lineGap * 2));
 
-  // FOOTER (With Ordinal Suffix)
+  // FOOTER
   ctx.font = '14px Arial';
   const ordinalDay = getOrdinal(data.day);
   ctx.fillText(`Given this ${ordinalDay} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, 480);
@@ -132,17 +123,26 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = '13px Arial';
   ctx.fillText('BSCS Program Coordinator', W / 2, 640);
 
-  // EXPORT
-  const imgData = canvas.toDataURL('image/jpeg', 0.9);
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
-  pdf.addImage(imgData, 'JPEG', 0, 0, W, H);
+  // MOBILE FIX: Use 'image/png' and ensure the data URL is fully resolved
+  const imgData = canvas.toDataURL('image/png', 1.0);
+
+  const pdf = new jsPDF({
+    orientation: 'landscape',
+    unit: 'px',
+    format: [W, H],
+    compress: true // Helps with mobile memory issues
+  });
+
+  pdf.addImage(imgData, 'PNG', 0, 0, W, H);
 
   return { pdf, imgData };
 };
 
 export const downloadCertificate = async (name, day, role) => {
   const { pdf } = await generateCertificate(name, day, role);
-  pdf.save(`Certificate_${name.replace(/\s+/g, '_')}.pdf`);
+  // Replaced with direct filename cleaning for safer mobile downloads
+  const safeName = name.split(' ').join('_');
+  pdf.save(`Certificate_${safeName}.pdf`);
 };
 
 export const getCertificateDataUrl = async (name, day, role) => {
