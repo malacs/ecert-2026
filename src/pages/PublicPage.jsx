@@ -41,25 +41,19 @@ export default function PublicPage() {
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
-    const cleanSearch = search.trim();
-    
-    // Prevent showing "everyone" if the search box is empty or too short
-    if (cleanSearch.length < 2) {
-      setResults([]);
-      return;
-    }
+    // FIXED: Convert to UpperCase to match the Admin's handleSave logic
+    const cleanSearch = search.trim().replace(/\s+/g, ' ').toUpperCase();
+    if (!cleanSearch) return;
 
     setLoading(true);
     setHasSearched(true);
 
     try {
-      // LOOSE SEARCH: Matches if the name CONTAINs what you typed
       const { data, error } = await supabase
         .from('participants')
         .select('*')
         .ilike('name', `%${cleanSearch}%`) 
-        .eq('cert_date', selectedDay)
-        .limit(5); // Limit results to prevent showing too many people
+        .eq('cert_date', selectedDay);
 
       if (!error) setResults(data || []);
       else setResults([]);
@@ -85,14 +79,17 @@ export default function PublicPage() {
           </div>
 
           <div style={S.formGroup}>
-            <label style={S.label}>Step 2: Enter Name</label>
+            <label style={S.label}>Step 2: Enter Full Name</label>
             <div style={S.searchWrapper}>
               <input 
                 style={S.input} 
-                placeholder="Type your name..." 
+                placeholder="Enter Name" 
                 value={search} 
                 onChange={(e) => setSearch(e.target.value)} 
-                type="text"
+                type="search"
+                autoCapitalize="words"
+                autoCorrect="off"
+                spellCheck="false"
               />
               <button type="submit" style={S.button} disabled={loading}>{loading ? '...' : 'Search'}</button>
             </div>
@@ -111,8 +108,8 @@ export default function PublicPage() {
               <button style={S.downloadBtn} onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}>Download PDF</button>
             </div>
           ))}
-          {hasSearched && results.length === 0 && !loading && search.length >= 2 && (
-            <div style={S.noRecord}>No record found. Check the selected Day or try your surname.</div>
+          {hasSearched && results.length === 0 && !loading && (
+            <div style={S.noRecord}>No record found. Please check spelling or try just your last name.</div>
           )}
         </div>
       </div>
