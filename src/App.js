@@ -9,7 +9,6 @@ import PresentationPage from './pages/PresentationPage';
 export default function App() {
   return (
     <BrowserRouter>
-      {/* This block allows the CSS to work inside your JSX file */}
       <style>
         {`
           @keyframes spin {
@@ -18,11 +17,15 @@ export default function App() {
           }
         `}
       </style>
-
       <Routes>
         <Route path="/" element={<PublicPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/presentation" element={<PresentationPage />} />
+
+        {/* NEW: ID-based route — fixes mobile encoding issues */}
+        <Route path="/certificate/:id" element={<CertificatePage />} />
+
+        {/* OLD: keep for backward compatibility with old links */}
         <Route path="/certificate/:name/:day" element={<CertificatePage />} />
       </Routes>
       <Analytics />
