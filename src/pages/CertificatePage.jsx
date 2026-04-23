@@ -1,155 +1,209 @@
-import jsPDF from 'jspdf';
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
+import { getCertificateDataUrl, downloadCertificate } from '../certificateGenerator';
 
-const loadImage = (src) =>
-  new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    img.src = src;
-  });
-
-const getOrdinal = (n) => {
-  const s = ["th", "st", "nd", "rd"],
-    v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+// Strip ALL junk from a name string — same logic used in AdminPage normalizeName()
+const normalizeName = (raw) => {
+  if (!raw) return '';
+  return raw
+    .normalize('NFKD')
+    .replace(/[\u0000-\u001F\u007F-\u009F\u00A0\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\+/g, ' ')   // mobile Gmail sometimes sends + instead of %20
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
 };
 
-const DAY_DATES = {
-  1: { day: 15, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
-  2: { day: 17, month: 'April', year: 2026, time: '8:30 AM to 12:00 PM' },
-  3: { day: 22, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
-  4: { day: 24, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
-  5: { day: 29, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
-};
+export default function CertificatePage() {
+  const { name, day } = useParams();
 
-const getGoldSignature = (image) => {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.drawImage(image, 0, 0);
-  ctx.globalCompositeOperation = 'source-atop';
-  ctx.fillStyle = '#c9a84c';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  return canvas;
-};
-
-export const generateCertificate = async (participantName, trainingDay = null, role = 'Student') => {
-  const W = 1000;
-  const H = 700;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  const [bg, logoNemsu, logoCite, logoSig] = await Promise.all([
-    loadImage('/cert-bg.png'),
-    loadImage('/logo-nemsu.png'),
-    loadImage('/logo-cite.png'),
-    loadImage('/logo-signature.png'),
-  ]);
-
-  ctx.clearRect(0, 0, W, H);
-
-  // BACKGROUND
-  ctx.drawImage(bg, 0, 0, W, H);
-  ctx.fillStyle = 'rgba(10, 20, 60, 0.15)';
-  ctx.fillRect(0, 0, W, H);
-
-  const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
-
-  // 1. LOGOS — fixed size 100px, CITE forced to same rendered size as NEMSU
-  const logoSize = 100;
-  const logoY = 60;
-  const spacing = 260;
-
-  // Draw NEMSU logo (left) — preserve aspect ratio within logoSize box
-  const drawLogoFixed = (img, centerX) => {
-    const aspect = img.width / img.height;
-    let dW = logoSize, dH = logoSize;
-    if (aspect > 1) dH = logoSize / aspect;
-    else dW = logoSize * aspect;
-    ctx.drawImage(img, centerX - dW / 2, logoY + (logoSize - dH) / 2, dW, dH);
+  // Decode the URL param — try up to 2 rounds (handles double-encoding on some Android browsers)
+  const decodeParam = (raw) => {
+    if (!raw) return '';
+    let decoded = raw;
+    for (let i = 0; i < 2; i++) {
+      try {
+        const next = decodeURIComponent(decoded);
+        if (next === decoded) break;
+        decoded = next;
+      } catch { break; }
+    }
+    return normalizeName(decoded);
   };
 
-  // FIX: Draw CITE logo at a FIXED square size (not aspect-ratio-shrunk),
-  // so it appears the same visual weight as the NEMSU logo.
-  const drawLogoSquare = (img, centerX) => {
-    // Force render into a fixed logoSize × logoSize box (may stretch slightly,
-    // but CITE logo is nearly square so it looks correct and matches NEMSU size)
-    ctx.drawImage(img, centerX - logoSize / 2, logoY, logoSize, logoSize);
+  const participantName = decodeParam(name);
+
+  const [imgSrc, setImgSrc] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [participantRole, setParticipantRole] = useState('Student');
+  const [dbName, setDbName] = useState('');
+
+  useEffect(() => {
+    const loadCertificate = async () => {
+      if (!participantName) {
+        setError('No participant name provided.');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // ── STEP 1: Try exact ilike match (works for clean names) ──────────
+        let { data, error: dbError } = await supabase
+          .from('participants')
+          .select('role, name')
+          .ilike('name', participantName)
+          .eq('cert_date', day)
+          .maybeSingle();
+
+        // ── STEP 2: Fuzzy fallback — fetch ALL records for this day,
+        //    then normalize each DB name and compare to the normalized URL name.
+        //    This handles dirty records saved before the fix.
+        if (!data) {
+          const { data: allForDay } = await supabase
+            .from('participants')
+            .select('role, name')
+            .eq('cert_date', day);
+
+          if (allForDay && allForDay.length > 0) {
+            // Find the record whose normalized name matches our normalized URL param
+            const match = allForDay.find(
+              (p) => normalizeName(p.name) === participantName
+            );
+            if (match) {
+              data = match;
+              dbError = null;
+            }
+          }
+        }
+
+        // ── STEP 3: Partial word match — last resort for badly mangled names ─
+        if (!data) {
+          const words = participantName.split(' ').filter(w => w.length > 2);
+          if (words.length > 0) {
+            // Search using the last word (usually last name, most unique)
+            const lastName = words[words.length - 1];
+            const { data: partialResults } = await supabase
+              .from('participants')
+              .select('role, name')
+              .ilike('name', `%${lastName}%`)
+              .eq('cert_date', day);
+
+            if (partialResults && partialResults.length > 0) {
+              // Score each result: count how many words from URL param appear in DB name
+              const scored = partialResults.map((p) => {
+                const dbWords = normalizeName(p.name).split(' ');
+                const hits = words.filter((w) => dbWords.includes(w)).length;
+                return { ...p, hits };
+              });
+              scored.sort((a, b) => b.hits - a.hits);
+              // Only accept if at least half the words matched
+              if (scored[0].hits >= Math.ceil(words.length / 2)) {
+                data = scored[0];
+              }
+            }
+          }
+        }
+
+        if (!data) {
+          setError('Certificate not found. Please check your name or contact the administrator.');
+          setLoading(false);
+          return;
+        }
+
+        const role = data.role || 'Student';
+        setParticipantRole(role);
+        setDbName(data.name);
+
+        const imgData = await getCertificateDataUrl(data.name, day || null, role);
+        setImgSrc(imgData);
+      } catch (err) {
+        console.error('Certificate load error:', err);
+        setError('Failed to load certificate. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCertificate();
+  }, [participantName, day]);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      await downloadCertificate(dbName || participantName, day || null, participantRole);
+    } catch {
+      alert("Download failed.");
+    }
+    setDownloading(false);
   };
 
-  drawLogoFixed(logoNemsu, (W / 2) - spacing);
-  drawLogoSquare(logoCite, (W / 2) + spacing);
+  return (
+    <div style={styles.page}>
+      <div style={styles.heroSection}>
+        <div style={styles.headerInner}>
+          <div style={styles.badge}>DATA INSIGHTS 2026</div>
+          <h1 style={styles.headerTitle}>Verification Portal</h1>
+          <p style={styles.headerSub}>Official Digital Credentials</p>
+        </div>
+      </div>
 
-  // 2. HEADER TEXT
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '13px Arial';
-  ctx.fillText('Republic of the Philippines', W / 2, 60);
-  ctx.font = 'bold 17px Arial';
-  ctx.fillText('North Eastern Mindanao State University', W / 2, 85);
-  ctx.font = '13px Arial';
-  ctx.fillText('Lianga Campus', W / 2, 105);
-  ctx.font = 'bold 14px Arial';
-  ctx.fillText('College of Information Technology Education', W / 2, 135);
-  ctx.font = '13px Arial';
-  ctx.fillText('Department of Computer Studies', W / 2, 155);
+      <div style={styles.content}>
+        {loading ? (
+          <div style={styles.centerBox}>
+            <div style={styles.spinner} />
+            <p>Verifying Credential...</p>
+          </div>
+        ) : error ? (
+          <div style={styles.centerBox}>
+            <p style={{ color: '#ef4444', marginBottom: '20px' }}>{error}</p>
+            <Link to="/" style={styles.btnSecondary}>Back to Search</Link>
+          </div>
+        ) : (
+          <div style={styles.certWrap}>
+            <div style={styles.infoCard}>
+              <p style={styles.issuedTo}>This certificate is officially issued to:</p>
+              <h2 style={styles.nameHeader}>{dbName || participantName}</h2>
+              <span style={styles.roleTag}>
+                {participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}
+              </span>
+            </div>
 
-  // 3. TITLE
-  ctx.font = 'bold 38px Arial';
-  const title = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
-  ctx.fillText(title, W / 2, 220);
+            <div style={styles.imgShadowBox}>
+              <img src={imgSrc} alt="Certificate" style={styles.certImg} />
+            </div>
 
-  ctx.font = 'italic 16px Georgia';
-  ctx.fillText('This certificate is hereby presented to', W / 2, 255);
+            <div style={styles.actions}>
+              <button onClick={handleDownload} disabled={downloading} style={styles.btnDownload}>
+                {downloading ? 'Generating PDF...' : 'Download Official PDF'}
+              </button>
+              <Link to="/" style={styles.btnSecondary}>Back to Portal</Link>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-  // 4. NAME
-  ctx.font = 'bold 48px Arial';
-  ctx.fillText(participantName.toUpperCase(), W / 2, 315);
-
-  // 5. BODY
-  ctx.font = '14px Arial';
-  const bodyY = 360;
-  const lineGap = 22;
-  ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, bodyY);
-  ctx.fillText(`held virtually via Google Meet on ${data.month} ${getOrdinal(data.day)}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
-  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, bodyY + (lineGap * 2));
-
-  // 6. FOOTER
-  ctx.font = '14px Arial';
-  const footerY = 465;
-  ctx.fillText(`Given this ${getOrdinal(data.day)} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, footerY);
-  ctx.fillText('Lianga, Surigao del Sur.', W / 2, footerY + 20);
-
-  // 7. SIGNATURE
-  const goldSigCanvas = getGoldSignature(logoSig);
-  const sigW = 100;
-  const sigH = 55;
-  ctx.drawImage(goldSigCanvas, (W / 2) - (sigW / 2), 525, sigW, sigH);
-
-  ctx.font = 'bold 16px Arial';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 605);
-  ctx.font = '13px Arial';
-  ctx.fillText('BSCS Program Coordinator', W / 2, 625);
-
-  const imgData = canvas.toDataURL('image/png', 1.0);
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H], compress: true });
-  pdf.addImage(imgData, 'PNG', 0, 0, W, H);
-  return { pdf, imgData };
-};
-
-// MOBILE URL FIX
-export const downloadCertificate = async (name, day, role) => {
-  const { pdf } = await generateCertificate(name, day, role);
-  const cleanName = name.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-  pdf.save(`Certificate_${cleanName}.pdf`);
-};
-
-export const getCertificateDataUrl = async (name, day, role) => {
-  const { imgData } = await generateCertificate(name, day, role);
-  return imgData;
+const styles = {
+  page: { minHeight: '100vh', background: '#0f172a', fontFamily: 'Inter, sans-serif', color: '#fff', boxSizing: 'border-box' },
+  heroSection: { background: 'radial-gradient(circle at top, #1e293b 0%, #0f172a 100%)', padding: '60px 20px', textAlign: 'center', borderBottom: '1px solid rgba(201, 168, 76, 0.2)' },
+  badge: { color: '#c9a84c', fontSize: '12px', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '10px' },
+  headerTitle: { fontSize: 'calc(24px + 1vw)', fontWeight: '800', margin: '0' },
+  headerSub: { color: '#94a3b8', fontSize: '16px', marginTop: '5px' },
+  content: { maxWidth: '1000px', margin: '-40px auto 40px', padding: '0 15px', boxSizing: 'border-box' },
+  infoCard: { background: '#1e293b', padding: '30px 20px', borderRadius: '16px', textAlign: 'center', marginBottom: '30px', border: '1px solid rgba(255,255,255,0.1)', boxSizing: 'border-box' },
+  issuedTo: { color: '#94a3b8', fontSize: '14px', marginBottom: '5px' },
+  nameHeader: { fontSize: '24px', color: '#fff', margin: '0 0 10px 0', wordBreak: 'break-word', textTransform: 'uppercase' },
+  roleTag: { background: 'rgba(201, 168, 76, 0.15)', color: '#c9a84c', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #c9a84c' },
+  imgShadowBox: { borderRadius: '8px', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.5)', border: '4px solid #1e293b', maxWidth: '100%' },
+  certImg: { width: '100%', height: 'auto', display: 'block' },
+  actions: { marginTop: '40px', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' },
+  btnDownload: { background: '#c9a84c', color: '#000', padding: '14px 28px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', minWidth: '200px' },
+  btnSecondary: { background: 'transparent', color: '#fff', padding: '14px 28px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', textDecoration: 'none', fontWeight: '600', minWidth: '200px', textAlign: 'center' },
+  centerBox: { textAlign: 'center', padding: '100px 0' },
+  spinner: { width: 40, height: 40, border: '4px solid #334155', borderTop: '4px solid #c9a84c', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 1s linear infinite' },
 };
