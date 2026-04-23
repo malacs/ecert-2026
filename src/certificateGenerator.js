@@ -72,9 +72,9 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   const bodyStartY = 370;
   
   const lines = [
-    "for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining",
-    "Concepts, Techniques, and Applications held virtually via Google Meet on",
-    `${month} ${day}, ${year} from ${time}, in recognition of commitment to learning`,
+    "for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and ",
+    "Applications",
+    "held virtually via Google Meet on ${month} ${day}, ${year} from ${time}, in recognition of commitment to learning",
     "and professional development through active engagement in the training sessions."
   ];
 
