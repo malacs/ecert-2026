@@ -60,18 +60,16 @@ export const generateCertificate = async (participantName, trainingDay = null, r
 
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // 1. LOGOS (FIXED SIZE - NO CLIPPING)
-  const logoSize = 80;
-  const logoY = 65;
-  const spacing = 240;
+  // 1. LOGOS (Increased size to 100px)
+  const logoSize = 100; 
+  const logoY = 60;
+  const spacing = 260;
 
-  // Simple proportional draw to ensure they look like the original files
   const drawLogoFixed = (img, centerX) => {
     const aspect = img.width / img.height;
     let dW = logoSize, dH = logoSize;
     if (aspect > 1) dH = logoSize / aspect;
     else dW = logoSize * aspect;
-    
     ctx.drawImage(img, centerX - dW / 2, logoY + (logoSize - dH) / 2, dW, dH);
   };
 
@@ -104,45 +102,43 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = 'bold 48px Arial';
   ctx.fillText(participantName.toUpperCase(), W / 2, 315);
 
-  // 5. BODY (MOVED UP)
+  // 5. BODY (MOVED UPWARD)
   ctx.font = '14px Arial';
-  const bodyY = 365; 
+  const bodyY = 360; 
   const lineGap = 22;
   ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, bodyY);
   ctx.fillText(`held virtually via Google Meet on ${data.month} ${getOrdinal(data.day)}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
   ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, bodyY + (lineGap * 2));
 
-  // 6. FOOTER
+  // 6. FOOTER (MOVED UPWARD)
   ctx.font = '14px Arial';
-  ctx.fillText(`Given this ${getOrdinal(data.day)} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, 480);
-  ctx.fillText('Lianga, Surigao del Sur.', W / 2, 500);
+  const footerY = 465;
+  ctx.fillText(`Given this ${getOrdinal(data.day)} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, footerY);
+  ctx.fillText('Lianga, Surigao del Sur.', W / 2, footerY + 20);
 
-  // 7. SIGNATURE (GOLD)
+  // 7. SIGNATURE (Smaller & Adjusted Position)
   const goldSigCanvas = getGoldSignature(logoSig);
-  ctx.drawImage(goldSigCanvas, (W / 2) - 60, 535, 120, 65);
+  const sigW = 100; // Reduced from 120
+  const sigH = 55;  // Reduced from 65
+  ctx.drawImage(goldSigCanvas, (W / 2) - (sigW / 2), 525, sigW, sigH);
 
   ctx.font = 'bold 16px Arial';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 620);
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 605);
   ctx.font = '13px Arial';
-  ctx.fillText('BSCS Program Coordinator', W / 2, 640);
+  ctx.fillText('BSCS Program Coordinator', W / 2, 625);
 
   const imgData = canvas.toDataURL('image/png', 1.0);
-  const pdf = new jsPDF({
-    orientation: 'landscape',
-    unit: 'px',
-    format: [W, H],
-    compress: true 
-  });
-
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H], compress: true });
   pdf.addImage(imgData, 'PNG', 0, 0, W, H);
   return { pdf, imgData };
 };
 
-// MOBILE FIX: Use encodeURIComponent for safe URL handling
+// MOBILE URL FIX
 export const downloadCertificate = async (name, day, role) => {
   const { pdf } = await generateCertificate(name, day, role);
-  const safeName = encodeURIComponent(name.trim()).replace(/%20/g, '_');
-  pdf.save(`Certificate_${safeName}.pdf`);
+  // Strictly clean the name for mobile file systems
+  const cleanName = name.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  pdf.save(`Certificate_${cleanName}.pdf`);
 };
 
 export const getCertificateDataUrl = async (name, day, role) => {
