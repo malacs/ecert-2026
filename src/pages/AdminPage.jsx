@@ -21,17 +21,36 @@ const DAY_LABEL = {
   '5': 'April 29, 2026'
 };
 
+// ─── MASTER NAME CLEANER ─────────────────────────────────────────────────────
+// Strips ALL invisible/control chars, collapses spaces, uppercases.
+// Used when SAVING to DB and when BUILDING certificate URLs.
+const normalizeName = (raw) => {
+  if (!raw) return '';
+  return raw
+    .normalize('NFKD')
+    .replace(/[\u0000-\u001F\u007F-\u009F\u00A0\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+};
+
+// Build certificate URL — always re-cleans the name before encoding
+// so dirty DB records (saved before the fix) still produce clean URLs
+const buildCertUrl = (origin, name, certDate) => {
+  const safe = normalizeName(name);
+  return `${origin}/certificate/${encodeURIComponent(safe)}/${certDate}`;
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function AdminPage() {
   const navigate = useNavigate();
 
-  // Authentication State
   const [user, setUser] = useState(null);
   const [emailLogin, setEmailLogin] = useState('');
   const [pw, setPw] = useState('');
   const [authLoading, setAuthLoading] = useState(true);
   const [notification, setNotification] = useState(null);
 
-  // Participants State
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -39,19 +58,16 @@ export default function AdminPage() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Form & Edit State
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [trainingDay, setTrainingDay] = useState('');
   const [role, setRole] = useState('Student');
 
-  // Action States
   const [adding, setAdding] = useState(false);
   const [sendingStatus, setSendingStatus] = useState(null);
   const [sendingAll, setSendingAll] = useState(false);
 
-  // Modal State
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [presDay, setPresDay] = useState('1');
   const [presRole, setPresRole] = useState('All');
@@ -97,63 +113,38 @@ export default function AdminPage() {
     if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
 
-    // Normalize name
-    const cleanName = name
-      .normalize('NFKD')
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .toUpperCase();
+    const finalName = normalizeName(name);
+    const finalEmail = email.trim().toLowerCase();
 
-    const cleanEmail = email.trim().toLowerCase();
-
-    const payload = {
-      name: cleanName,
-      email: cleanEmail,
-      cert_date: trainingDay,
-      role,
-    };
+    const payload = { name: finalName, email: finalEmail, cert_date: trainingDay, role };
 
     if (editingId) {
-      // When editing, check for duplicate only if name or date changed
       const original = participants.find(p => p.id === editingId);
-      const nameChanged = original?.name !== cleanName;
+      const nameChanged = original?.name !== finalName;
       const dateChanged = String(original?.cert_date) !== String(trainingDay);
 
       if (nameChanged || dateChanged) {
         const { data: existing } = await supabase
-          .from('participants')
-          .select('id')
-          .ilike('name', cleanName)
-          .eq('cert_date', trainingDay)
-          .neq('id', editingId)
+          .from('participants').select('id')
+          .ilike('name', finalName).eq('cert_date', trainingDay).neq('id', editingId)
           .maybeSingle();
-
         if (existing) {
-          notify(`"${cleanName}" is already registered for that day.`, 'error');
-          setAdding(false);
-          return;
+          notify(`"${finalName}" is already registered for that day.`, 'error');
+          setAdding(false); return;
         }
       }
-
       const { error } = await supabase.from('participants').update(payload).eq('id', editingId);
       if (!error) notify("Updated Successfully!");
       setEditingId(null);
     } else {
-      // FIX: Check for duplicate name + date before inserting
       const { data: existing } = await supabase
-        .from('participants')
-        .select('id')
-        .ilike('name', cleanName)
-        .eq('cert_date', trainingDay)
+        .from('participants').select('id')
+        .ilike('name', finalName).eq('cert_date', trainingDay)
         .maybeSingle();
-
       if (existing) {
-        notify(`"${cleanName}" is already registered for that day.`, 'error');
-        setAdding(false);
-        return;
+        notify(`"${finalName}" is already registered for that day.`, 'error');
+        setAdding(false); return;
       }
-
       const { error } = await supabase.from('participants').insert([{ ...payload, email_sent: false }]);
       if (!error) notify("Added Successfully!");
     }
@@ -175,20 +166,22 @@ export default function AdminPage() {
   const sendIndividualEmail = async (p) => {
     setSendingStatus(p.id);
     try {
+      // KEY FIX: re-clean p.name and build a proper URL
+      // This handles dirty records saved before this fix
+      const certUrl = buildCertUrl(window.location.origin, p.name, p.cert_date);
       emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
       await emailjs.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
         process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
-        {
-          to_name: p.name,
-          to_email: p.email,
-          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}`
-        }
+        { to_name: normalizeName(p.name), to_email: p.email, certificate_url: certUrl }
       );
       await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
       notify("Email sent!");
       fetchParticipants();
-    } catch { notify("Failed", "error"); }
+    } catch (err) {
+      console.error('Email error:', err);
+      notify("Failed to send email", "error");
+    }
     setSendingStatus(null);
   };
 
@@ -210,12 +203,12 @@ export default function AdminPage() {
     emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
     for (const p of availableToSend) {
       try {
+        const certUrl = buildCertUrl(window.location.origin, p.name, p.cert_date);
         await emailjs.send(process.env.REACT_APP_EMAILJS_SERVICE_ID, process.env.REACT_APP_EMAILJS_TEMPLATE_ID, {
-          to_name: p.name, to_email: p.email,
-          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}`
+          to_name: normalizeName(p.name), to_email: p.email, certificate_url: certUrl
         });
         await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
-      } catch (err) { console.error(p.email); }
+      } catch (err) { console.error('Failed:', p.email); }
     }
     notify("Bulk process finished");
     fetchParticipants();
@@ -264,20 +257,8 @@ export default function AdminPage() {
         <div style={{ ...S.card, borderLeft: editingId ? '8px solid #3b82f6' : '1px solid #e2e8f0' }}>
           <h3 style={S.cardTitle}>{editingId ? 'EDITING PARTICIPANT' : 'ADD NEW PARTICIPANT'}</h3>
           <div style={S.inputGrid}>
-            <input
-              style={S.input}
-              placeholder="Full Name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              autoComplete="off"
-              autoCorrect="off"
-            />
-            <input
-              style={S.input}
-              placeholder="Email Address"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-            />
+            <input style={S.input} placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} autoComplete="off" autoCorrect="off" />
+            <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
             <select style={S.input} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
               <option value="">Select Day</option>
               {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
