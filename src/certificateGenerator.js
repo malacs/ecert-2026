@@ -3,96 +3,104 @@ import { jsPDF } from "jspdf";
 export const getCertificateDataUrl = async (name, day, role = 'Student') => {
   return new Promise((resolve) => {
     const doc = generateBaseDoc(name, day, role);
-    // Use a small timeout to ensure images are processed
+    // Tiny delay to ensure the PDF buffer is ready for the preview
     setTimeout(() => {
       resolve(doc.output("datauristring"));
-    }, 100);
+    }, 50);
   });
 };
 
 export const downloadCertificate = async (name, day, role = 'Student') => {
   const doc = generateBaseDoc(name, day, role);
-  doc.save(`Data_Insights_2026_${name.replace(/\s+/g, '_')}.pdf`);
+  doc.save(`Data_Insights_2026_Cert_${name.replace(/\s+/g, '_')}.pdf`);
 };
 
 const generateBaseDoc = (name, day, role) => {
   const doc = new jsPDF({
     orientation: "landscape",
     unit: "px",
-    format: [1123, 794], 
+    format: [1123, 794], // A4 Landscape
   });
 
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
 
-  // 1. Load the Dark Data Background
-  // Paths assume these are in your 'public' folder
+  // 1. THE BACKGROUND
+  // This uses your dark theme background from the public folder
   doc.addImage("/cert-bg.png", "PNG", 0, 0, width, height);
 
-  // 2. Add University & College Logos
-  // NEMSU on Left, CITE on Right as requested
-  doc.addImage("/logo-nemsu.png", "PNG", 310, 40, 70, 70); 
-  doc.addImage("/logo-cite.png", "PNG", 740, 40, 70, 70);
+  // 2. THE LOGOS (NEMSU Left, CITE Right)
+  doc.addImage("/logo-nemsu.png", "PNG", 60, 45, 65, 65); 
+  doc.addImage("/logo-cite.png", "PNG", width - 125, 45, 65, 65);
 
-  // 3. Header Text (White/Gold Theme)
+  // 3. HEADER TEXT (White color to show on dark background)
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(14);
-  doc.text("Republic of the Philippines", width / 2, 45, { align: "center" });
+  doc.text("Republic of the Philippines", width / 2, 50, { align: "center" });
   
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.text("North Eastern Mindanao State University", width / 2, 65, { align: "center" });
+  doc.setFontSize(22);
+  doc.text("NORTH EASTERN MINDANAO STATE UNIVERSITY", width / 2, 70, { align: "center" });
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(14);
-  doc.text("Lianga Campus", width / 2, 80, { align: "center" });
+  doc.text("Lianga Campus", width / 2, 85, { align: "center" });
 
   doc.setFontSize(16);
-  doc.text("College of Information Technology Education", width / 2, 105, { align: "center" });
+  doc.text("College of Information Technology Education", width / 2, 110, { align: "center" });
   doc.setFontSize(12);
-  doc.text("Department of Computer Studies", width / 2, 120, { align: "center" });
+  doc.text("Department of Computer Studies", width / 2, 125, { align: "center" });
 
-  // 4. Certificate Title
-  doc.setFontSize(48);
-  doc.text("CERTIFICATE OF PARTICIPATION", width / 2, 180, { align: "center" });
+  // 4. CERTIFICATE TITLE (Gold color)
+  doc.setTextColor(201, 168, 76); // Your custom gold color
+  doc.setFontSize(50);
+  doc.setFont("helvetica", "bold");
+  doc.text("CERTIFICATE OF PARTICIPATION", width / 2, 190, { align: "center" });
   
-  doc.setFontSize(14);
-  doc.text("This certificate is hereby presented to", width / 2, 205, { align: "center" });
-
-  // 5. Participant Name (Large & Bold)
-  doc.setFontSize(65);
-  doc.setFont("helvetica", "bolditalic");
-  doc.text(name.toUpperCase(), width / 2, 280, { align: "center" });
-
-  // 6. Event Description
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(13);
-  const description = [
-    "for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications",
+  doc.text("This certificate is hereby presented to", width / 2, 220, { align: "center" });
+
+  // 5. THE NAME (Large, Bold, White)
+  doc.setFontSize(65);
+  doc.setFont("helvetica", "bold");
+  doc.text(name.toUpperCase(), width / 2, 300, { align: "center" });
+
+  // 6. EVENT DESCRIPTION
+  doc.setFontSize(14);
+  const eventName = "DATA INSIGHTS 2026: NAVIGATING THE DATA MINING FRONTIER";
+  
+  const desc = [
+    "for actively participating in the virtual training series entitled:",
+    eventName,
     `held virtually via Google Meet on ${getDayLabel(day)}, in recognition of commitment`,
     "to learning and professional development through active engagement in the training sessions."
   ];
-  doc.text(description[0], width / 2, 330, { align: "center" });
-  doc.text(description[1], width / 2, 345, { align: "center" });
-  doc.text(description[2], width / 2, 360, { align: "center" });
 
-  // 7. Date and Location Footer
+  doc.text(desc[0], width / 2, 340, { align: "center" });
+  doc.setFont("helvetica", "bold");
+  doc.text(desc[1], width / 2, 360, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.text(desc[2], width / 2, 380, { align: "center" });
+  doc.text(desc[3], width / 2, 395, { align: "center" });
+
+  // 7. FOOTER & LOCATION
   doc.setFontSize(12);
-  doc.text(`Given this ${getDayLabel(day)} at North Eastern Mindanao State University – Lianga Campus,`, width / 2, 410, { align: "center" });
-  doc.text("Lianga, Surigao del Sur", width / 2, 425, { align: "center" });
+  doc.text(`Given this ${getDayLabel(day)} at NEMSU – Lianga Campus, Surigao del Sur.`, width / 2, 440, { align: "center" });
 
-  // 8. Instructor Signature
-  // Note: Removed the blue line as per previous request
-  doc.addImage("/logo-signature.png", "PNG", width / 2 - 40, 450, 80, 45);
+  // 8. SIGNATURE (Removed blue line as requested)
+  // Placing the signature image slightly above the name
+  doc.addImage("/logo-signature.png", "PNG", width / 2 - 50, 470, 100, 50);
   
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text("CHRISTINE W. PITOS, MSCS", width / 2, 505, { align: "center" });
+  doc.setFontSize(18);
+  doc.text("CHRISTINE W. PITOS, MSCS", width / 2, 530, { align: "center" });
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
-  doc.text("BSCS Program Coordinator", width / 2, 518, { align: "center" });
+  doc.text("BSCS Program Coordinator", width / 2, 545, { align: "center" });
 
   return doc;
 };
