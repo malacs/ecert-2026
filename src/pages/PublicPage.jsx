@@ -2,61 +2,121 @@ import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { downloadCertificate } from '../certificateGenerator';
 
+const S = {
+  container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: '#f8fafc', fontFamily: 'system-ui, sans-serif', padding: '15px' },
+  card: { background: '#ffffff', padding: '40px 20px', borderRadius: '20px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', textAlign: 'center', width: '100%', maxWidth: '500px', border: '1px solid #e2e8f0', boxSizing: 'border-box' },
+  brandBadge: { background: '#eff6ff', color: '#1d4ed8', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-block', marginBottom: '15px', textTransform: 'uppercase' },
+  header: { color: '#0f172a', fontSize: '28px', margin: '0 0 10px 0', fontWeight: '800' },
+  subtitle: { color: '#64748b', fontSize: '14px', lineHeight: '1.5', marginBottom: '30px' },
+  formGroup: { textAlign: 'left', marginBottom: '20px' },
+  label: { color: '#475569', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', display: 'block' },
+  select: { width: '100%', padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '16px', color: '#1e293b', outline: 'none', boxSizing: 'border-box' },
+  searchWrapper: { display: 'flex', gap: '8px', flexWrap: 'nowrap' },
+  input: { flex: 1, padding: '12px', borderRadius: '10px', background: '#fff', border: '1px solid #cbd5e1', fontSize: '16px', outline: 'none', minWidth: '0', boxSizing: 'border-box' },
+  button: { padding: '12px 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', whiteSpace: 'nowrap' },
+  resultsWrapper: { marginTop: '20px' },
+  resultBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '16px', borderRadius: '12px', marginBottom: '10px', borderLeft: '4px solid #3b82f6', gap: '10px', flexWrap: 'wrap' },
+  resInfo: { textAlign: 'left', flex: 1 },
+  resName: { color: '#0f172a', fontWeight: 'bold', fontSize: '15px', wordBreak: 'break-word' },
+  resRole: { fontSize: '0.75rem', marginTop: '2px', fontWeight: '500' },
+  downloadBtn: { background: '#1e293b', color: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', border: 'none', flexShrink: 0 },
+  noRecord: { color: '#ef4444', fontSize: '0.85rem', marginTop: '20px', padding: '12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fee2e2' },
+  footer: { marginTop: '30px', color: '#94a3b8', fontSize: '0.75rem', textAlign: 'center' }
+};
+
+const TRAINING_DAYS = [
+  { value: '1', label: 'Day 1 - April 15' },
+  { value: '2', label: 'Day 2 - April 17' },
+  { value: '3', label: 'Day 3 - April 22' },
+  { value: '4', label: 'Day 4 - April 24' },
+  { value: '5', label: 'Day 5 - April 29' },
+];
+
 export default function PublicPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [day, setDay] = useState('1');
+  const [search, setSearch] = useState('');
+  const [selectedDay, setSelectedDay] = useState('1'); 
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearch = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    // .ilike with % allows searching partial names (e.g., "Mar" finds "Marvin")
-    const { data, error } = await supabase
-      .from('participants')
-      .select('*')
-      .ilike('name', `%${searchTerm}%`)
-      .eq('cert_date', day);
+    if (e) e.preventDefault();
+    const cleanSearch = search.trim();
+    
+    // Prevent showing "everyone" if the search box is empty or too short
+    if (cleanSearch.length < 2) {
+      setResults([]);
+      return;
+    }
 
-    if (!error) setResults(data || []);
+    setLoading(true);
+    setHasSearched(true);
+
+    try {
+      // LOOSE SEARCH: Matches if the name CONTAINs what you typed
+      const { data, error } = await supabase
+        .from('participants')
+        .select('*')
+        .ilike('name', `%${cleanSearch}%`) 
+        .eq('cert_date', selectedDay)
+        .limit(5); // Limit results to prevent showing too many people
+
+      if (!error) setResults(data || []);
+      else setResults([]);
+    } catch {
+      setResults([]);
+    }
     setLoading(false);
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: 'auto', padding: '20px', fontFamily: 'Arial' }}>
-      <h2 style={{ textAlign: 'center' }}>Search Certificate</h2>
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        <select value={day} onChange={(e) => setDay(e.target.value)} style={{ padding: '10px' }}>
-          {[1, 2, 3, 4, 5].map(d => <option key={d} value={d}>Day {d}</option>)}
-        </select>
-        <input 
-          placeholder="Enter Name (Partial or Full)" 
-          value={searchTerm} 
-          onChange={(e) => setSearchTerm(e.target.value)} 
-          style={{ flex: 1, padding: '10px' }}
-        />
-        <button type="submit" style={{ padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', cursor: 'pointer' }}>
-          {loading ? 'Searching...' : 'Search'}
-        </button>
-      </form>
-
-      <div style={{ border: '1px solid #ddd', borderRadius: '8px' }}>
-        {results.map((p) => (
-          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', borderBottom: '1px solid #eee', alignItems: 'center' }}>
-            <div>
-              <strong>{p.name}</strong> <br />
-              <small style={{ color: '#666' }}>{p.role} — Day {p.cert_date}</small>
-            </div>
-            <button 
-              onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
-              style={{ backgroundColor: '#28a745', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer' }}
-            >
-              Download PDF
-            </button>
+    <div style={S.container}>
+      <div style={S.card}>
+        <div style={S.brandBadge}>Data Insights 2026</div>
+        <h2 style={S.header}>Certificate Portal</h2>
+        <p style={S.subtitle}>Enter your name to download your e-certificate.</p>
+        
+        <form onSubmit={handleSearch}>
+          <div style={S.formGroup}>
+            <label style={S.label}>Step 1: Select Training Day</label>
+            <select value={selectedDay} onChange={(e) => { setSelectedDay(e.target.value); setResults([]); setHasSearched(false); }} style={S.select}>
+              {TRAINING_DAYS.map(day => (<option key={day.value} value={day.value}>{day.label}</option>))}
+            </select>
           </div>
-        ))}
-        {results.length === 0 && !loading && <p style={{ padding: '20px', textAlign: 'center' }}>No records found.</p>}
+
+          <div style={S.formGroup}>
+            <label style={S.label}>Step 2: Enter Name</label>
+            <div style={S.searchWrapper}>
+              <input 
+                style={S.input} 
+                placeholder="Type your name..." 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)} 
+                type="text"
+              />
+              <button type="submit" style={S.button} disabled={loading}>{loading ? '...' : 'Search'}</button>
+            </div>
+          </div>
+        </form>
+
+        <div style={S.resultsWrapper}>
+          {results.map((p) => (
+            <div key={p.id} style={S.resultBox}>
+              <div style={S.resInfo}>
+                <div style={S.resName}>{p.name}</div>
+                <div style={{...S.resRole, color: p.role === 'Speaker' ? '#b45309' : '#64748b'}}>
+                  {p.role === 'Speaker' ? 'Resource Speaker' : 'Training Participant'}
+                </div>
+              </div>
+              <button style={S.downloadBtn} onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}>Download PDF</button>
+            </div>
+          ))}
+          {hasSearched && results.length === 0 && !loading && search.length >= 2 && (
+            <div style={S.noRecord}>No record found. Check the selected Day or try your surname.</div>
+          )}
+        </div>
       </div>
+      <footer style={S.footer}>NEMSU Lianga Campus - BSCS</footer>
     </div>
   );
 }
