@@ -2,111 +2,149 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
+const S = {
+  container: { minHeight: '100vh', background: '#f8fafc', padding: '20px', fontFamily: 'system-ui, sans-serif' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', maxWidth: '1000px', margin: '0 auto 2rem' },
+  title: { fontSize: '24px', fontWeight: '800', color: '#0f172a' },
+  btnLogout: { padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
+  
+  card: { background: '#fff', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '20px', maxWidth: '1000px', margin: '0 auto' },
+  
+  // Stats Section
+  statsRow: { display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' },
+  statBadge: { padding: '8px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 'bold', border: '1px solid #e2e8f0' },
+  
+  // Filter Section
+  filterBar: { display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' },
+  input: { flex: 1, minWidth: '200px', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' },
+  select: { padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff' },
+
+  // Table Section
+  tableWrapper: { overflowX: 'auto' },
+  table: { width: '100%', borderCollapse: 'collapse' },
+  th: { textAlign: 'left', padding: '12px', borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' },
+  td: { padding: '12px', borderBottom: '1px solid #f1f5f9', fontSize: '0.9rem', color: '#1e293b' },
+  roleTag: { padding: '4px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 'bold' }
+};
+
 export default function AdminPage() {
   const navigate = useNavigate();
   const [participants, setParticipants] = useState([]);
-  const [form, setForm] = useState({ name: '', email: '', day: '1', role: 'Student' });
   const [filters, setFilters] = useState({ name: '', day: 'All', role: 'All' });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchParticipants();
+    fetchData();
   }, []);
 
-  const fetchParticipants = async () => {
-    const { data } = await supabase.from('participants').select('*');
-    setParticipants(data || []);
+  const fetchData = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('participants').select('*').order('name', { ascending: true });
+    if (!error) setParticipants(data || []);
+    setLoading(false);
   };
 
-  const handleAdd = async () => {
-    if (!form.name || !form.email) return alert("Fill all fields");
-    const { error } = await supabase.from('participants').insert([{
-      name: form.name, email: form.email, cert_date: form.day, role: form.role, status: 'Pending'
-    }]);
-    if (!error) { fetchParticipants(); setForm({...form, name: '', email: ''}); }
-  };
-
-  const logout = async () => {
+  const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/login');
+    // Redirect to login/public page and clear navigation history
+    navigate('/', { replace: true });
   };
 
-  // Filter Logic
+  // Logic for stats and filtering
   const filteredList = participants.filter(p => {
-    const nameMatch = p.name.toLowerCase().includes(filters.name.toLowerCase());
-    const dayMatch = filters.day === 'All' || String(p.cert_date) === filters.day;
-    const roleMatch = filters.role === 'All' || p.role === filters.role;
-    return nameMatch && dayMatch && roleMatch;
+    const matchName = p.name.toLowerCase().includes(filters.name.toLowerCase());
+    const matchDay = filters.day === 'All' || String(p.cert_date) === filters.day;
+    const matchRole = filters.role === 'All' || p.role === filters.role;
+    return matchName && matchDay && matchRole;
   });
 
-  // Stats Logic
-  const stats = {
-    total: filteredList.length,
-    students: filteredList.filter(p => p.role === 'Student').length,
-    speakers: filteredList.filter(p => p.role === 'Speaker').length
-  };
+  const totalCount = filteredList.length;
+  const speakerCount = filteredList.filter(p => p.role === 'Speaker').length;
+  const studentCount = filteredList.filter(p => p.role === 'Student').length;
 
   return (
-    <div style={{ padding: '30px', fontFamily: 'Arial' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <h1>Admin Dashboard</h1>
-        <button onClick={logout} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px' }}>Logout</button>
+    <div style={S.container}>
+      <div style={S.header}>
+        <h1 style={S.title}>Admin Panel</h1>
+        <button onClick={handleLogout} style={S.btnLogout}>Logout</button>
       </div>
 
-      {/* Stats Section */}
-      <div style={{ display: 'flex', gap: '20px', margin: '20px 0', padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-        <div>Total: <strong>{stats.total}</strong></div>
-        <div>Students: <strong>{stats.students}</strong></div>
-        <div>Speakers: <strong>{stats.speakers}</strong></div>
-      </div>
+      <div style={S.card}>
+        {/* Stats Display */}
+        <div style={S.statsRow}>
+          <div style={{...S.statBadge, background: '#eff6ff', color: '#1d4ed8'}}>Total: {totalCount}</div>
+          <div style={{...S.statBadge, background: '#f0fdf4', color: '#166534'}}>Students: {studentCount}</div>
+          <div style={{...S.statBadge, background: '#fff7ed', color: '#9a3412'}}>Speakers: {speakerCount}</div>
+        </div>
 
-      {/* Add Section */}
-      <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ddd' }}>
-        <h3>Add New Participant</h3>
-        <input placeholder="Full Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
-        <input placeholder="Email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
-        <select value={form.day} onChange={e => setForm({...form, day: e.target.value})}>
-          {[1,2,3,4,5].map(d => <option key={d} value={d}>Day {d}</option>)}
-        </select>
-        <select value={form.role} onChange={e => setForm({...form, role: e.target.value})}>
-          <option value="Student">Student</option>
-          <option value="Speaker">Speaker</option>
-        </select>
-        <button onClick={handleAdd} style={{ backgroundColor: '#007bff', color: 'white' }}>Add</button>
-      </div>
+        {/* Search & Filter Bar */}
+        <div style={S.filterBar}>
+          <input 
+            style={S.input} 
+            placeholder="Search by name..." 
+            value={filters.name}
+            onChange={(e) => setFilters({...filters, name: e.target.value})}
+          />
+          <select 
+            style={S.select} 
+            value={filters.day}
+            onChange={(e) => setFilters({...filters, day: e.target.value})}
+          >
+            <option value="All">All Days</option>
+            <option value="1">Day 1</option>
+            <option value="2">Day 2</option>
+            <option value="3">Day 3</option>
+            <option value="4">Day 4</option>
+            <option value="5">Day 5</option>
+          </select>
+          <select 
+            style={S.select} 
+            value={filters.role}
+            onChange={(e) => setFilters({...filters, role: e.target.value})}
+          >
+            <option value="All">All Roles</option>
+            <option value="Student">Student</option>
+            <option value="Speaker">Speaker</option>
+          </select>
+        </div>
 
-      {/* Filter Section */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-        <input placeholder="Filter by Name" value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} />
-        <select onChange={e => setFilters({...filters, day: e.target.value})}>
-          <option value="All">All Days</option>
-          {[1,2,3,4,5].map(d => <option key={d} value={d}>Day {d}</option>)}
-        </select>
-        <select onChange={e => setFilters({...filters, role: e.target.value})}>
-          <option value="All">All Roles</option>
-          <option value="Student">Student</option>
-          <option value="Speaker">Speaker</option>
-        </select>
+        {/* Data Table */}
+        <div style={S.tableWrapper}>
+          {loading ? <p>Loading data...</p> : (
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <th style={S.th}>Name</th>
+                  <th style={S.th}>Role</th>
+                  <th style={S.th}>Day</th>
+                  <th style={S.th}>Email</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredList.map((p) => (
+                  <tr key={p.id}>
+                    <td style={S.td}><strong>{p.name}</strong></td>
+                    <td style={S.td}>
+                      <span style={{
+                        ...S.roleTag, 
+                        background: p.role === 'Speaker' ? '#ffedd5' : '#dcfce7',
+                        color: p.role === 'Speaker' ? '#9a3412' : '#166534'
+                      }}>
+                        {p.role}
+                      </span>
+                    </td>
+                    <td style={S.td}>Day {p.cert_date}</td>
+                    <td style={S.td}>{p.email || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {!loading && filteredList.length === 0 && (
+            <p style={{textAlign: 'center', color: '#64748b', padding: '20px'}}>No records found.</p>
+          )}
+        </div>
       </div>
-
-      {/* Table */}
-      <table border="1" width="100%" style={{ borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#eee' }}>
-            <th>Name</th><th>Email</th><th>Day</th><th>Role</th><th>Status</th><th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredList.map(p => (
-            <tr key={p.id}>
-              <td>{p.name}</td><td>{p.email}</td><td>{p.cert_date}</td><td>{p.role}</td>
-              <td>{p.status}</td>
-              <td>
-                {p.status === 'Pending' && <button style={{ backgroundColor: '#17a2b8', color: 'white' }}>Send Email</button>}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
