@@ -17,6 +17,21 @@ const DAY_DATES = {
   5: { day: 29, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
 };
 
+/**
+ * Helper to tint the black signature to Gold
+ */
+const getGoldSignature = (image) => {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.drawImage(image, 0, 0);
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.fillStyle = '#c9a84c'; // Gold color
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  return canvas;
+};
+
 export const generateCertificate = async (participantName, trainingDay = null, role = 'Student') => {
   const W = 1000;
   const H = 700;
@@ -36,16 +51,16 @@ export const generateCertificate = async (participantName, trainingDay = null, r
 
   ctx.clearRect(0, 0, W, H);
 
-  // 1. BACKGROUND & OVERLAY
+  // 1. BACKGROUND
   ctx.drawImage(bg, 0, 0, W, H);
   ctx.fillStyle = 'rgba(10, 20, 60, 0.15)';
   ctx.fillRect(0, 0, W, H);
 
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // 2. LOGOS (Using your preferred spacing logic)
+  // 2. LOGOS (NEMSU on Left, CITE on Right)
   const logoSize = 75;
-  const logoY = 70;
+  const logoY = 75;
   const spacing = 240; 
 
   ctx.drawImage(logoNemsu, (W / 2) - spacing, logoY, logoSize, logoSize);
@@ -66,7 +81,7 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = '13px Arial';
   ctx.fillText('Department of Computer Studies', W / 2, 155);
 
-  // 4. TITLE & PRESENTATION LINE
+  // 4. TITLE
   ctx.font = 'bold 38px Arial';
   const title = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
   ctx.fillText(title, W / 2, 220);
@@ -74,11 +89,13 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = 'italic 16px Georgia';
   ctx.fillText('This certificate is hereby presented to', W / 2, 255);
 
-  // 5. PARTICIPANT NAME
-  ctx.font = 'bold 50px "Times New Roman"';
+  // 5. PARTICIPANT NAME (Cursive/Script Font)
+  // Brush Script MT is standard on most systems; cursive is the fallback.
+  ctx.font = '60px "Brush Script MT", cursive'; 
+  ctx.fillStyle = '#ffffff';
   ctx.fillText(participantName.toUpperCase(), W / 2, 320);
 
-  // 6. BODY TEXT (With your specific line breaks)
+  // 6. BODY TEXT
   ctx.font = '14px Arial';
   const bodyY = 380;
   const lineGap = 22;
@@ -87,14 +104,14 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.fillText(`held virtually via Google Meet on ${data.month} ${data.day}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
   ctx.fillText(`to learning and professional development through active engagement in the training sessions.`, W / 2, bodyY + (lineGap * 2));
 
-  // 7. FOOTER LOCATION TEXT
+  // 7. FOOTER LOCATION
   ctx.font = '14px Arial';
   ctx.fillText(`Given this ${data.day} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, 480);
   ctx.fillText('Lianga, Surigao del Sur.', W / 2, 500);
 
-  // 8. SIGNATURE SECTION
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(logoSig, (W / 2) - 60, 530, 120, 70);
+  // 8. SIGNATURE (Gold Tinted)
+  const goldSigCanvas = getGoldSignature(logoSig);
+  ctx.drawImage(goldSigCanvas, (W / 2) - 60, 535, 120, 65);
 
   ctx.font = 'bold 16px Arial';
   ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 620);
