@@ -14,34 +14,16 @@ const normalizeName = (raw) => {
     .toUpperCase();
 };
 
-const decodeParam = (raw) => {
-  if (!raw) return '';
-  let decoded = raw;
-  for (let i = 0; i < 2; i++) {
-    try {
-      const next = decodeURIComponent(decoded);
-      if (next === decoded) break;
-      decoded = next;
-    } catch { break; }
-  }
-  return normalizeName(decoded);
-};
-
-// Score how well two normalized name strings match.
-// Returns a number 0–100. Higher = better match.
 const scoreMatch = (dbName, searchName) => {
-  const dbWords = dbName.split(' ').filter(Boolean);
-  const searchWords = searchName.split(' ').filter(Boolean);
+  const dbWords = normalizeName(dbName).split(' ').filter(Boolean);
+  const searchWords = normalizeName(searchName).split(' ').filter(Boolean);
   if (searchWords.length === 0) return 0;
-
-  // Count how many search words appear in the DB name
   const hits = searchWords.filter(w => dbWords.includes(w)).length;
   return Math.round((hits / searchWords.length) * 100);
 };
 
 export default function CertificatePage() {
-  const { name, day } = useParams();
-  const participantName = decodeParam(name);
+  const { id, name, day } = useParams();
 
   const [imgSrc, setImgSrc] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,69 +31,80 @@ export default function CertificatePage() {
   const [downloading, setDownloading] = useState(false);
   const [participantRole, setParticipantRole] = useState('Student');
   const [dbName, setDbName] = useState('');
+  const [dbDay, setDbDay] = useState(null);
 
   useEffect(() => {
     const loadCertificate = async () => {
-      if (!participantName) {
-        setError('No participant name provided.');
-        setLoading(false);
-        return;
-      }
-
       try {
-        // ── Fetch ALL participants for this day ──────────────────────────────
-        // We do ONE query and find the best match in JS.
-        // This avoids all encoding/ilike issues completely.
-        const { data: allForDay, error: fetchError } = await supabase
-          .from('participants')
-          .select('role, name')
-          .eq('cert_date', day);
+        let data = null;
 
-        if (fetchError || !allForDay || allForDay.length === 0) {
-          setError('Certificate not found. Please contact the administrator.');
+        // PATH A: UUID (Most Reliable for Mobile)
+        if (id && !name) {
+          const { data: row, error: err } = await supabase
+            .from('participants')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+
+          if (!err && row) data = row;
+        }
+
+        // PATH B: Name/Day (Legacy Support)
+        if (!data && name && day) {
+          let decoded = name;
+          for (let i = 0; i < 2; i++) {
+            try {
+              const next = decodeURIComponent(decoded);
+              if (next === decoded) break;
+              decoded = next;
+            } catch { break; }
+          }
+          const cleanSearch = normalizeName(decoded);
+
+          const { data: allForDay } = await supabase
+            .from('participants')
+            .select('*')
+            .eq('cert_date', day);
+
+          if (allForDay && allForDay.length > 0) {
+            const scored = allForDay
+              .map(p => ({ ...p, score: scoreMatch(p.name, cleanSearch) }))
+              .filter(p => p.score > 0)
+              .sort((a, b) => b.score - a.score);
+
+            if (scored.length > 0 && scored[0].score >= 45) {
+              data = scored[0];
+            }
+          }
+        }
+
+        if (!data) {
+          setError('Certificate not found. Please verify the URL or contact the admin.');
           setLoading(false);
           return;
         }
 
-        // Normalize every DB name and score against the URL name
-        const scored = allForDay
-          .map(p => ({
-            ...p,
-            normalizedDbName: normalizeName(p.name),
-            score: scoreMatch(normalizeName(p.name), participantName),
-          }))
-          .filter(p => p.score > 0)
-          .sort((a, b) => b.score - a.score);
+        setParticipantRole(data.role || 'Student');
+        setDbName(data.name);
+        setDbDay(data.cert_date);
 
-        // Accept the best match if it's ≥ 50% word overlap
-        const best = scored.length > 0 && scored[0].score >= 50 ? scored[0] : null;
-
-        if (!best) {
-          setError('Certificate not found. Please check your name spelling or contact the administrator.');
-          setLoading(false);
-          return;
-        }
-
-        setParticipantRole(best.role || 'Student');
-        setDbName(best.name);
-
-        const imgData = await getCertificateDataUrl(best.name, day || null, best.role || 'Student');
+        const imgData = await getCertificateDataUrl(data.name, data.cert_date, data.role || 'Student');
         setImgSrc(imgData);
       } catch (err) {
         console.error('Certificate load error:', err);
-        setError('Failed to load certificate. Please try again.');
+        setError('Failed to load certificate. Please try refreshing.');
       } finally {
         setLoading(false);
       }
     };
 
     loadCertificate();
-  }, [participantName, day]);
+  }, [id, name, day]);
 
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      await downloadCertificate(dbName || participantName, day || null, participantRole);
+      await downloadCertificate(dbName, dbDay, participantRole);
     } catch {
       alert("Download failed.");
     }
@@ -141,7 +134,7 @@ export default function CertificatePage() {
           <div style={styles.certWrap}>
             <div style={styles.infoCard}>
               <p style={styles.issuedTo}>This certificate is officially issued to:</p>
-              <h2 style={styles.nameHeader}>{dbName || participantName}</h2>
+              <h2 style={styles.nameHeader}>{dbName}</h2>
               <span style={styles.roleTag}>
                 {participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}
               </span>
