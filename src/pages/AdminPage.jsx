@@ -14,10 +14,10 @@ const TRAINING_DAYS = [
 ];
 
 const DAY_LABEL = {
-  '1': 'April 15, 2026', 
-  '2': 'April 17, 2026', 
-  '3': 'April 22, 2026', 
-  '4': 'April 24, 2026', 
+  '1': 'April 15, 2026',
+  '2': 'April 17, 2026',
+  '3': 'April 22, 2026',
+  '4': 'April 24, 2026',
   '5': 'April 29, 2026'
 };
 
@@ -58,7 +58,7 @@ export default function AdminPage() {
 
   const notify = (msg, type = 'success') => {
     setNotification({ msg, type });
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 3500);
   };
 
   useEffect(() => {
@@ -96,11 +96,10 @@ export default function AdminPage() {
   const handleSave = async () => {
     if (!name || !email || !trainingDay) return alert("Please fill all fields");
     setAdding(true);
-    
-    // MOBILE-FIX NORMALIZATION: 
-    // Strips invisible control characters and collapses mobile "smart spaces"
+
+    // Normalize name
     const cleanName = name
-      .normalize('NFKD') 
+      .normalize('NFKD')
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
       .replace(/\s+/g, ' ')
       .trim()
@@ -116,10 +115,45 @@ export default function AdminPage() {
     };
 
     if (editingId) {
+      // When editing, check for duplicate only if name or date changed
+      const original = participants.find(p => p.id === editingId);
+      const nameChanged = original?.name !== cleanName;
+      const dateChanged = String(original?.cert_date) !== String(trainingDay);
+
+      if (nameChanged || dateChanged) {
+        const { data: existing } = await supabase
+          .from('participants')
+          .select('id')
+          .ilike('name', cleanName)
+          .eq('cert_date', trainingDay)
+          .neq('id', editingId)
+          .maybeSingle();
+
+        if (existing) {
+          notify(`"${cleanName}" is already registered for that day.`, 'error');
+          setAdding(false);
+          return;
+        }
+      }
+
       const { error } = await supabase.from('participants').update(payload).eq('id', editingId);
       if (!error) notify("Updated Successfully!");
       setEditingId(null);
     } else {
+      // FIX: Check for duplicate name + date before inserting
+      const { data: existing } = await supabase
+        .from('participants')
+        .select('id')
+        .ilike('name', cleanName)
+        .eq('cert_date', trainingDay)
+        .maybeSingle();
+
+      if (existing) {
+        notify(`"${cleanName}" is already registered for that day.`, 'error');
+        setAdding(false);
+        return;
+      }
+
       const { error } = await supabase.from('participants').insert([{ ...payload, email_sent: false }]);
       if (!error) notify("Added Successfully!");
     }
@@ -177,8 +211,8 @@ export default function AdminPage() {
     for (const p of availableToSend) {
       try {
         await emailjs.send(process.env.REACT_APP_EMAILJS_SERVICE_ID, process.env.REACT_APP_EMAILJS_TEMPLATE_ID, {
-            to_name: p.name, to_email: p.email,
-            certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}`
+          to_name: p.name, to_email: p.email,
+          certificate_url: `${window.location.origin}/certificate/${encodeURIComponent(p.name)}/${p.cert_date}`
         });
         await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
       } catch (err) { console.error(p.email); }
@@ -188,7 +222,7 @@ export default function AdminPage() {
     setSendingAll(false);
   };
 
-  if (authLoading) return <div style={L.container}><p style={{color:'#fff'}}>Verifying Session...</p></div>;
+  if (authLoading) return <div style={L.container}><p style={{ color: '#fff' }}>Verifying Session...</p></div>;
 
   if (!user) return (
     <div style={L.container}>
@@ -227,22 +261,22 @@ export default function AdminPage() {
       </header>
 
       <main style={S.mainContent}>
-        <div style={{...S.card, borderLeft: editingId ? '8px solid #3b82f6' : '1px solid #e2e8f0'}}>
+        <div style={{ ...S.card, borderLeft: editingId ? '8px solid #3b82f6' : '1px solid #e2e8f0' }}>
           <h3 style={S.cardTitle}>{editingId ? 'EDITING PARTICIPANT' : 'ADD NEW PARTICIPANT'}</h3>
           <div style={S.inputGrid}>
-            <input 
-              style={S.input} 
-              placeholder="Full Name" 
-              value={name} 
-              onChange={e => setName(e.target.value)} 
+            <input
+              style={S.input}
+              placeholder="Full Name"
+              value={name}
+              onChange={e => setName(e.target.value)}
               autoComplete="off"
               autoCorrect="off"
             />
-            <input 
-              style={S.input} 
-              placeholder="Email Address" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
+            <input
+              style={S.input}
+              placeholder="Email Address"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
             />
             <select style={S.input} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
               <option value="">Select Day</option>
@@ -251,9 +285,9 @@ export default function AdminPage() {
             <select style={S.input} value={role} onChange={e => setRole(e.target.value)}>
               <option>Student</option><option>Speaker</option>
             </select>
-            <div style={{display:'flex', gap:'10px'}}>
-               <button style={S.btnPrimary} onClick={handleSave}>{adding ? '...' : editingId ? 'UPDATE' : 'ADD'}</button>
-               {editingId && <button style={S.btnOutline} onClick={() => {setEditingId(null); setName(''); setEmail('');}}>CANCEL</button>}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button style={S.btnPrimary} onClick={handleSave}>{adding ? '...' : editingId ? 'UPDATE' : 'ADD'}</button>
+              {editingId && <button style={S.btnOutline} onClick={() => { setEditingId(null); setName(''); setEmail(''); }}>CANCEL</button>}
             </div>
           </div>
         </div>
@@ -261,16 +295,16 @@ export default function AdminPage() {
         <div style={S.card}>
           <div style={S.filterBar}>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <input style={{ ...S.input, width: '200px' }} placeholder="Search name..." value={search} onChange={e => {setSearch(e.target.value); setCurrentPage(1);}} />
-                <select style={S.input} value={selectedFilter} onChange={e=>{setSelectedFilter(e.target.value); setCurrentPage(1);}}>
-                    <option value="all">All Days</option>
-                    {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
-                </select>
-                <select style={S.input} value={roleFilter} onChange={e=>{setRoleFilter(e.target.value); setCurrentPage(1);}}>
-                    <option value="all">All Roles</option>
-                    <option value="Student">Students Only</option>
-                    <option value="Speaker">Speakers Only</option>
-                </select>
+              <input style={{ ...S.input, width: '200px' }} placeholder="Search name..." value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} />
+              <select style={S.input} value={selectedFilter} onChange={e => { setSelectedFilter(e.target.value); setCurrentPage(1); }}>
+                <option value="all">All Days</option>
+                {TRAINING_DAYS.map(d => <option key={d.value} value={d.value}>Day {d.value}</option>)}
+              </select>
+              <select style={S.input} value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setCurrentPage(1); }}>
+                <option value="all">All Roles</option>
+                <option value="Student">Students Only</option>
+                <option value="Speaker">Speakers Only</option>
+              </select>
             </div>
             <button style={{ ...S.btnPrimary, backgroundColor: '#10b981' }} onClick={sendAllEmails} disabled={sendingAll}>
               {sendingAll ? 'Processing...' : `Send to ${availableToSend.length} Available`}
@@ -298,7 +332,7 @@ export default function AdminPage() {
                     <td style={S.td}>{p.role}</td>
                     <td style={S.td}>{p.email}</td>
                     <td style={S.td}>{DAY_LABEL[p.cert_date]}</td>
-                    <td style={S.td}><span style={{fontSize:'0.7rem', fontWeight:'bold', color: p.email_sent?'#059669':'#d97706'}}>{p.email_sent?'SENT':'PENDING'}</span></td>
+                    <td style={S.td}><span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: p.email_sent ? '#059669' : '#d97706' }}>{p.email_sent ? 'SENT' : 'PENDING'}</span></td>
                     <td style={S.td}>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button style={S.btnAction} onClick={() => startEdit(p)}>Edit</button>
@@ -331,8 +365,8 @@ export default function AdminPage() {
               <option value="All">All Roles</option><option value="Speaker">Speakers Only</option><option value="Student">Students Only</option>
             </select>
             <div style={{ display: 'flex', gap: '10px' }}>
-                <button style={{ ...S.btnPrimary, flex: 1 }} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>Launch</button>
-                <button style={{ ...S.btnOutline, flex: 1 }} onClick={() => setShowConfigModal(false)}>Close</button>
+              <button style={{ ...S.btnPrimary, flex: 1 }} onClick={() => navigate(`/presentation?day=${presDay}&role=${presRole}`)}>Launch</button>
+              <button style={{ ...S.btnOutline, flex: 1 }} onClick={() => setShowConfigModal(false)}>Close</button>
             </div>
           </div>
         </div>
