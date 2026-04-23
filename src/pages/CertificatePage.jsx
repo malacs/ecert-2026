@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+
+// These lines are critical: They must point to the 'src' folder from the 'pages' folder
 import { supabase } from '../supabaseClient';
 import { getCertificateDataUrl, downloadCertificate } from '../certificateGenerator';
 
@@ -38,7 +40,7 @@ export default function CertificatePage() {
       try {
         let data = null;
 
-        // PATH A: UUID (Most Reliable for Mobile)
+        // PATH A: UUID (The fix for mobile phone issues)
         if (id && !name) {
           const { data: row, error: err } = await supabase
             .from('participants')
@@ -49,7 +51,7 @@ export default function CertificatePage() {
           if (!err && row) data = row;
         }
 
-        // PATH B: Name/Day (Legacy Support)
+        // PATH B: Name/Day (Backward compatibility)
         if (!data && name && day) {
           let decoded = name;
           for (let i = 0; i < 2; i++) {
@@ -79,7 +81,7 @@ export default function CertificatePage() {
         }
 
         if (!data) {
-          setError('Certificate not found. Please verify the URL or contact the admin.');
+          setError('Certificate not found. Please contact the administrator.');
           setLoading(false);
           return;
         }
@@ -92,7 +94,7 @@ export default function CertificatePage() {
         setImgSrc(imgData);
       } catch (err) {
         console.error('Certificate load error:', err);
-        setError('Failed to load certificate. Please try refreshing.');
+        setError('Failed to load certificate. Please try again.');
       } finally {
         setLoading(false);
       }
