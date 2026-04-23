@@ -60,44 +60,23 @@ export const generateCertificate = async (participantName, trainingDay = null, r
 
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // 1. LOGOS (PERFECT CIRCLES)
-  const logoDiameter = 80;
+  // 1. LOGOS (FIXED SIZE - NO CLIPPING)
+  const logoSize = 80;
   const logoY = 65;
   const spacing = 240;
 
-  const drawCircularLogo = (img, centerX, zoom = 1.0) => {
-    const radius = logoDiameter / 2;
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX, logoY + radius, radius, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip(); // This forces the image into a circle
-
+  // Simple proportional draw to ensure they look like the original files
+  const drawLogoFixed = (img, centerX) => {
     const aspect = img.width / img.height;
-    let drawW, drawH;
-
-    if (aspect > 1) {
-      drawH = logoDiameter * zoom;
-      drawW = drawH * aspect;
-    } else {
-      drawW = logoDiameter * zoom;
-      drawH = drawW / aspect;
-    }
-
-    ctx.drawImage(
-      img,
-      centerX - drawW / 2,
-      logoY + radius - drawH / 2,
-      drawW,
-      drawH
-    );
-    ctx.restore();
+    let dW = logoSize, dH = logoSize;
+    if (aspect > 1) dH = logoSize / aspect;
+    else dW = logoSize * aspect;
+    
+    ctx.drawImage(img, centerX - dW / 2, logoY + (logoSize - dH) / 2, dW, dH);
   };
 
-  // NEMSU - Standard zoom
-  drawCircularLogo(logoNemsu, (W / 2) - spacing, 1.1);
-  // CITE - Slightly higher zoom to make the inner logo look the same size
-  drawCircularLogo(logoCite, (W / 2) + spacing, 1.25);
+  drawLogoFixed(logoNemsu, (W / 2) - spacing);
+  drawLogoFixed(logoCite, (W / 2) + spacing);
 
   // 2. HEADER TEXT
   ctx.textAlign = 'center';
@@ -147,7 +126,6 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = '13px Arial';
   ctx.fillText('BSCS Program Coordinator', W / 2, 640);
 
-  // MOBILE FIX: Ensure data is handled as a PNG and compressed for memory
   const imgData = canvas.toDataURL('image/png', 1.0);
   const pdf = new jsPDF({
     orientation: 'landscape',
@@ -160,9 +138,10 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   return { pdf, imgData };
 };
 
+// MOBILE FIX: Use encodeURIComponent for safe URL handling
 export const downloadCertificate = async (name, day, role) => {
   const { pdf } = await generateCertificate(name, day, role);
-  const safeName = name.replace(/\s+/g, '_');
+  const safeName = encodeURIComponent(name.trim()).replace(/%20/g, '_');
   pdf.save(`Certificate_${safeName}.pdf`);
 };
 
