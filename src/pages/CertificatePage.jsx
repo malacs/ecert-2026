@@ -1,102 +1,185 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { generateCertificate } from '../certificateGenerator';
+import { getCertificateDataUrl, downloadCertificate } from '../certificateGenerator';
+
+const normalizeName = (raw) => {
+  if (!raw) return '';
+  return raw
+    .normalize('NFKD')
+    .replace(/[\u0000-\u001F\u007F-\u009F\u00A0\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+};
+
+const decodeParam = (raw) => {
+  if (!raw) return '';
+  let decoded = raw;
+  for (let i = 0; i < 2; i++) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    } catch { break; }
+  }
+  return normalizeName(decoded);
+};
+
+// Score how well two normalized name strings match.
+// Returns a number 0–100. Higher = better match.
+const scoreMatch = (dbName, searchName) => {
+  const dbWords = dbName.split(' ').filter(Boolean);
+  const searchWords = searchName.split(' ').filter(Boolean);
+  if (searchWords.length === 0) return 0;
+
+  // Count how many search words appear in the DB name
+  const hits = searchWords.filter(w => dbWords.includes(w)).length;
+  return Math.round((hits / searchWords.length) * 100);
+};
 
 export default function CertificatePage() {
   const { name, day } = useParams();
+  const participantName = decodeParam(name);
+
+  const [imgSrc, setImgSrc] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [participant, setParticipant] = useState(null);
-  const [certUrl, setCertUrl] = useState(null);
+  const [error, setError] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [participantRole, setParticipantRole] = useState('Student');
+  const [dbName, setDbName] = useState('');
 
   useEffect(() => {
     const loadCertificate = async () => {
+      if (!participantName) {
+        setError('No participant name provided.');
+        setLoading(false);
+        return;
+      }
+
       try {
-        // MOBILE FIX: Decode and trim name to prevent "Not Found" errors
-        const decodedName = decodeURIComponent(name).trim();
-
-        const { data, error } = await supabase
+        // ── Fetch ALL participants for this day ──────────────────────────────
+        // We do ONE query and find the best match in JS.
+        // This avoids all encoding/ilike issues completely.
+        const { data: allForDay, error: fetchError } = await supabase
           .from('participants')
-          .select('*')
-          .ilike('name', decodedName) // Case-insensitive match
-          .eq('cert_date', day)
-          .maybeSingle();
+          .select('role, name')
+          .eq('cert_date', day);
 
-        if (error || !data) {
+        if (fetchError || !allForDay || allForDay.length === 0) {
+          setError('Certificate not found. Please contact the administrator.');
           setLoading(false);
           return;
         }
 
-        setParticipant(data);
-        
-        // Generate the visual preview for the mobile user
-        const { imgData } = await generateCertificate(data.name, data.cert_date, data.role);
-        setCertUrl(imgData);
-        setLoading(false);
+        // Normalize every DB name and score against the URL name
+        const scored = allForDay
+          .map(p => ({
+            ...p,
+            normalizedDbName: normalizeName(p.name),
+            score: scoreMatch(normalizeName(p.name), participantName),
+          }))
+          .filter(p => p.score > 0)
+          .sort((a, b) => b.score - a.score);
+
+        // Accept the best match if it's ≥ 50% word overlap
+        const best = scored.length > 0 && scored[0].score >= 50 ? scored[0] : null;
+
+        if (!best) {
+          setError('Certificate not found. Please check your name spelling or contact the administrator.');
+          setLoading(false);
+          return;
+        }
+
+        setParticipantRole(best.role || 'Student');
+        setDbName(best.name);
+
+        const imgData = await getCertificateDataUrl(best.name, day || null, best.role || 'Student');
+        setImgSrc(imgData);
       } catch (err) {
-        console.error("Error loading certificate:", err);
+        console.error('Certificate load error:', err);
+        setError('Failed to load certificate. Please try again.');
+      } finally {
         setLoading(false);
       }
     };
 
     loadCertificate();
-  }, [name, day]);
+  }, [participantName, day]);
 
-  if (loading) {
-    return (
-      <div style={styles.container}>
-        <p style={{color: '#fff'}}>Verifying Certificate...</p>
-      </div>
-    );
-  }
-
-  if (!participant) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h2 style={{color: '#ef4444'}}>Certificate Not Found</h2>
-          <p style={{color: '#94a3b8'}}>We couldn't find a record for "{decodeURIComponent(name)}".</p>
-          <Link to="/" style={styles.link}>Return to Search</Link>
-        </div>
-      </div>
-    );
-  }
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      await downloadCertificate(dbName || participantName, day || null, participantRole);
+    } catch {
+      alert("Download failed.");
+    }
+    setDownloading(false);
+  };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Your E-Certificate is Ready</h2>
-        <p style={styles.subtitle}>Day {participant.cert_date} — Data Insights 2026</p>
-        
-        {certUrl && (
-          <div style={styles.previewBox}>
-            <img src={certUrl} alt="Certificate Preview" style={styles.image} />
+    <div style={styles.page}>
+      <div style={styles.heroSection}>
+        <div style={styles.badge}>DATA INSIGHTS 2026</div>
+        <h1 style={styles.headerTitle}>Verification Portal</h1>
+        <p style={styles.headerSub}>Official Digital Credentials</p>
+      </div>
+
+      <div style={styles.content}>
+        {loading ? (
+          <div style={styles.centerBox}>
+            <div style={styles.spinner} />
+            <p>Verifying Credential...</p>
+          </div>
+        ) : error ? (
+          <div style={styles.centerBox}>
+            <p style={{ color: '#ef4444', marginBottom: '20px' }}>{error}</p>
+            <Link to="/" style={styles.btnSecondary}>Back to Search</Link>
+          </div>
+        ) : (
+          <div style={styles.certWrap}>
+            <div style={styles.infoCard}>
+              <p style={styles.issuedTo}>This certificate is officially issued to:</p>
+              <h2 style={styles.nameHeader}>{dbName || participantName}</h2>
+              <span style={styles.roleTag}>
+                {participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}
+              </span>
+            </div>
+
+            <div style={styles.imgShadowBox}>
+              <img src={imgSrc} alt="Certificate" style={styles.certImg} />
+            </div>
+
+            <div style={styles.actions}>
+              <button onClick={handleDownload} disabled={downloading} style={styles.btnDownload}>
+                {downloading ? 'Generating PDF...' : 'Download Official PDF'}
+              </button>
+              <Link to="/" style={styles.btnSecondary}>Back to Portal</Link>
+            </div>
           </div>
         )}
-
-        <button 
-          style={styles.button}
-          onClick={async () => {
-            const { downloadCertificate } = await import('../certificateGenerator');
-            downloadCertificate(participant.name, participant.cert_date, participant.role);
-          }}
-        >
-          Download PDF Certificate
-        </button>
-        <br />
-        <Link to="/" style={styles.link}>Back to Home</Link>
       </div>
     </div>
   );
 }
 
 const styles = {
-  container: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', padding: '20px' },
-  card: { background: '#1e293b', padding: '2rem', borderRadius: '24px', textAlign: 'center', width: '100%', maxWidth: '600px', border: '1px solid #334155' },
-  title: { color: '#fff', fontSize: '24px', marginBottom: '8px' },
-  subtitle: { color: '#94a3b8', fontSize: '14px', marginBottom: '20px' },
-  previewBox: { background: '#0f172a', borderRadius: '12px', padding: '10px', marginBottom: '20px', overflow: 'hidden' },
-  image: { width: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' },
-  button: { background: '#3b82f6', color: '#fff', padding: '14px 28px', borderRadius: '12px', border: 'none', fontWeight: 'bold', cursor: 'pointer', width: '100%' },
-  link: { color: '#94a3b8', display: 'block', marginTop: '20px', textDecoration: 'none', fontSize: '14px' }
+  page: { minHeight: '100vh', background: '#0f172a', fontFamily: 'Inter, sans-serif', color: '#fff', boxSizing: 'border-box' },
+  heroSection: { background: 'radial-gradient(circle at top, #1e293b 0%, #0f172a 100%)', padding: '60px 20px', textAlign: 'center', borderBottom: '1px solid rgba(201, 168, 76, 0.2)' },
+  badge: { color: '#c9a84c', fontSize: '12px', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '10px' },
+  headerTitle: { fontSize: 'calc(24px + 1vw)', fontWeight: '800', margin: '0' },
+  headerSub: { color: '#94a3b8', fontSize: '16px', marginTop: '5px' },
+  content: { maxWidth: '1000px', margin: '-40px auto 40px', padding: '0 15px', boxSizing: 'border-box' },
+  infoCard: { background: '#1e293b', padding: '30px 20px', borderRadius: '16px', textAlign: 'center', marginBottom: '30px', border: '1px solid rgba(255,255,255,0.1)', boxSizing: 'border-box' },
+  issuedTo: { color: '#94a3b8', fontSize: '14px', marginBottom: '5px' },
+  nameHeader: { fontSize: '24px', color: '#fff', margin: '0 0 10px 0', wordBreak: 'break-word', textTransform: 'uppercase' },
+  roleTag: { background: 'rgba(201, 168, 76, 0.15)', color: '#c9a84c', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #c9a84c' },
+  imgShadowBox: { borderRadius: '8px', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.5)', border: '4px solid #1e293b', maxWidth: '100%' },
+  certImg: { width: '100%', height: 'auto', display: 'block' },
+  actions: { marginTop: '40px', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' },
+  btnDownload: { background: '#c9a84c', color: '#000', padding: '14px 28px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', minWidth: '200px' },
+  btnSecondary: { background: 'transparent', color: '#fff', padding: '14px 28px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', textDecoration: 'none', fontWeight: '600', minWidth: '200px', textAlign: 'center' },
+  centerBox: { textAlign: 'center', padding: '100px 0' },
+  spinner: { width: 40, height: 40, border: '4px solid #334155', borderTop: '4px solid #c9a84c', borderRadius: '50%', margin: '0 auto 20px', animation: 'spin 1s linear infinite' },
 };
