@@ -14,11 +14,10 @@ export default function CertificatePage() {
 
   useEffect(() => {
     const loadCertificate = async () => {
-      // LOGIC FIX: Handle encoding and force UPPERCASE comparison
+      // BACK TO OLD LOGIC: Use decoded name exactly as it is in the URL
       const decodedName = decodeURIComponent(name || '');
-      const cleanSearch = decodedName.trim().replace(/\s+/g, ' ').toUpperCase();
 
-      if (!cleanSearch) {
+      if (!decodedName) {
         setError('No participant name provided.');
         setLoading(false);
         return;
@@ -28,7 +27,7 @@ export default function CertificatePage() {
         const { data, error: dbError } = await supabase
           .from('participants')
           .select('role, name')
-          .eq('name', cleanSearch)
+          .eq('name', decodedName)
           .eq('cert_date', day)
           .maybeSingle();
 
@@ -65,19 +64,27 @@ export default function CertificatePage() {
     setDownloading(false);
   };
 
-  // UI styles remain exactly as your original file
   const styles = {
-    page: { minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' },
-    // ... all other styles from your original file ...
+    page: { minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
+    card: { backgroundColor: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', textAlign: 'center', maxWidth: '90%' },
+    img: { width: '100%', marginBottom: '20px', borderRadius: '8px' },
+    btn: { padding: '10px 20px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }
   };
 
-  // Rendering logic preserved
   return (
     <div style={styles.page}>
-      {/* Your full UI code goes here */}
-       <div style={{textAlign: 'center', padding: '50px'}}>
-          {loading ? <p>Verifying...</p> : error ? <p>{error}</p> : <img src={imgSrc} style={{width: '90%'}} />}
-          <button onClick={handleDownload} disabled={downloading}>{downloading ? '...' : 'Download'}</button>
+       <div style={styles.card}>
+          {loading ? <p>Verifying certificate...</p> : error ? <p style={{color: '#ef4444'}}>{error}</p> : (
+            <>
+              <img src={imgSrc} style={styles.img} alt="Certificate" />
+              <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
+                <button style={styles.btn} onClick={handleDownload} disabled={downloading}>
+                  {downloading ? 'Preparing Download...' : 'Download Certificate'}
+                </button>
+                <Link to="/" style={{...styles.btn, backgroundColor: '#64748b', textDecoration: 'none'}}>Back Home</Link>
+              </div>
+            </>
+          )}
       </div>
     </div>
   );
