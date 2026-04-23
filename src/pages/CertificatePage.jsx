@@ -3,15 +3,54 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { getCertificateDataUrl, downloadCertificate } from '../certificateGenerator';
 
+// ─── MOBILE FIX ──────────────────────────────────────────────────────────────
+// Some mobile Gmail/browser combinations mangle URL-encoded names:
+//   - %20 becomes + or a literal space then gets re-encoded
+//   - %09 (tab) appears from some Android keyboards  
+//   - Unicode zero-width spaces or NBSP get injected
+// Strategy: decode aggressively, then normalize to clean ASCII uppercase.
+const robustDecodeName = (raw) => {
+  if (!raw) return '';
+  let decoded = raw;
+
+  // Try decoding up to 2 times to handle double-encoding (e.g. %2520 → %20 → space)
+  for (let i = 0; i < 2; i++) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break; // nothing changed, stop
+      decoded = next;
+    } catch {
+      break; // malformed, stop trying
+    }
+  }
+
+  // Replace + signs used as spaces (common in mobile query strings)
+  decoded = decoded.replace(/\+/g, ' ');
+
+  // Strip ALL invisible/control characters (tabs, zero-width spaces, NBSP, etc.)
+  decoded = decoded
+    .normalize('NFKD')
+    .replace(/[\u0000-\u001F\u007F-\u009F\u00A0\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+
+  return decoded;
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function CertificatePage() {
   const { name, day } = useParams();
-  const participantName = decodeURIComponent(name || '').trim();
+
+  // Apply robust decode immediately so all logic uses the clean name
+  const participantName = robustDecodeName(name);
 
   const [imgSrc, setImgSrc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [participantRole, setParticipantRole] = useState('Student');
+  const [dbName, setDbName] = useState('');
 
   useEffect(() => {
     const loadCertificate = async () => {
@@ -22,29 +61,58 @@ export default function CertificatePage() {
       }
 
       try {
-        // FIXED: Force name to UpperCase to find the DB record saved by Admin
-        const cleanSearch = participantName.replace(/\s+/g, ' ').toUpperCase();
-
-        const { data, error: dbError } = await supabase
+        // PRIMARY LOOKUP: exact match via ilike (case-insensitive)
+        let { data, error: dbError } = await supabase
           .from('participants')
           .select('role, name')
-          .ilike('name', cleanSearch) 
+          .ilike('name', participantName)
           .eq('cert_date', day)
           .maybeSingle();
 
+        // FALLBACK: if exact ilike fails, try splitting and matching on last name
+        // This catches cases where mobile adds an extra invisible char mid-name
+        if ((dbError || !data) && participantName.includes(' ')) {
+          const parts = participantName.split(' ');
+          const lastName = parts[parts.length - 1];
+
+          const { data: fallbackData } = await supabase
+            .from('participants')
+            .select('role, name')
+            .ilike('name', `%${lastName}%`)
+            .eq('cert_date', day);
+
+          // Among fallback results, find the closest match
+          if (fallbackData && fallbackData.length > 0) {
+            // Sort by similarity: prefer names that contain the most matching words
+            const scored = fallbackData.map(p => {
+              const dbWords = p.name.toUpperCase().split(' ');
+              const searchWords = participantName.split(' ');
+              const matchCount = searchWords.filter(w => dbWords.includes(w)).length;
+              return { ...p, score: matchCount };
+            });
+            scored.sort((a, b) => b.score - a.score);
+            if (scored[0].score > 0) {
+              data = scored[0];
+              dbError = null;
+            }
+          }
+        }
+
         if (dbError || !data) {
-          setError('Certificate not found in our records.');
+          setError('Certificate not found in our records. Please check your name spelling or contact the administrator.');
           setLoading(false);
           return;
         }
 
         const role = data.role || 'Student';
         setParticipantRole(role);
+        setDbName(data.name);
 
-        // FIXED: Pass data.name (the one from DB) to the generator to ensure it matches logic
+        // Use data.name from DB (guaranteed clean) for generation
         const imgData = await getCertificateDataUrl(data.name, day || null, role);
         setImgSrc(imgData);
       } catch (err) {
+        console.error('Certificate load error:', err);
         setError('Failed to load certificate details.');
       } finally {
         setLoading(false);
@@ -57,7 +125,8 @@ export default function CertificatePage() {
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      await downloadCertificate(participantName, day || null, participantRole);
+      // Use the DB name for download to ensure clean output
+      await downloadCertificate(dbName || participantName, day || null, participantRole);
     } catch (err) {
       alert("Download failed.");
     }
@@ -79,14 +148,14 @@ export default function CertificatePage() {
           <div style={styles.centerBox}><div style={styles.spinner} /><p>Verifying Credential...</p></div>
         ) : error ? (
           <div style={styles.centerBox}>
-            <p style={{color: '#ef4444', marginBottom: '20px'}}>{error}</p>
+            <p style={{ color: '#ef4444', marginBottom: '20px' }}>{error}</p>
             <Link to="/" style={styles.btnSecondary}>Back to Search</Link>
           </div>
         ) : (
           <div style={styles.certWrap}>
             <div style={styles.infoCard}>
               <p style={styles.issuedTo}>This certificate is officially issued to:</p>
-              <h2 style={styles.nameHeader}>{participantName}</h2>
+              <h2 style={styles.nameHeader}>{dbName || participantName}</h2>
               <span style={styles.roleTag}>{participantRole === 'Speaker' ? 'Resource Speaker' : 'Participant'}</span>
             </div>
 
