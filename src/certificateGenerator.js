@@ -31,129 +31,87 @@ export const generateCertificate = async (participantName, trainingDay, role) =>
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
+  // Load Assets
   const [bg, logoNemsu, logoCite] = await Promise.all([
     loadImage('/cert-bg.png'),
     loadImage('/logo-nemsu.png'),
     loadImage('/logo-cite.png'),
   ]);
 
-  // BACKGROUND
+  // 1. Draw Background
   ctx.drawImage(bg, 0, 0, W, H);
 
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // =========================
-  // 🔧 FIXED HEADER POSITION
-  // =========================
-  const headerStartY = 80; // moved DOWN from 60 → 80
-  const lineGap = 22;
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffffff';
-
-  ctx.font = '13px Arial';
-  ctx.fillText('Republic of the Philippines', W / 2, headerStartY);
-
-  ctx.font = 'bold 17px Arial';
-  ctx.fillText('North Eastern Mindanao State University', W / 2, headerStartY + lineGap);
-
-  ctx.font = '13px Arial';
-  ctx.fillText('Lianga Campus', W / 2, headerStartY + (lineGap * 2));
-
-  ctx.font = 'bold 14px Arial';
-  ctx.fillText('College of Information Technology Education', W / 2, headerStartY + (lineGap * 3));
-
-  ctx.font = '13px Arial';
-  ctx.fillText('Department of Computer Studies', W / 2, headerStartY + (lineGap * 4));
-
-  // =========================
-  // 🔧 FIXED LOGO ALIGNMENT
-  // =========================
+  // 2. LOGO PLACEMENT (NEMSU LEFT, CITE RIGHT)
   const logoSize = 110;
-  const spacing = 260;
-
-  // Align logos to "Lianga Campus" baseline
-  const liangaY = headerStartY + (lineGap * 2);
+  const spacing = 280; // Distance from center
+  const logoY = 60;
 
   const drawLogoCircle = (img, centerX) => {
-    const y = liangaY - logoSize + 10; // aligns bottom of logo to text line
-
     ctx.save();
     ctx.beginPath();
-    ctx.arc(centerX, y + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+    ctx.arc(centerX, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(img, centerX - logoSize / 2, y, logoSize, logoSize);
+    ctx.drawImage(img, centerX - logoSize / 2, logoY, logoSize, logoSize);
     ctx.restore();
   };
 
+  // Fixed Order: NEMSU on Left (-), CITE on Right (+)
   drawLogoCircle(logoNemsu, (W / 2) - spacing);
   drawLogoCircle(logoCite, (W / 2) + spacing);
 
-  // =========================
-  // TITLE
-  // =========================
+  // 3. HEADER TEXT (Centered)
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '13px Arial';
+  ctx.fillText('Republic of the Philippines', W / 2, 60);
+  ctx.font = 'bold 17px Arial';
+  ctx.fillText('North Eastern Mindanao State University', W / 2, 85);
+  ctx.font = '13px Arial';
+  ctx.fillText('Lianga Campus', W / 2, 105);
+  
+  // Adjusted spacing for college names
+  ctx.font = 'bold 14px Arial';
+  ctx.fillText('College of Information Technology Education', W / 2, 135);
+  ctx.font = '13px Arial';
+  ctx.fillText('Department of Computer Studies', W / 2, 155);
+
+  // 4. TITLE & PRESENTATION
   ctx.font = 'bold 38px Arial';
-  const title = role === 'Speaker'
-    ? 'CERTIFICATE OF RECOGNITION'
-    : 'CERTIFICATE OF PARTICIPATION';
-  ctx.fillText(title, W / 2, 240);
+  const title = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
+  ctx.fillText(title, W / 2, 220);
 
   ctx.font = 'italic 16px Georgia';
-  ctx.fillText('This certificate is hereby presented to', W / 2, 275);
+  ctx.fillText('This certificate is hereby presented to', W / 2, 255);
 
-  // NAME
+  // 5. NAME (Normalized to UpperCase)
   ctx.font = 'bold 48px Arial';
-  ctx.fillText(participantName.toUpperCase(), W / 2, 335);
+  ctx.fillText(participantName.toUpperCase(), W / 2, 315);
 
-  // BODY
+  // 6. BODY WORDING
   ctx.font = '14px Arial';
-  const bodyY = 380;
+  const bodyY = 360;
+  const lineGap = 22;
+  ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, bodyY);
+  ctx.fillText(`held virtually via Google Meet on ${data.month} ${getOrdinal(data.day)}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
+  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, bodyY + (lineGap * 2));
 
-  ctx.fillText(
-    'for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications',
-    W / 2,
-    bodyY
-  );
-
-  ctx.fillText(
-    `held virtually via Google Meet on ${data.month} ${getOrdinal(data.day)}, ${data.year} from ${data.time}, in recognition of commitment`,
-    W / 2,
-    bodyY + 22
-  );
-
-  ctx.fillText(
-    'to learning and professional development through active engagement in the training sessions.',
-    W / 2,
-    bodyY + 44
-  );
-
-  // FOOTER
+  // 7. FOOTER / LOCATION
   ctx.font = '14px Arial';
-  const footerY = 480;
-
-  ctx.fillText(
-    `Given this ${getOrdinal(data.day)} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`,
-    W / 2,
-    footerY
-  );
-
+  const footerY = 465;
+  ctx.fillText(`Given this ${getOrdinal(data.day)} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, footerY);
   ctx.fillText('Lianga, Surigao del Sur.', W / 2, footerY + 20);
 
-  // SIGNATURE
+  // 8. SIGNATURE (Cleaned up as per request - no lines)
   ctx.font = 'bold 16px Arial';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 610);
-
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 605);
   ctx.font = '13px Arial';
-  ctx.fillText('BSCS Program Coordinator', W / 2, 630);
+  ctx.fillText('BSCS Program Coordinator', W / 2, 625);
 
-  // EXPORT
+  // 9. PDF GENERATION
   const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF({
-    orientation: 'landscape',
-    unit: 'px',
-    format: [W, H],
-  });
-
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
   pdf.addImage(imgData, 'PNG', 0, 0, W, H);
 
   return { pdf, imgData };
