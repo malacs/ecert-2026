@@ -42,14 +42,24 @@ export const generateCertificate = async (participantName, trainingDay = null, r
 
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // --- LOGO PLACEMENT (Smaller & Aligned with Text) ---
-  const logoSize = 75; // Reduced from 100 to make it "not too big"
-  const spacing = 280; 
-  const logoY = 55; // Aligned near the top text block
+  // --- LOGO PLACEMENT (Circular & Tighter Spacing) ---
+  const logoSize = 85; 
+  const spacing = 245; // Reduced from 280 to bring logos closer to words
+  const logoY = 50;
 
-  // NEMSU on Left, CITE on Right
-  ctx.drawImage(logoNemsu, (W / 2) - spacing - (logoSize / 2), logoY, logoSize, logoSize);
-  ctx.drawImage(logoCite, (W / 2) + spacing - (logoSize / 2), logoY, logoSize, logoSize);
+  const drawCircularLogo = (img, centerX) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip(); // Creates the perfect circular frame
+    ctx.drawImage(img, centerX - logoSize / 2, logoY, logoSize, logoSize);
+    ctx.restore();
+  };
+
+  // NEMSU (Left) & CITE (Right)
+  drawCircularLogo(logoNemsu, (W / 2) - spacing);
+  drawCircularLogo(logoCite, (W / 2) + spacing);
 
   // --- TEXT CONTENT ---
   ctx.textAlign = 'center';
@@ -74,9 +84,11 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = 'italic 16px Georgia';
   ctx.fillText('This certificate is hereby presented to', W / 2, 255);
 
+  // Participant Name
   ctx.font = 'bold 48px Arial';
   ctx.fillText(participantName.toUpperCase(), W / 2, 315);
 
+  // Body Text
   ctx.font = '14px Arial';
   const bodyY = 360;
   const lineGap = 22;
@@ -84,15 +96,28 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.fillText(`held virtually via Google Meet on ${data.month} ${getOrdinal(data.day)}, ${data.year} from ${data.time}`, W / 2, bodyY + lineGap);
   ctx.fillText('in recognition of commitment to learning and professional development.', W / 2, bodyY + (lineGap * 2));
 
+  // Location/Date
   ctx.font = '14px Arial';
   const footerY = 465;
   ctx.fillText(`Given this ${getOrdinal(data.day)} of ${data.month}, ${data.year} at NEMSU — Lianga Campus,`, W / 2, footerY);
   ctx.fillText('Surigao del Sur.', W / 2, footerY + 20);
 
-  ctx.font = 'bold 16px Arial';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 605);
-  ctx.font = '13px Arial';
-  ctx.fillText('BSCS Program Coordinator', W / 2, 625);
+  // --- SIGNATURE SECTION (Fixed visibility) ---
+  // Moved up slightly and ensured high-contrast bold font
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 18px Arial'; 
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 595);
+  
+  // Underline logic (optional, clean)
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo((W / 2) - 120, 600);
+  ctx.lineTo((W / 2) + 120, 600);
+  ctx.stroke();
+
+  ctx.font = '14px Arial';
+  ctx.fillText('BSCS Program Coordinator', W / 2, 618);
 
   const imgData = canvas.toDataURL('image/png', 1.0);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
