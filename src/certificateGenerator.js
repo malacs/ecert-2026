@@ -22,67 +22,103 @@ const DAY_DATES = {
   5: { day: 29, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
 };
 
-const getGoldSignature = (image) => {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = image.width; canvas.height = image.height;
-  ctx.drawImage(image, 0, 0);
-  ctx.globalCompositeOperation = 'source-atop';
-  ctx.fillStyle = '#c9a84c';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  return canvas;
-};
-
 export const generateCertificate = async (participantName, trainingDay, role) => {
-  const W = 1000; const H = 700;
+  const W = 1000;
+  const H = 700;
+
   const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  const [bg, logoNemsu, logoCite, logoSig] = await Promise.all([
+  const [bg, logoNemsu, logoCite] = await Promise.all([
     loadImage('/cert-bg.png'),
     loadImage('/logo-nemsu.png'),
     loadImage('/logo-cite.png'),
-    loadImage('/logo-signature.png'),
   ]);
 
+  // Draw Background
   ctx.drawImage(bg, 0, 0, W, H);
+
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // Logos
-  ctx.drawImage(logoNemsu, 240, 60, 100, 100);
-  ctx.drawImage(logoCite, 660, 60, 100, 100);
+  // LOGO LOGIC (Circular Fix)
+  const logoSize = 110;
+  const spacing = 260;
+  const logoY = 60;
 
-  // Wording
-  ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+  const drawLogoCircle = (img, centerX) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(img, centerX - logoSize / 2, logoY, logoSize, logoSize);
+    ctx.restore();
+  };
+
+  drawLogoCircle(logoNemsu, (W / 2) - spacing);
+  drawLogoCircle(logoCite, (W / 2) + spacing);
+
+  // HEADER TEXT
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '13px Arial';
+  ctx.fillText('Republic of the Philippines', W / 2, 60);
+  ctx.font = 'bold 17px Arial';
+  ctx.fillText('North Eastern Mindanao State University', W / 2, 85);
+  ctx.font = '13px Arial';
+  ctx.fillText('Lianga Campus', W / 2, 105);
+  ctx.font = 'bold 14px Arial';
+  ctx.fillText('College of Information Technology Education', W / 2, 135);
+  ctx.font = '13px Arial';
+  ctx.fillText('Department of Computer Studies', W / 2, 155);
+
+  // TITLE & PRESENTATION
   ctx.font = 'bold 38px Arial';
-  ctx.fillText('CERTIFICATE OF PARTICIPATION', W/2, 220);
+  const title = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
+  ctx.fillText(title, W / 2, 220);
+
   ctx.font = 'italic 16px Georgia';
-  ctx.fillText('This certificate is hereby presented to', W/2, 255);
+  ctx.fillText('This certificate is hereby presented to', W / 2, 255);
+
+  // NAME
   ctx.font = 'bold 48px Arial';
-  ctx.fillText(participantName.toUpperCase(), W/2, 315);
+  ctx.fillText(participantName.toUpperCase(), W / 2, 315);
 
+  // BODY WORDING - RESTORED
   ctx.font = '14px Arial';
-  ctx.fillText(`held virtually via Google Meet on ${data.month} ${getOrdinal(data.day)}, ${data.year}`, W/2, 382);
+  const bodyY = 360;
+  const lineGap = 22;
+  ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, bodyY);
+  ctx.fillText(`held virtually via Google Meet on ${data.month} ${getOrdinal(data.day)}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
+  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, bodyY + (lineGap * 2));
 
-  // Gold Signature
-  const goldSig = getGoldSignature(logoSig);
-  ctx.drawImage(goldSig, 450, 525, 100, 55);
+  // FOOTER / GIVEN AT
+  ctx.font = '14px Arial';
+  const footerY = 465;
+  ctx.fillText(`Given this ${getOrdinal(data.day)} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, footerY);
+  ctx.fillText('Lianga, Surigao del Sur.', W / 2, footerY + 20);
+
+  // SIGNATURE
   ctx.font = 'bold 16px Arial';
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W/2, 605);
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 605);
+  ctx.font = '13px Arial';
+  ctx.fillText('BSCS Program Coordinator', W / 2, 625);
 
   const imgData = canvas.toDataURL('image/png');
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
   pdf.addImage(imgData, 'PNG', 0, 0, W, H);
+
   return { pdf, imgData };
 };
 
-export const downloadCertificate = async (n, d, r) => {
-  const { pdf } = await generateCertificate(n, d, r);
-  pdf.save(`${n}.pdf`);
+export const downloadCertificate = async (name, day, role) => {
+  const { pdf } = await generateCertificate(name, day, role);
+  const cleanName = name.trim().replace(/\s+/g, '_');
+  pdf.save(`Certificate_${cleanName}.pdf`);
 };
 
-export const getCertificateDataUrl = async (n, d, r) => {
-  const { imgData } = await generateCertificate(n, d, r);
+export const getCertificateDataUrl = async (name, day, role) => {
+  const { imgData } = await generateCertificate(name, day, role);
   return imgData;
 };
