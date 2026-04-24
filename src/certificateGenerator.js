@@ -59,22 +59,23 @@ export const generateCertificate = async (participantName, trainingDay = null, r
 
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // 1. LOGOS (Sizing logic: NEMSU small, CITE big/wide)
-  const logoY = 60;
-  const spacing = 260;
+  // 1. LOGOS (NEMSU size kept, CITE slightly bigger/wider and ALIGNED)
+  const logoY = 62; // Unified Y-position for perfect alignment
+  const spacing = 265;
 
-  // Custom sizing per logo
   const drawLogoCustom = (img, centerX, size) => {
     const aspect = img.width / img.height;
     let dW = size, dH = size;
     if (aspect > 1) dH = size / aspect;
     else dW = size * aspect;
-    ctx.drawImage(img, centerX - dW / 2, logoY + (size - dH) / 2, dW, dH);
+    // Aligning both logos to the same top baseline
+    ctx.drawImage(img, centerX - dW / 2, logoY, dW, dH);
   };
 
-  // NEMSU: Smaller (80px) | CITE: Bigger and Wider (120px)
+  // NEMSU: Size kept at 80px
   drawLogoCustom(logoNemsu, (W / 2) - spacing, 80);
-  drawLogoCustom(logoCite, (W / 2) + spacing, 120);
+  // CITE: Increased to 135px and pulled closer to text center for alignment
+  drawLogoCustom(logoCite, (W / 2) + spacing, 135);
 
   // 2. HEADER TEXT
   ctx.textAlign = 'center';
