@@ -18,27 +18,25 @@ export default function CertificatePage() {
         let data = null;
 
         if (id) {
-          // New ID-based lookup
           const { data: record } = await supabase.from('participants').select('*').eq('id', id).single();
           data = record;
         } else if (name && day) {
-          // Fallback for old name/day links
-          const cleanName = decodeURIComponent(name).replace(/\+/g, ' ').trim();
+          const decodedName = decodeURIComponent(name).replace(/\+/g, ' ').trim();
           const { data: record } = await supabase.from('participants').select('*')
-            .ilike('name', `%${cleanName}%`).eq('cert_date', day).maybeSingle();
+            .ilike('name', `%${decodedName}%`).eq('cert_date', day).maybeSingle();
           data = record;
         }
 
         if (!data) {
-          setError("Certificate record not found.");
+          setError("Certificate not found.");
           return;
         }
 
         setParticipant(data);
-        const previewUrl = await getCertificateDataUrl(data.name, data.cert_date, data.role);
-        setImgSrc(previewUrl);
-      } catch (err) {
-        setError("Technical error loading certificate.");
+        const url = await getCertificateDataUrl(data.name, data.cert_date, data.role);
+        setImgSrc(url);
+      } catch {
+        setError("Error loading certificate.");
       } finally {
         setLoading(false);
       }
@@ -53,48 +51,35 @@ export default function CertificatePage() {
     setDownloading(false);
   };
 
-  return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <div style={styles.badge}>DATA INSIGHTS 2026</div>
-        <h1 style={styles.mainTitle}>Verification Portal</h1>
-      </header>
+  if (loading) return <div style={{backgroundColor:'#0f172a', minHeight:'100vh', color:'#fff', textAlign:'center', paddingTop:'100px'}}>Loading Credentials...</div>;
 
-      <main style={styles.content}>
-        {loading ? (
-          <div style={styles.card}><p>Verifying Credentials...</p></div>
-        ) : error ? (
-          <div style={styles.card}>
-            <p style={{ color: '#ff4d4d' }}>{error}</p>
-            <Link to="/" style={styles.btnSecondary}>Back to Search</Link>
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#fff', textAlign: 'center', padding: '20px' }}>
+      <h2 style={{ color: '#c9a84c', marginTop: '40px' }}>DATA INSIGHTS 2026</h2>
+      <p style={{ letterSpacing: '2px', fontSize: '12px' }}>OFFICIAL VERIFICATION PORTAL</p>
+
+      {error ? (
+        <div style={{ marginTop: '50px' }}>
+          <p>{error}</p>
+          <Link to="/" style={{ color: '#c9a84c' }}>Return to Home</Link>
+        </div>
+      ) : (
+        <div style={{ maxWidth: '900px', margin: '40px auto', backgroundColor: '#1e293b', padding: '30px', borderRadius: '15px', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <h1 style={{ textTransform: 'uppercase', marginBottom: '30px' }}>{participant.name}</h1>
+          
+          <div style={{ border: '5px solid #0f172a', borderRadius: '8px', overflow: 'hidden', marginBottom: '30px' }}>
+            <img src={imgSrc} alt="Certificate Preview" style={{ width: '100%', display: 'block' }} />
           </div>
-        ) : (
-          <div style={styles.card}>
-            <h2 style={styles.nameDisplay}>{participant.name}</h2>
-            <div style={styles.previewBox}>
-              <img src={imgSrc} alt="Certificate" style={{ width: '100%' }} />
-            </div>
-            <div style={styles.actionButtons}>
-              <button onClick={handleDownload} disabled={downloading} style={styles.btnPrimary}>
-                {downloading ? 'Generating...' : 'DOWNLOAD PDF'}
-              </button>
-            </div>
-          </div>
-        )}
-      </main>
+
+          <button 
+            onClick={handleDownload} 
+            disabled={downloading}
+            style={{ backgroundColor: '#c9a84c', color: '#000', padding: '15px 40px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            {downloading ? 'GENERATING PDF...' : 'DOWNLOAD CERTIFICATE'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
-
-const styles = {
-  container: { minHeight: '100vh', backgroundColor: '#0f172a', color: '#fff', textAlign: 'center' },
-  header: { backgroundColor: '#1e293b', padding: '40px', borderBottom: '3px solid #c9a84c' },
-  badge: { color: '#c9a84c', letterSpacing: '3px', fontSize: '12px', fontWeight: 'bold' },
-  mainTitle: { fontSize: '28px', margin: '10px 0' },
-  content: { maxWidth: '800px', margin: '20px auto', padding: '20px' },
-  card: { backgroundColor: '#1e293b', padding: '30px', borderRadius: '15px', border: '1px solid rgba(255,255,255,0.1)' },
-  nameDisplay: { textTransform: 'uppercase', marginBottom: '20px' },
-  previewBox: { backgroundColor: '#000', padding: '5px', borderRadius: '5px', marginBottom: '20px' },
-  btnPrimary: { backgroundColor: '#c9a84c', color: '#000', padding: '15px 30px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
-  btnSecondary: { color: '#fff', textDecoration: 'none', marginTop: '10px', display: 'block' }
-};
