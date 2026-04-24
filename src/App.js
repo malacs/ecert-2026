@@ -14,10 +14,10 @@ export default function App() {
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/presentation" element={<PresentationPage />} />
 
-        {/* ✅ PRIMARY FIX (mobile-safe) */}
+        {/* Primary: UUID based links */}
         <Route path="/certificate/:id" element={<CertificatePage />} />
 
-        {/* ✅ BACKUP for old links */}
+        {/* Legacy: Name and Day based links */}
         <Route path="/certificate/:name/:day" element={<CertificatePage />} />
       </Routes>
       <Analytics />
