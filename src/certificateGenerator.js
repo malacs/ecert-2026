@@ -42,9 +42,9 @@ export const generateCertificate = async (participantName, trainingDay = null, r
 
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
 
-  // --- LOGO PLACEMENT (Circular & Tighter Spacing) ---
+  // --- LOGO PLACEMENT (Circular & Tighter) ---
   const logoSize = 85; 
-  const spacing = 245; // Reduced from 280 to bring logos closer to words
+  const spacing = 245; // Brought logos closer to center
   const logoY = 50;
 
   const drawCircularLogo = (img, centerX) => {
@@ -52,16 +52,15 @@ export const generateCertificate = async (participantName, trainingDay = null, r
     ctx.beginPath();
     ctx.arc(centerX, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
     ctx.closePath();
-    ctx.clip(); // Creates the perfect circular frame
+    ctx.clip(); // This makes the CITE logo a perfect circle
     ctx.drawImage(img, centerX - logoSize / 2, logoY, logoSize, logoSize);
     ctx.restore();
   };
 
-  // NEMSU (Left) & CITE (Right)
   drawCircularLogo(logoNemsu, (W / 2) - spacing);
   drawCircularLogo(logoCite, (W / 2) + spacing);
 
-  // --- TEXT CONTENT ---
+  // --- HEADER TEXT ---
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
 
@@ -77,6 +76,7 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = '13px Arial';
   ctx.fillText('Department of Computer Studies', W / 2, 155);
 
+  // --- TITLE & PRESENTATION ---
   ctx.font = 'bold 38px Arial';
   const titleText = role === 'Speaker' ? 'CERTIFICATE OF RECOGNITION' : 'CERTIFICATE OF PARTICIPATION';
   ctx.fillText(titleText, W / 2, 220);
@@ -84,33 +84,32 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = 'italic 16px Georgia';
   ctx.fillText('This certificate is hereby presented to', W / 2, 255);
 
-  // Participant Name
+  // --- NAME ---
   ctx.font = 'bold 48px Arial';
   ctx.fillText(participantName.toUpperCase(), W / 2, 315);
 
-  // Body Text
+  // --- BODY WORDS (UNCHANGED) ---
   ctx.font = '14px Arial';
   const bodyY = 360;
   const lineGap = 22;
   ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, bodyY);
-  ctx.fillText(`held virtually via Google Meet on ${data.month} ${getOrdinal(data.day)}, ${data.year} from ${data.time}`, W / 2, bodyY + lineGap);
-  ctx.fillText('in recognition of commitment to learning and professional development.', W / 2, bodyY + (lineGap * 2));
+  ctx.fillText(`held virtually via Google Meet on ${data.month} ${getOrdinal(data.day)}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
+  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, bodyY + (lineGap * 2));
 
-  // Location/Date
+  // --- FOOTER ---
   ctx.font = '14px Arial';
   const footerY = 465;
-  ctx.fillText(`Given this ${getOrdinal(data.day)} of ${data.month}, ${data.year} at NEMSU — Lianga Campus,`, W / 2, footerY);
-  ctx.fillText('Surigao del Sur.', W / 2, footerY + 20);
+  ctx.fillText(`Given this ${getOrdinal(data.day)} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, footerY);
+  ctx.fillText('Lianga, Surigao del Sur.', W / 2, footerY + 20);
 
-  // --- SIGNATURE SECTION (Fixed visibility) ---
-  // Moved up slightly and ensured high-contrast bold font
+  // --- SIGNATURE (FIXED VISIBILITY) ---
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 18px Arial'; 
-  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 595);
+  ctx.fillText('CHRISTINE W. PITOS, MSCS', W / 2, 595); // Moved up
   
-  // Underline logic (optional, clean)
+  // Clean line under signature
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo((W / 2) - 120, 600);
   ctx.lineTo((W / 2) + 120, 600);
