@@ -21,9 +21,8 @@ const DAY_LABEL = {
   '5': 'April 29, 2026'
 };
 
-// ─── MASTER NAME CLEANER ─────────────────────────────────────────────────────
-// Strips ALL invisible/control chars, collapses spaces, uppercases.
-// Used when SAVING to DB and when BUILDING certificate URLs.
+// ─── HELPER FUNCTIONS ────────────────────────────────────────────────────────
+
 const normalizeName = (raw) => {
   if (!raw) return '';
   return raw
@@ -34,9 +33,11 @@ const normalizeName = (raw) => {
     .toUpperCase();
 };
 
-// Build certificate URL — always re-cleans the name before encoding
-// so dirty DB records (saved before the fix) still produce clean URLs
-const certUrl = buildCertUrl(window.location.origin, p);
+const buildCertUrl = (origin, participant) => {
+  // Uses the unique ID from the database for the URL
+  return `${origin}/certificate/${participant.id}`;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function AdminPage() {
@@ -112,24 +113,9 @@ export default function AdminPage() {
 
     const finalName = normalizeName(name);
     const finalEmail = email.trim().toLowerCase();
-
     const payload = { name: finalName, email: finalEmail, cert_date: trainingDay, role };
 
     if (editingId) {
-      const original = participants.find(p => p.id === editingId);
-      const nameChanged = original?.name !== finalName;
-      const dateChanged = String(original?.cert_date) !== String(trainingDay);
-
-      if (nameChanged || dateChanged) {
-        const { data: existing } = await supabase
-          .from('participants').select('id')
-          .ilike('name', finalName).eq('cert_date', trainingDay).neq('id', editingId)
-          .maybeSingle();
-        if (existing) {
-          notify(`"${finalName}" is already registered for that day.`, 'error');
-          setAdding(false); return;
-        }
-      }
       const { error } = await supabase.from('participants').update(payload).eq('id', editingId);
       if (!error) notify("Updated Successfully!");
       setEditingId(null);
@@ -138,10 +124,12 @@ export default function AdminPage() {
         .from('participants').select('id')
         .ilike('name', finalName).eq('cert_date', trainingDay)
         .maybeSingle();
+      
       if (existing) {
         notify(`"${finalName}" is already registered for that day.`, 'error');
         setAdding(false); return;
       }
+      
       const { error } = await supabase.from('participants').insert([{ ...payload, email_sent: false }]);
       if (!error) notify("Added Successfully!");
     }
@@ -163,15 +151,19 @@ export default function AdminPage() {
   const sendIndividualEmail = async (p) => {
     setSendingStatus(p.id);
     try {
-      // KEY FIX: re-clean p.name and build a proper URL
-      // This handles dirty records saved before this fix
-      const certUrl = buildCertUrl(window.location.origin, p.name, p.cert_date);
+      const certUrl = buildCertUrl(window.location.origin, p);
       emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
+      
       await emailjs.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
         process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
-        { to_name: normalizeName(p.name), to_email: p.email, certificate_url: certUrl }
+        { 
+          to_name: p.name, 
+          to_email: p.email, 
+          certificate_url: certUrl 
+        }
       );
+
       await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
       notify("Email sent!");
       fetchParticipants();
@@ -182,6 +174,36 @@ export default function AdminPage() {
     setSendingStatus(null);
   };
 
+  const sendAllEmails = async () => {
+    const availableToSend = filtered.filter(p => !p.email_sent);
+    if (availableToSend.length === 0) return alert("No pending emails.");
+    if (!window.confirm(`Send emails to ${availableToSend.length} participants?`)) return;
+    
+    setSendingAll(true);
+    emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
+    
+    for (const p of availableToSend) {
+      try {
+        const certUrl = buildCertUrl(window.location.origin, p);
+        await emailjs.send(
+          process.env.REACT_APP_EMAILJS_SERVICE_ID, 
+          process.env.REACT_APP_EMAILJS_TEMPLATE_ID, 
+          { 
+            to_name: p.name, 
+            to_email: p.email, 
+            certificate_url: certUrl 
+          }
+        );
+        await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
+      } catch (err) { 
+        console.error('Failed:', p.email); 
+      }
+    }
+    notify("Bulk process finished");
+    fetchParticipants();
+    setSendingAll(false);
+  };
+
   const filtered = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesDay = selectedFilter === 'all' || String(p.cert_date) === selectedFilter;
@@ -189,28 +211,8 @@ export default function AdminPage() {
     return matchesSearch && matchesDay && matchesRole;
   });
 
-  const availableToSend = filtered.filter(p => !p.email_sent);
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const currentItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-  const sendAllEmails = async () => {
-    if (availableToSend.length === 0) return alert("No pending emails.");
-    if (!window.confirm(`Send emails to ${availableToSend.length} participants?`)) return;
-    setSendingAll(true);
-    emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
-    for (const p of availableToSend) {
-      try {
-        const certUrl = buildCertUrl(window.location.origin, p.name, p.cert_date);
-        await emailjs.send(process.env.REACT_APP_EMAILJS_SERVICE_ID, process.env.REACT_APP_EMAILJS_TEMPLATE_ID, {
-          to_name: normalizeName(p.name), to_email: p.email, certificate_url: certUrl
-        });
-        await supabase.from('participants').update({ email_sent: true }).eq('id', p.id);
-      } catch (err) { console.error('Failed:', p.email); }
-    }
-    notify("Bulk process finished");
-    fetchParticipants();
-    setSendingAll(false);
-  };
 
   if (authLoading) return <div style={L.container}><p style={{ color: '#fff' }}>Verifying Session...</p></div>;
 
@@ -254,7 +256,7 @@ export default function AdminPage() {
         <div style={{ ...S.card, borderLeft: editingId ? '8px solid #3b82f6' : '1px solid #e2e8f0' }}>
           <h3 style={S.cardTitle}>{editingId ? 'EDITING PARTICIPANT' : 'ADD NEW PARTICIPANT'}</h3>
           <div style={S.inputGrid}>
-            <input style={S.input} placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} autoComplete="off" autoCorrect="off" />
+            <input style={S.input} placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} />
             <input style={S.input} placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
             <select style={S.input} value={trainingDay} onChange={e => setTrainingDay(e.target.value)}>
               <option value="">Select Day</option>
@@ -285,14 +287,8 @@ export default function AdminPage() {
               </select>
             </div>
             <button style={{ ...S.btnPrimary, backgroundColor: '#10b981' }} onClick={sendAllEmails} disabled={sendingAll}>
-              {sendingAll ? 'Processing...' : `Send to ${availableToSend.length} Available`}
+              {sendingAll ? 'Processing...' : `Send Batch`}
             </button>
-          </div>
-
-          <div style={S.statsRow}>
-            <div style={S.statBadge}>Total: {filtered.length}</div>
-            <div style={{ ...S.statBadge, background: '#f0fdf4', color: '#166534' }}>Students: {filtered.filter(p => p.role === 'Student').length}</div>
-            <div style={{ ...S.statBadge, background: '#fdf2f8', color: '#9d174d' }}>Speakers: {filtered.filter(p => p.role === 'Speaker').length}</div>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -315,7 +311,6 @@ export default function AdminPage() {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button style={S.btnAction} onClick={() => startEdit(p)}>Edit</button>
                         <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>{sendingStatus === p.id ? '...' : 'Send'}</button>
-                        <button style={{ ...S.btnAction, color: '#ef4444' }} onClick={async () => { if (window.confirm("Delete?")) { await supabase.from('participants').delete().eq('id', p.id); fetchParticipants(); notify("Deleted", "error"); } }}>Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -366,12 +361,10 @@ const S = {
   btnOutline: { background: 'none', color: '#475569', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', cursor: 'pointer' },
   btnAction: { padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer' },
   filterBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' },
-  statsRow: { display: 'flex', gap: '10px', marginBottom: '1.5rem' },
-  statBadge: { padding: '5px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', background: '#eff6ff', color: '#1d4ed8' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' },
   th: { padding: '12px', textAlign: 'left', borderBottom: '2px solid #f1f5f9', color: '#64748b' },
   td: { padding: '12px', borderBottom: '1px solid #f1f5f9', color: '#475569' },
-  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '20px', padding: '10px' },
+  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '20px' },
   overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
   modal: { background: '#fff', padding: '2rem', borderRadius: '20px', width: '340px' },
   toast: { position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', padding: '12px 24px', borderRadius: '8px', color: '#fff', fontWeight: 'bold', zIndex: 1000 }
