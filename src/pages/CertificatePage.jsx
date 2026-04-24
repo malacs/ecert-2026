@@ -5,6 +5,7 @@ import { getCertificateDataUrl, downloadCertificate } from '../certificateGenera
 
 export default function CertificatePage() {
   const { id, name, day } = useParams();
+
   const [imgSrc, setImgSrc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,69 +18,114 @@ export default function CertificatePage() {
         setLoading(true);
         let data = null;
 
+        // ✅ PRIMARY (ID-based)
         if (id) {
-          const { data: record } = await supabase.from('participants').select('*').eq('id', id).single();
-          data = record;
-        } else if (name && day) {
-          const decodedName = decodeURIComponent(name).replace(/\+/g, ' ').trim();
-          const { data: record } = await supabase.from('participants').select('*')
-            .ilike('name', `%${decodedName}%`).eq('cert_date', day).maybeSingle();
+          const { data: record, error } = await supabase
+            .from('participants')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+          if (!error) data = record;
+        }
+
+        // ⚠️ FALLBACK (old links)
+        if (!data && name && day) {
+          const decodedName = decodeURIComponent(name)
+            .replace(/\+/g, ' ')
+            .trim()
+            .toUpperCase();
+
+          const { data: record } = await supabase
+            .from('participants')
+            .select('*')
+            .ilike('name', decodedName)
+            .eq('cert_date', day)
+            .maybeSingle();
+
           data = record;
         }
 
         if (!data) {
-          setError("Certificate not found.");
+          setError('No record found in our database.');
           return;
         }
 
         setParticipant(data);
-        const url = await getCertificateDataUrl(data.name, data.cert_date, data.role);
-        setImgSrc(url);
-      } catch {
-        setError("Error loading certificate.");
+
+        const previewUrl = await getCertificateDataUrl(
+          data.name,
+          data.cert_date,
+          data.role
+        );
+
+        setImgSrc(previewUrl);
+      } catch (err) {
+        setError('Technical error loading certificate.');
       } finally {
         setLoading(false);
       }
     };
+
     fetchRecord();
   }, [id, name, day]);
 
   const handleDownload = async () => {
     if (!participant) return;
     setDownloading(true);
-    await downloadCertificate(participant.name, participant.cert_date, participant.role);
+    await downloadCertificate(
+      participant.name,
+      participant.cert_date,
+      participant.role
+    );
     setDownloading(false);
   };
 
-  if (loading) return <div style={{backgroundColor:'#0f172a', minHeight:'100vh', color:'#fff', textAlign:'center', paddingTop:'100px'}}>Loading Credentials...</div>;
-
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#fff', textAlign: 'center', padding: '20px' }}>
-      <h2 style={{ color: '#c9a84c', marginTop: '40px' }}>DATA INSIGHTS 2026</h2>
-      <p style={{ letterSpacing: '2px', fontSize: '12px' }}>OFFICIAL VERIFICATION PORTAL</p>
+    <div style={styles.container}>
+      <header style={styles.header}>
+        <div style={styles.badge}>DATA INSIGHTS 2026</div>
+        <h1 style={styles.mainTitle}>Verification Portal</h1>
+        <p style={styles.subtitle}>OFFICIAL DIGITAL CREDENTIALS</p>
+      </header>
 
-      {error ? (
-        <div style={{ marginTop: '50px' }}>
-          <p>{error}</p>
-          <Link to="/" style={{ color: '#c9a84c' }}>Return to Home</Link>
-        </div>
-      ) : (
-        <div style={{ maxWidth: '900px', margin: '40px auto', backgroundColor: '#1e293b', padding: '30px', borderRadius: '15px', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <h1 style={{ textTransform: 'uppercase', marginBottom: '30px' }}>{participant.name}</h1>
-          
-          <div style={{ border: '5px solid #0f172a', borderRadius: '8px', overflow: 'hidden', marginBottom: '30px' }}>
-            <img src={imgSrc} alt="Certificate Preview" style={{ width: '100%', display: 'block' }} />
+      <main style={styles.content}>
+        {loading ? (
+          <div style={styles.card}>
+            <p style={{ color: '#94a3b8' }}>Verifying security credentials...</p>
           </div>
+        ) : error ? (
+          <div style={styles.card}>
+            <p style={{ color: '#ff4d4d', fontSize: '18px' }}>{error}</p>
+            <Link to="/" style={styles.btnSecondary}>Back to Search</Link>
+          </div>
+        ) : (
+          <div style={styles.card}>
+            <div style={styles.infoSection}>
+              <p style={styles.label}>This certificate is officially issued to:</p>
+              <h2 style={styles.nameDisplay}>{participant.name}</h2>
+              <div style={styles.roleTag}>
+                {participant.role === 'Speaker' ? 'Resource Speaker' : 'Student Participant'}
+              </div>
+            </div>
 
-          <button 
-            onClick={handleDownload} 
-            disabled={downloading}
-            style={{ backgroundColor: '#c9a84c', color: '#000', padding: '15px 40px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            {downloading ? 'GENERATING PDF...' : 'DOWNLOAD CERTIFICATE'}
-          </button>
-        </div>
-      )}
+            <div style={styles.previewBox}>
+              {imgSrc ? (
+                <img src={imgSrc} alt="Preview" style={styles.image} />
+              ) : (
+                <p>Generating preview...</p>
+              )}
+            </div>
+
+            <div style={styles.actionButtons}>
+              <button onClick={handleDownload} disabled={downloading} style={styles.btnPrimary}>
+                {downloading ? 'Preparing PDF...' : 'DOWNLOAD CERTIFICATE'}
+              </button>
+              <Link to="/" style={styles.btnSecondary}>Verify Another</Link>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
