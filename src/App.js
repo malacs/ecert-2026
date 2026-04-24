@@ -15,10 +15,10 @@ export default function App() {
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/presentation" element={<PresentationPage />} />
 
-        {/* ✅ NEW: ID-based route (PRIMARY) */}
+        {/* PRIMARY FIX */}
         <Route path="/certificate/:id" element={<CertificatePage />} />
 
-        {/* ✅ OLD: fallback for old links */}
+        {/* BACKWARD COMPATIBILITY */}
         <Route path="/certificate/:name/:day" element={<CertificatePage />} />
       </Routes>
       <Analytics />
