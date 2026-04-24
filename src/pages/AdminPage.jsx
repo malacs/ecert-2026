@@ -36,10 +36,7 @@ const normalizeName = (raw) => {
 
 // Build certificate URL — always re-cleans the name before encoding
 // so dirty DB records (saved before the fix) still produce clean URLs
-const buildCertUrl = (origin, name, certDate) => {
-  const safe = normalizeName(name);
-  return `${origin}/certificate/${encodeURIComponent(safe)}/${certDate}`;
-};
+const certUrl = buildCertUrl(window.location.origin, p);
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function AdminPage() {
