@@ -7,7 +7,7 @@ const DAY_MAP = {
   '2': 'Day 2 — April 17, 2026',
   '3': 'Day 3 — April 22, 2026',
   '4': 'Day 4 — April 24, 2026',
-  '5': 'Day 5 — April 29, 2026',
+  '5': 'Day 5 — May 1, 2026',
 };
 
 export default function PresentationPage() {
