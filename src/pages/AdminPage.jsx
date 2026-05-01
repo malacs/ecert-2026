@@ -34,7 +34,6 @@ const normalizeName = (raw) => {
 };
 
 const buildCertUrl = (origin, participant) => {
-  // Uses the unique ID from the database for the URL
   return `${origin}/certificate/${participant.id}`;
 };
 
@@ -137,6 +136,18 @@ export default function AdminPage() {
     setName(''); setEmail(''); setTrainingDay(''); setRole('Student');
     fetchParticipants();
     setAdding(false);
+  };
+
+  const handleDelete = async (id, pName) => {
+    if (!window.confirm(`Are you sure you want to delete ${pName}?`)) return;
+    
+    const { error } = await supabase.from('participants').delete().eq('id', id);
+    if (error) {
+      notify("Error deleting participant", "error");
+    } else {
+      notify("Deleted successfully");
+      fetchParticipants();
+    }
   };
 
   const startEdit = (p) => {
@@ -311,6 +322,7 @@ export default function AdminPage() {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button style={S.btnAction} onClick={() => startEdit(p)}>Edit</button>
                         <button style={S.btnAction} onClick={() => sendIndividualEmail(p)}>{sendingStatus === p.id ? '...' : 'Send'}</button>
+                        <button style={{ ...S.btnAction, color: '#ef4444' }} onClick={() => handleDelete(p.id, p.name)}>Delete</button>
                       </div>
                     </td>
                   </tr>
