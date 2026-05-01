@@ -19,7 +19,7 @@ const DAY_DATES = {
   2: { day: 17, month: 'April', year: 2026, time: '8:30 AM to 12:00 PM' },
   3: { day: 22, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
   4: { day: 24, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
-  5: { day: 29, month: 'April', year: 2026, time: '8:00 AM to 12:00 PM' },
+  5: { day: 1, month: 'May', year: 2026, time: '8:30 AM to 12:00 PM' },
 };
 
 const getGoldSignature = (image) => {
