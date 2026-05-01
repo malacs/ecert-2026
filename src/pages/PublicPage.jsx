@@ -29,7 +29,7 @@ const TRAINING_DAYS = [
   { value: '2', label: 'Day 2 - April 17' },
   { value: '3', label: 'Day 3 - April 22' },
   { value: '4', label: 'Day 4 - April 24' },
-  { value: '5', label: 'Day 5 - April 29' },
+  { value: '5', label: 'Day 5 - May 1' },
 ];
 
 export default function PublicPage() {
