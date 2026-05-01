@@ -5,6 +5,7 @@ import { getCertificateDataUrl, downloadCertificate } from '../certificateGenera
 
 export default function CertificatePage() {
   const { id, name, day } = useParams();
+
   const [imgSrc, setImgSrc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,35 +18,52 @@ export default function CertificatePage() {
         setLoading(true);
         let data = null;
 
-        // 1. Try fetching by ID (Modern Method)
-        if (id && id.length > 10) { 
-          const { data: record } = await supabase
+        // ✅ ALWAYS fetch by ID if present
+        if (id) {
+          const { data: record, error } = await supabase
             .from('participants')
             .select('*')
             .eq('id', id)
             .single();
-          data = record;
+
+          if (error) {
+            console.error("Fetch by ID error:", error);
+          } else {
+            data = record;
+          }
         }
 
-        // 2. Fallback: Search by Name and Day (Manual/Old Links)
+        // ✅ Fallback (old links)
         if (!data && name && day) {
           const decodedName = decodeURIComponent(name).replace(/\+/g, ' ').trim();
-          const { data: record } = await supabase
+
+          const { data: record, error } = await supabase
             .from('participants')
             .select('*')
             .ilike('name', `%${decodedName}%`)
             .eq('cert_date', day)
             .maybeSingle();
-          data = record;
+
+          if (error) {
+            console.error("Fallback fetch error:", error);
+          } else {
+            data = record;
+          }
         }
 
         if (!data) {
-          setError(`No record found. Please verify the link or check the spelling.`);
+          setError("No record found. Please verify the link or check the spelling.");
           return;
         }
 
         setParticipant(data);
-        const previewUrl = await getCertificateDataUrl(data.name, data.cert_date, data.role);
+
+        const previewUrl = await getCertificateDataUrl(
+          data.name,
+          data.cert_date,
+          data.role
+        );
+
         setImgSrc(previewUrl);
 
       } catch (err) {
@@ -55,21 +73,28 @@ export default function CertificatePage() {
         setLoading(false);
       }
     };
+
     fetchRecord();
   }, [id, name, day]);
 
   const handleDownload = async () => {
     if (!participant) return;
     setDownloading(true);
-    await downloadCertificate(participant.name, participant.cert_date, participant.role);
+    await downloadCertificate(
+      participant.name,
+      participant.cert_date,
+      participant.role
+    );
     setDownloading(false);
   };
 
-  if (loading) return (
-    <div style={styles.fullPageCenter}>
-      <p>Verifying Digital Credentials...</p>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div style={styles.fullPageCenter}>
+        <p>Verifying Digital Credentials...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -91,7 +116,9 @@ export default function CertificatePage() {
               <p style={styles.label}>This certificate is officially issued to:</p>
               <h2 style={styles.nameDisplay}>{participant.name}</h2>
               <div style={styles.roleTag}>
-                {participant.role === 'Speaker' ? 'Resource Speaker' : 'Student Participant'}
+                {participant.role === 'Speaker'
+                  ? 'Resource Speaker'
+                  : 'Student Participant'}
               </div>
             </div>
 
@@ -99,15 +126,22 @@ export default function CertificatePage() {
               {imgSrc ? (
                 <img src={imgSrc} alt="Certificate" style={styles.image} />
               ) : (
-                <p style={{color: '#64748b'}}>Rendering Preview...</p>
+                <p style={{ color: '#64748b' }}>Rendering Preview...</p>
               )}
             </div>
 
             <div style={styles.actionButtons}>
-              <button onClick={handleDownload} disabled={downloading} style={styles.btnPrimary}>
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                style={styles.btnPrimary}
+              >
                 {downloading ? 'PREPARING PDF...' : 'DOWNLOAD CERTIFICATE'}
               </button>
-              <Link to="/" style={styles.btnSecondary}>Verify Another</Link>
+
+              <Link to="/" style={styles.btnSecondary}>
+                Verify Another
+              </Link>
             </div>
           </div>
         )}
@@ -116,6 +150,7 @@ export default function CertificatePage() {
   );
 }
 
+// styles unchanged
 const styles = {
   fullPageCenter: { minHeight: '100vh', backgroundColor: '#0f172a', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff' },
   container: { minHeight: '100vh', backgroundColor: '#0f172a', color: '#fff', fontFamily: 'sans-serif', paddingBottom: '60px' },
