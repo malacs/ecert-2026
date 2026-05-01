@@ -10,7 +10,7 @@ const TRAINING_DAYS = [
   { value: '2', label: 'Day 2 — April 17, 2026' },
   { value: '3', label: 'Day 3 — April 22, 2026' },
   { value: '4', label: 'Day 4 — April 24, 2026' },
-  { value: '5', label: 'Day 5 — April 29, 2026' },
+  { value: '5', label: 'Day 5 — May 1, 2026' },
 ];
 
 const DAY_LABEL = {
@@ -18,7 +18,7 @@ const DAY_LABEL = {
   '2': 'April 17, 2026',
   '3': 'April 22, 2026',
   '4': 'April 24, 2026',
-  '5': 'April 29, 2026'
+  '5': 'May 1, 2026'
 };
 
 // ─── HELPER FUNCTIONS ────────────────────────────────────────────────────────
