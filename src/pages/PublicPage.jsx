@@ -34,15 +34,15 @@ const TRAINING_DAYS = [
 
 export default function PublicPage() {
   const [search, setSearch] = useState('');
-  const [selectedDay, setSelectedDay] = useState('1'); 
+  const [selectedDay, setSelectedDay] = useState('1');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
-    // FIXED: Convert to UpperCase to match the Admin's handleSave logic
-    const cleanSearch = search.trim().replace(/\s+/g, ' ').toUpperCase();
+
+    const cleanSearch = search.trim().replace(/\s+/g, ' ');
     if (!cleanSearch) return;
 
     setLoading(true);
@@ -52,14 +52,21 @@ export default function PublicPage() {
       const { data, error } = await supabase
         .from('participants')
         .select('*')
-        .ilike('name', `%${cleanSearch}%`) 
+        .ilike('name', `%${cleanSearch}%`)
         .eq('cert_date', selectedDay);
 
-      if (!error) setResults(data || []);
-      else setResults([]);
-    } catch {
+      if (error) {
+        console.error("Search error:", error);
+        setResults([]);
+      } else {
+        setResults(data || []);
+      }
+
+    } catch (err) {
+      console.error("Unexpected error:", err);
       setResults([]);
     }
+
     setLoading(false);
   };
 
@@ -73,8 +80,20 @@ export default function PublicPage() {
         <form onSubmit={handleSearch}>
           <div style={S.formGroup}>
             <label style={S.label}>Step 1: Select Training Day</label>
-            <select value={selectedDay} onChange={(e) => { setSelectedDay(e.target.value); setResults([]); setHasSearched(false); }} style={S.select}>
-              {TRAINING_DAYS.map(day => (<option key={day.value} value={day.value}>{day.label}</option>))}
+            <select 
+              value={selectedDay} 
+              onChange={(e) => { 
+                setSelectedDay(e.target.value); 
+                setResults([]); 
+                setHasSearched(false); 
+              }} 
+              style={S.select}
+            >
+              {TRAINING_DAYS.map(day => (
+                <option key={day.value} value={day.value}>
+                  {day.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -91,7 +110,9 @@ export default function PublicPage() {
                 autoCorrect="off"
                 spellCheck="false"
               />
-              <button type="submit" style={S.button} disabled={loading}>{loading ? '...' : 'Search'}</button>
+              <button type="submit" style={S.button} disabled={loading}>
+                {loading ? '...' : 'Search'}
+              </button>
             </div>
           </div>
         </form>
@@ -101,19 +122,33 @@ export default function PublicPage() {
             <div key={p.id} style={S.resultBox}>
               <div style={S.resInfo}>
                 <div style={S.resName}>{p.name}</div>
-                <div style={{...S.resRole, color: p.role === 'Speaker' ? '#b45309' : '#64748b'}}>
+                <div style={{
+                  ...S.resRole,
+                  color: p.role === 'Speaker' ? '#b45309' : '#64748b'
+                }}>
                   {p.role === 'Speaker' ? 'Resource Speaker' : 'Training Participant'}
                 </div>
               </div>
-              <button style={S.downloadBtn} onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}>Download PDF</button>
+              <button 
+                style={S.downloadBtn} 
+                onClick={() => downloadCertificate(p.name, p.cert_date, p.role)}
+              >
+                Download PDF
+              </button>
             </div>
           ))}
+
           {hasSearched && results.length === 0 && !loading && (
-            <div style={S.noRecord}>No record found. Please check spelling or try just your last name.</div>
+            <div style={S.noRecord}>
+              No record found. Please check spelling or try just your last name.
+            </div>
           )}
         </div>
       </div>
-      <footer style={S.footer}>NEMSU Lianga Campus - BSCS</footer>
+
+      <footer style={S.footer}>
+        NEMSU Lianga Campus - BSCS
+      </footer>
     </div>
   );
 }
