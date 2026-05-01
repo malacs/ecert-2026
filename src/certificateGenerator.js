@@ -110,8 +110,8 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   if (role === 'Speaker') {
     ctx.fillText('in grateful recognition for serving as Resource Speaker during the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts,', W / 2, bodyY);
     ctx.fillText(`Techniques, and Applications held virtually via Google Meet on ${plainDate} from ${data.time}.` , W / 2, bodyY + lineGap);
-    ctx.fillText(`Your meaningful contribution to the success of this academic training activity and to the advancement of` , W / 2, bodyY + (lineGap * 2));
-    ctx.fillText('student learning is sincerely appreciated.', W / 2, bodyY + (lineGap * 3));
+    ctx.fillText(`Your meaningful contribution to the success of this academic training activity and to the` , W / 2, bodyY + (lineGap * 2));
+    ctx.fillText('advancement of student learning is sincerely appreciated.', W / 2, bodyY + (lineGap * 3));
   } else {
     ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, bodyY);
     ctx.fillText(`held virtually via Google Meet on ${plainDate} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
