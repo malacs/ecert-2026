@@ -58,9 +58,11 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.fillRect(0, 0, W, H);
 
   const data = DAY_DATES[Number(trainingDay)] || DAY_DATES[1];
+  const plainDate = `${data.month} ${data.day}, ${data.year}`; // e.g. May 1, 2026
+  const ordinalDate = `${getOrdinal(data.day)} of ${data.month}, ${data.year}`; // e.g. 1st of May, 2026
 
-  // 1. LOGOS (NEMSU size kept, CITE slightly bigger/wider and ALIGNED)
-  const logoY = 62; // Unified Y-position for perfect alignment
+  // 1. LOGOS
+  const logoY = 62; 
   const spacing = 265;
 
   const drawLogoCustom = (img, centerX, size) => {
@@ -68,13 +70,10 @@ export const generateCertificate = async (participantName, trainingDay = null, r
     let dW = size, dH = size;
     if (aspect > 1) dH = size / aspect;
     else dW = size * aspect;
-    // Aligning both logos to the same top baseline
     ctx.drawImage(img, centerX - dW / 2, logoY, dW, dH);
   };
 
-  // NEMSU: Size kept at 80px
   drawLogoCustom(logoNemsu, (W / 2) - spacing, 80);
-  // CITE: Increased to 135px and pulled closer to text center for alignment
   drawLogoCustom(logoCite, (W / 2) + spacing, 135);
 
   // 2. HEADER TEXT
@@ -107,15 +106,23 @@ export const generateCertificate = async (participantName, trainingDay = null, r
   ctx.font = '14px Arial';
   const bodyY = 360; 
   const lineGap = 22;
-  ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, bodyY);
-  ctx.fillText(`held virtually via Google Meet on ${data.month} ${getOrdinal(data.day)}, ${data.year} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
-  ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, bodyY + (lineGap * 2));
+
+  if (role === 'Speaker') {
+    ctx.fillText('in grateful recognition for serving as Resource Speaker during the DATA INSIGHTS 2026: Virtual Training Series', W / 2, bodyY);
+    ctx.fillText(`on Data Mining Concepts, Techniques, and Applications held virtually via Google Meet on ${plainDate}`, W / 2, bodyY + lineGap);
+    ctx.fillText(`from ${data.time}. Your meaningful contribution to the success of this academic training activity`, W / 2, bodyY + (lineGap * 2));
+    ctx.fillText('and to the advancement of student learning is sincerely appreciated.', W / 2, bodyY + (lineGap * 3));
+  } else {
+    ctx.fillText('for actively participating in the DATA INSIGHTS 2026: Virtual Training Series on Data Mining Concepts, Techniques, and Applications', W / 2, bodyY);
+    ctx.fillText(`held virtually via Google Meet on ${plainDate} from ${data.time}, in recognition of commitment`, W / 2, bodyY + lineGap);
+    ctx.fillText('to learning and professional development through active engagement in the training sessions.', W / 2, bodyY + (lineGap * 2));
+  }
 
   // 6. FOOTER
   ctx.font = '14px Arial';
-  const footerY = 465;
-  ctx.fillText(`Given this ${getOrdinal(data.day)} of ${data.month}, ${data.year} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, footerY);
-  ctx.fillText('Lianga, Surigao del Sur.', W / 2, footerY + 20);
+  const footerY = role === 'Speaker' ? 485 : 465; // Push down slightly for speakers
+  ctx.fillText(`Given this ${ordinalDate} at North Eastern Mindanao State University — Lianga Campus,`, W / 2, footerY);
+  ctx.fillText('Lianga, Surigao del Sur, Philippines.', W / 2, footerY + 20);
 
   // 7. SIGNATURE
   const goldSigCanvas = getGoldSignature(logoSig);
